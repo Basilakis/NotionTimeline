@@ -43,7 +43,7 @@ export async function getNotionDatabases(notion: Client, pageId: string) {
             });
 
             for (const block of response.results) {
-                if (block.type === "child_database") {
+                if ('type' in block && block.type === "child_database") {
                     const databaseId = block.id;
 
                     try {
@@ -69,12 +69,12 @@ export async function getNotionDatabases(notion: Client, pageId: string) {
     }
 }
 
-// Find get a Notion database with the matching title
-export async function findDatabaseByTitle(title: string) {
-    const databases = await getNotionDatabases();
+// Find a Notion database with the matching title
+export async function findDatabaseByTitle(notion: Client, pageId: string, title: string) {
+    const databases = await getNotionDatabases(notion, pageId);
 
     for (const db of databases) {
-        if (db.title && Array.isArray(db.title) && db.title.length > 0) {
+        if ('title' in db && db.title && Array.isArray(db.title) && db.title.length > 0) {
             const dbTitle = db.title[0]?.plain_text?.toLowerCase() || "";
             if (dbTitle === title.toLowerCase()) {
                 return db;
@@ -86,15 +86,15 @@ export async function findDatabaseByTitle(title: string) {
 }
 
 // Create a new database if one with a matching title does not exist
-export async function createDatabaseIfNotExists(title, properties) {
-    const existingDb = await findDatabaseByTitle(title);
+export async function createDatabaseIfNotExists(notion: Client, pageId: string, title: string, properties: any) {
+    const existingDb = await findDatabaseByTitle(notion, pageId, title);
     if (existingDb) {
         return existingDb;
     }
     return await notion.databases.create({
         parent: {
             type: "page_id",
-            page_id: NOTION_PAGE_ID
+            page_id: pageId
         },
         title: [
             {
@@ -109,8 +109,8 @@ export async function createDatabaseIfNotExists(title, properties) {
 }
 
 
-// Example function to Get all tasks from the Notion database
-export async function getTasks(tasksDatabaseId: string) {
+// Get all tasks from a Notion database
+export async function getTasks(notion: Client, tasksDatabaseId: string) {
     try {
         const response = await notion.databases.query({
             database_id: tasksDatabaseId,
@@ -137,6 +137,7 @@ export async function getTasks(tasksDatabaseId: string) {
                 completedAt,
                 priority: properties.Priority?.select?.name || null,
                 status: properties.Status?.status?.name || null,
+                assignee: properties.Assignee?.people?.[0]?.name || null,
             };
         });
     } catch (error) {

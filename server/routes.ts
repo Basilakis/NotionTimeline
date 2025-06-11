@@ -1,21 +1,47 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTaskSchema, insertConfigurationSchema } from "@shared/schema";
-import { notion, getTasks as getNotionTasks, findDatabaseByTitle } from "./notion";
+import { insertTaskSchema, insertConfigurationSchema, insertUserSchema } from "@shared/schema";
+import { createNotionClient, getTasks as getNotionTasks, findDatabaseByTitle, extractPageIdFromUrl } from "./notion";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Get all tasks
+  // Authentication routes
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, name } = insertUserSchema.parse(req.body);
+      
+      let user = await storage.getUserByEmail(email);
+      if (!user) {
+        user = await storage.createUser({ email, name });
+      } else {
+        await storage.updateUserLastLogin(email);
+      }
+      
+      res.json(user);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid login data",
+          errors: error.errors 
+        });
+      }
+      console.error("Error during login:", error);
+      res.status(500).json({ message: "Failed to login" });
+    }
+  });
+
+  // Get all tasks for a user
   app.get("/api/tasks", async (req, res) => {
     try {
       const { status } = req.query;
+      const userEmail = req.headers['x-user-email'] as string;
       let tasks;
       
       if (status && typeof status === 'string') {
-        tasks = await storage.getTasksByStatus(status);
+        tasks = await storage.getTasksByStatus(status, userEmail);
       } else {
-        tasks = await storage.getTasks();
+        tasks = await storage.getTasks(userEmail);
       }
       
       res.json(tasks);
@@ -45,17 +71,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Sync tasks from Notion
   app.post("/api/tasks/sync", async (req, res) => {
     try {
-      const customerId = req.headers['x-customer-id'] as string || 'default';
-      const config = await storage.getConfiguration(customerId);
-      
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(400).json({ 
+          message: "User email is required" 
+        });
+      }
+
+      const config = await storage.getConfiguration(userEmail);
       if (!config) {
         return res.status(400).json({ 
           message: "Configuration not found. Please set up Notion integration first." 
         });
       }
 
+      // Create Notion client with user's secret
+      const notion = createNotionClient(config.notionSecret);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+
       // Find the tasks database
-      const tasksDb = await findDatabaseByTitle(config.databaseName);
+      const tasksDb = await findDatabaseByTitle(notion, pageId, config.databaseName);
       if (!tasksDb) {
         return res.status(404).json({ 
           message: `Database '${config.databaseName}' not found in Notion` 
@@ -63,7 +98,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Fetch tasks from Notion
-      const notionTasks = await getNotionTasks(tasksDb.id);
+      const notionTasks = await getNotionTasks(notion, tasksDb.id);
       
       // Sync tasks to local storage
       const syncedTasks = [];
@@ -120,10 +155,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Configuration routes
-  app.get("/api/config/:customerId", async (req, res) => {
+  app.get("/api/config/:userEmail", async (req, res) => {
     try {
-      const { customerId } = req.params;
-      const config = await storage.getConfiguration(customerId);
+      const { userEmail } = req.params;
+      const config = await storage.getConfiguration(userEmail);
       
       if (!config) {
         return res.status(404).json({ message: "Configuration not found" });
@@ -158,12 +193,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/config/:customerId", async (req, res) => {
+  app.put("/api/config/:userEmail", async (req, res) => {
     try {
-      const { customerId } = req.params;
+      const { userEmail } = req.params;
       const configUpdate = insertConfigurationSchema.partial().parse(req.body);
       
-      const updatedConfig = await storage.updateConfiguration(customerId, configUpdate);
+      const updatedConfig = await storage.updateConfiguration(userEmail, configUpdate);
       if (!updatedConfig) {
         return res.status(404).json({ message: "Configuration not found" });
       }
