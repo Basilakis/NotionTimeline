@@ -8,11 +8,32 @@ export interface TaskStats {
   notStarted: number;
 }
 
+function getUserEmail(): string {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return user.email || '';
+}
+
 export const api = {
   // Task operations
   async getTasks(status?: string): Promise<Task[]> {
     const url = status ? `/api/tasks?status=${status}` : '/api/tasks';
-    const response = await apiRequest('GET', url);
+    const userEmail = getUserEmail();
+    const headers: Record<string, string> = {};
+    if (userEmail) {
+      headers['x-user-email'] = userEmail;
+    }
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch tasks');
+    }
+    
     return response.json();
   },
 
@@ -21,10 +42,11 @@ export const api = {
     return response.json();
   },
 
-  async syncTasks(customerId?: string): Promise<{ message: string; tasks: Task[] }> {
+  async syncTasks(): Promise<{ message: string; tasks: Task[] }> {
+    const userEmail = getUserEmail();
     const headers: Record<string, string> = {};
-    if (customerId) {
-      headers['x-customer-id'] = customerId;
+    if (userEmail) {
+      headers['x-user-email'] = userEmail;
     }
     
     const response = await fetch('/api/tasks/sync', {
@@ -47,8 +69,8 @@ export const api = {
   },
 
   // Configuration operations
-  async getConfiguration(customerId: string): Promise<Configuration> {
-    const response = await apiRequest('GET', `/api/config/${customerId}`);
+  async getConfiguration(userEmail: string): Promise<Configuration> {
+    const response = await apiRequest('GET', `/api/config/${encodeURIComponent(userEmail)}`);
     return response.json();
   },
 
@@ -58,10 +80,10 @@ export const api = {
   },
 
   async updateConfiguration(
-    customerId: string, 
-    config: Partial<Omit<Configuration, 'id' | 'customerId' | 'createdAt' | 'updatedAt'>>
+    userEmail: string, 
+    config: Partial<Omit<Configuration, 'id' | 'userEmail' | 'createdAt' | 'updatedAt'>>
   ): Promise<Configuration> {
-    const response = await apiRequest('PUT', `/api/config/${customerId}`, config);
+    const response = await apiRequest('PUT', `/api/config/${encodeURIComponent(userEmail)}`, config);
     return response.json();
   },
 };

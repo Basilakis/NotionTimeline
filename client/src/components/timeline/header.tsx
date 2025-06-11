@@ -1,5 +1,15 @@
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Settings, Database, History } from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { RefreshCw, Settings, Database, History, LogOut, User } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 
 interface HeaderProps {
   filterStatus: string;
@@ -9,6 +19,20 @@ interface HeaderProps {
 }
 
 export function Header({ filterStatus, onFilterChange, onSync, isLoading }: HeaderProps) {
+  const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const handleLogout = () => {
+    logout();
+    setLocation('/');
+  };
+
+  const getUserInitials = (name: string | null, email: string) => {
+    if (name) {
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+    return email.slice(0, 2).toUpperCase();
+  };
   const filterButtons = [
     { key: 'all', label: 'All Tasks' },
     { key: 'pending', label: 'Pending' },
@@ -61,13 +85,39 @@ export function Header({ filterStatus, onFilterChange, onSync, isLoading }: Head
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
             
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-gray-500 hover:text-blue-700 hover:bg-gray-100"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-blue-700 text-white text-xs">
+                      {user ? getUserInitials(user.name, user.email) : 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="flex items-center justify-start gap-2 p-2">
+                  <div className="flex flex-col space-y-1 leading-none">
+                    {user?.name && (
+                      <p className="font-medium">{user.name}</p>
+                    )}
+                    <p className="w-[200px] truncate text-sm text-muted-foreground">
+                      {user?.email}
+                    </p>
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setLocation('/setup')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

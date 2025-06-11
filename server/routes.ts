@@ -138,7 +138,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get task statistics
   app.get("/api/tasks/stats", async (req, res) => {
     try {
-      const allTasks = await storage.getTasks();
+      const userEmail = req.headers['x-user-email'] as string;
+      const allTasks = await storage.getTasks(userEmail);
       
       const stats = {
         total: allTasks.length,
