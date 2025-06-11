@@ -33,8 +33,22 @@ export const configurations = pgTable("configurations", {
   userEmail: text("user_email").notNull().unique(),
   notionPageUrl: text("notion_page_url").notNull(),
   notionSecret: text("notion_secret").notNull(),
-  databaseName: text("database_name").notNull().default("Tasks"),
+  workspaceName: text("workspace_name").notNull().default("My Workspace"),
   theme: text("theme").default("default"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const notionViews = pgTable("notion_views", {
+  id: serial("id").primaryKey(),
+  userEmail: text("user_email").notNull(),
+  viewType: text("view_type").notNull(), // "tasks", "materials", "notes", "payments"
+  pageId: text("page_id").notNull(),
+  databaseId: text("database_id"),
+  title: text("title").notNull(),
+  icon: text("icon"),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -56,6 +70,12 @@ export const insertConfigurationSchema = createInsertSchema(configurations).omit
   updatedAt: true,
 });
 
+export const insertNotionViewSchema = createInsertSchema(notionViews).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -64,3 +84,6 @@ export type Task = typeof tasks.$inferSelect;
 
 export type InsertConfiguration = z.infer<typeof insertConfigurationSchema>;
 export type Configuration = typeof configurations.$inferSelect;
+
+export type InsertNotionView = z.infer<typeof insertNotionViewSchema>;
+export type NotionView = typeof notionViews.$inferSelect;

@@ -89,16 +89,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const notion = createNotionClient(config.notionSecret);
       const pageId = extractPageIdFromUrl(config.notionPageUrl);
 
-      // Find the tasks database
-      const tasksDb = await findDatabaseByTitle(notion, pageId, config.databaseName);
-      if (!tasksDb) {
+      // Get the user's task view configuration
+      const taskView = await storage.getNotionViewByType(userEmail, 'tasks');
+      if (!taskView || !taskView.databaseId) {
         return res.status(404).json({ 
-          message: `Database '${config.databaseName}' not found in Notion` 
+          message: "Task database view not configured. Please set up your views first." 
         });
       }
 
       // Fetch tasks from Notion
-      const notionTasks = await getNotionTasks(notion, tasksDb.id);
+      const notionTasks = await getNotionTasks(notion, taskView.databaseId);
       
       // Sync tasks to local storage
       const syncedTasks = [];

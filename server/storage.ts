@@ -1,4 +1,4 @@
-import { users, tasks, configurations, type User, type InsertUser, type Task, type InsertTask, type Configuration, type InsertConfiguration } from "@shared/schema";
+import { users, tasks, configurations, notionViews, type User, type InsertUser, type Task, type InsertTask, type Configuration, type InsertConfiguration, type NotionView, type InsertNotionView } from "@shared/schema";
 
 export interface IStorage {
   // User methods
@@ -21,23 +21,35 @@ export interface IStorage {
   getConfiguration(userEmail: string): Promise<Configuration | undefined>;
   createConfiguration(config: InsertConfiguration): Promise<Configuration>;
   updateConfiguration(userEmail: string, config: Partial<InsertConfiguration>): Promise<Configuration | undefined>;
+
+  // NotionView methods
+  getNotionViews(userEmail: string): Promise<NotionView[]>;
+  getNotionView(id: number): Promise<NotionView | undefined>;
+  getNotionViewByType(userEmail: string, viewType: string): Promise<NotionView | undefined>;
+  createNotionView(view: InsertNotionView): Promise<NotionView>;
+  updateNotionView(id: number, view: Partial<InsertNotionView>): Promise<NotionView | undefined>;
+  deleteNotionView(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private tasks: Map<number, Task>;
   private configurations: Map<string, Configuration>;
+  private notionViews: Map<number, NotionView>;
   private currentUserId: number;
   private currentTaskId: number;
   private currentConfigId: number;
+  private currentViewId: number;
 
   constructor() {
     this.users = new Map();
     this.tasks = new Map();
     this.configurations = new Map();
+    this.notionViews = new Map();
     this.currentUserId = 1;
     this.currentTaskId = 1;
     this.currentConfigId = 1;
+    this.currentViewId = 1;
   }
 
   // User methods
@@ -173,7 +185,7 @@ export class MemStorage implements IStorage {
       userEmail: insertConfig.userEmail,
       notionPageUrl: insertConfig.notionPageUrl,
       notionSecret: insertConfig.notionSecret,
-      databaseName: insertConfig.databaseName || "Tasks",
+      workspaceName: insertConfig.workspaceName || "My Workspace",
       theme: insertConfig.theme || null,
       createdAt: now,
       updatedAt: now
@@ -193,6 +205,59 @@ export class MemStorage implements IStorage {
     };
     this.configurations.set(userEmail, updatedConfig);
     return updatedConfig;
+  }
+
+  // NotionView methods
+  async getNotionViews(userEmail: string): Promise<NotionView[]> {
+    return Array.from(this.notionViews.values())
+      .filter(view => view.userEmail === userEmail)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async getNotionView(id: number): Promise<NotionView | undefined> {
+    return this.notionViews.get(id);
+  }
+
+  async getNotionViewByType(userEmail: string, viewType: string): Promise<NotionView | undefined> {
+    return Array.from(this.notionViews.values())
+      .find(view => view.userEmail === userEmail && view.viewType === viewType);
+  }
+
+  async createNotionView(insertView: InsertNotionView): Promise<NotionView> {
+    const id = this.currentViewId++;
+    const now = new Date();
+    const view: NotionView = {
+      id,
+      userEmail: insertView.userEmail,
+      viewType: insertView.viewType,
+      pageId: insertView.pageId,
+      databaseId: insertView.databaseId || null,
+      title: insertView.title,
+      icon: insertView.icon || null,
+      isActive: insertView.isActive ?? true,
+      sortOrder: insertView.sortOrder || 0,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.notionViews.set(id, view);
+    return view;
+  }
+
+  async updateNotionView(id: number, viewUpdate: Partial<InsertNotionView>): Promise<NotionView | undefined> {
+    const existingView = this.notionViews.get(id);
+    if (!existingView) return undefined;
+
+    const updatedView: NotionView = {
+      ...existingView,
+      ...viewUpdate,
+      updatedAt: new Date()
+    };
+    this.notionViews.set(id, updatedView);
+    return updatedView;
+  }
+
+  async deleteNotionView(id: number): Promise<boolean> {
+    return this.notionViews.delete(id);
   }
 }
 
