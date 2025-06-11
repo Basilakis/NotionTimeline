@@ -35,7 +35,8 @@ function Router() {
 
   return (
     <Switch>
-      <Route path="/" component={Timeline} />
+      <Route path="/" component={Workspace} />
+      <Route path="/timeline" component={Timeline} />
       <Route path="/setup" component={Setup} />
       <Route component={NotFound} />
     </Switch>

@@ -137,6 +137,7 @@ export async function getTasks(notion: Client, tasksDatabaseId: string) {
                 completedAt,
                 priority: properties.Priority?.select?.name || null,
                 status: properties.Status?.status?.name || null,
+                userEmail: properties.UserEmail?.email || properties["User Email"]?.email || null,
                 assignee: properties.Assignee?.people?.[0]?.name || null,
             };
         });
