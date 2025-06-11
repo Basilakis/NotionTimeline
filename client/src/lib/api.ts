@@ -64,7 +64,23 @@ export const api = {
   },
 
   async getTaskStats(): Promise<TaskStats> {
-    const response = await apiRequest('GET', '/api/tasks/stats');
+    const userEmail = getUserEmail();
+    const headers: Record<string, string> = {};
+    if (userEmail) {
+      headers['x-user-email'] = userEmail;
+    }
+    
+    const response = await fetch('/api/tasks/stats', {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch task statistics');
+    }
+    
     return response.json();
   },
 
