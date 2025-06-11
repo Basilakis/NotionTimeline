@@ -211,7 +211,7 @@ export class MemStorage implements IStorage {
   async getNotionViews(userEmail: string): Promise<NotionView[]> {
     return Array.from(this.notionViews.values())
       .filter(view => view.userEmail === userEmail)
-      .sort((a, b) => a.sortOrder - b.sortOrder);
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   }
 
   async getNotionView(id: number): Promise<NotionView | undefined> {

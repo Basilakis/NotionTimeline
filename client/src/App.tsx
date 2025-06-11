@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Timeline from "@/pages/timeline";
+import Workspace from "@/pages/workspace";
 import Login from "@/pages/login";
 import Setup from "@/pages/setup";
 
