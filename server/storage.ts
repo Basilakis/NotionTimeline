@@ -3,12 +3,13 @@ import { users, tasks, configurations, type User, type InsertUser, type Task, ty
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserLastLogin(email: string): Promise<User | undefined>;
 
   // Task methods
-  getTasks(): Promise<Task[]>;
-  getTasksByStatus(status: string): Promise<Task[]>;
+  getTasks(userEmail?: string): Promise<Task[]>;
+  getTasksByStatus(status: string, userEmail?: string): Promise<Task[]>;
   getTask(id: number): Promise<Task | undefined>;
   getTaskByNotionId(notionId: string): Promise<Task | undefined>;
   createTask(task: InsertTask): Promise<Task>;
@@ -17,9 +18,9 @@ export interface IStorage {
   upsertTaskByNotionId(task: InsertTask): Promise<Task>;
 
   // Configuration methods
-  getConfiguration(customerId: string): Promise<Configuration | undefined>;
+  getConfiguration(userEmail: string): Promise<Configuration | undefined>;
   createConfiguration(config: InsertConfiguration): Promise<Configuration>;
-  updateConfiguration(customerId: string, config: Partial<InsertConfiguration>): Promise<Configuration | undefined>;
+  updateConfiguration(userEmail: string, config: Partial<InsertConfiguration>): Promise<Configuration | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -44,32 +45,59 @@ export class MemStorage implements IStorage {
     return this.users.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
+  async getUserByEmail(email: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+      (user) => user.email === email,
     );
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
+    const now = new Date();
+    const user: User = { 
+      ...insertUser, 
+      id,
+      name: insertUser.name || null,
+      createdAt: now,
+      lastLoginAt: null
+    };
     this.users.set(id, user);
     return user;
   }
 
+  async updateUserLastLogin(email: string): Promise<User | undefined> {
+    const user = await this.getUserByEmail(email);
+    if (!user) return undefined;
+    
+    const updatedUser: User = {
+      ...user,
+      lastLoginAt: new Date()
+    };
+    this.users.set(user.id, updatedUser);
+    return updatedUser;
+  }
+
   // Task methods
-  async getTasks(): Promise<Task[]> {
-    return Array.from(this.tasks.values()).sort((a, b) => 
+  async getTasks(userEmail?: string): Promise<Task[]> {
+    let tasks = Array.from(this.tasks.values());
+    if (userEmail) {
+      // In real implementation, tasks would be filtered by user
+      // For now, return all tasks as this is in-memory storage
+    }
+    return tasks.sort((a, b) => 
       new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     );
   }
 
-  async getTasksByStatus(status: string): Promise<Task[]> {
-    return Array.from(this.tasks.values())
-      .filter(task => task.status === status)
-      .sort((a, b) => 
-        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-      );
+  async getTasksByStatus(status: string, userEmail?: string): Promise<Task[]> {
+    let tasks = Array.from(this.tasks.values()).filter(task => task.status === status);
+    if (userEmail) {
+      // In real implementation, tasks would be filtered by user
+      // For now, return all tasks as this is in-memory storage
+    }
+    return tasks.sort((a, b) => 
+      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
   }
 
   async getTask(id: number): Promise<Task | undefined> {
@@ -84,8 +112,19 @@ export class MemStorage implements IStorage {
     const id = this.currentTaskId++;
     const now = new Date();
     const task: Task = { 
-      ...insertTask, 
-      id, 
+      id,
+      notionId: insertTask.notionId,
+      title: insertTask.title,
+      description: insertTask.description || null,
+      status: insertTask.status,
+      assignee: insertTask.assignee || null,
+      dueDate: insertTask.dueDate || null,
+      completedAt: insertTask.completedAt || null,
+      priority: insertTask.priority || null,
+      section: insertTask.section || null,
+      progress: insertTask.progress || null,
+      estimatedHours: insertTask.estimatedHours || null,
+      notionUrl: insertTask.notionUrl || null,
       createdAt: now,
       updatedAt: now
     };
@@ -122,25 +161,29 @@ export class MemStorage implements IStorage {
   }
 
   // Configuration methods
-  async getConfiguration(customerId: string): Promise<Configuration | undefined> {
-    return this.configurations.get(customerId);
+  async getConfiguration(userEmail: string): Promise<Configuration | undefined> {
+    return this.configurations.get(userEmail);
   }
 
   async createConfiguration(insertConfig: InsertConfiguration): Promise<Configuration> {
     const id = this.currentConfigId++;
     const now = new Date();
     const config: Configuration = {
-      ...insertConfig,
       id,
+      userEmail: insertConfig.userEmail,
+      notionPageUrl: insertConfig.notionPageUrl,
+      notionSecret: insertConfig.notionSecret,
+      databaseName: insertConfig.databaseName || "Tasks",
+      theme: insertConfig.theme || null,
       createdAt: now,
       updatedAt: now
     };
-    this.configurations.set(insertConfig.customerId, config);
+    this.configurations.set(insertConfig.userEmail, config);
     return config;
   }
 
-  async updateConfiguration(customerId: string, configUpdate: Partial<InsertConfiguration>): Promise<Configuration | undefined> {
-    const existingConfig = this.configurations.get(customerId);
+  async updateConfiguration(userEmail: string, configUpdate: Partial<InsertConfiguration>): Promise<Configuration | undefined> {
+    const existingConfig = this.configurations.get(userEmail);
     if (!existingConfig) return undefined;
 
     const updatedConfig: Configuration = {
@@ -148,7 +191,7 @@ export class MemStorage implements IStorage {
       ...configUpdate,
       updatedAt: new Date()
     };
-    this.configurations.set(customerId, updatedConfig);
+    this.configurations.set(userEmail, updatedConfig);
     return updatedConfig;
   }
 }

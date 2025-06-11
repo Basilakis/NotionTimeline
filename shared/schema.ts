@@ -4,8 +4,10 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastLoginAt: timestamp("last_login_at"),
 });
 
 export const tasks = pgTable("tasks", {
@@ -28,7 +30,7 @@ export const tasks = pgTable("tasks", {
 
 export const configurations = pgTable("configurations", {
   id: serial("id").primaryKey(),
-  customerId: text("customer_id").notNull().unique(),
+  userEmail: text("user_email").notNull().unique(),
   notionPageUrl: text("notion_page_url").notNull(),
   notionSecret: text("notion_secret").notNull(),
   databaseName: text("database_name").notNull().default("Tasks"),
@@ -38,8 +40,8 @@ export const configurations = pgTable("configurations", {
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+  email: true,
+  name: true,
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).omit({

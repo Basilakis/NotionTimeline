@@ -1,55 +1,56 @@
 import { Client } from "@notionhq/client";
+import { NotionAPI } from "notion-client";
 
-// Initialize Notion client
-export const notion = new Client({
-    auth: process.env.NOTION_INTEGRATION_SECRET!,
-});
+// Create a Notion client for a specific user configuration
+export function createNotionClient(secret: string): Client {
+    return new Client({
+        auth: secret,
+    });
+}
+
+// Create NotionAPI client for react-notion-x integration
+export function createNotionAPI(): NotionAPI {
+    return new NotionAPI();
+}
 
 // Extract the page ID from the Notion page URL
-function extractPageIdFromUrl(pageUrl: string): string {
+export function extractPageIdFromUrl(pageUrl: string): string {
     const match = pageUrl.match(/([a-f0-9]{32})(?:[?#]|$)/i);
     if (match && match[1]) {
         return match[1];
     }
 
-    throw Error("Failed to extract page ID");
+    throw Error("Failed to extract page ID from URL");
 }
 
-export const NOTION_PAGE_ID = extractPageIdFromUrl(process.env.NOTION_PAGE_URL!);
-
 /**
- * Lists all child databases contained within NOTION_PAGE_ID
+ * Lists all child databases contained within a Notion page
+ * @param notion - Notion client instance
+ * @param pageId - The page ID to search for databases
  * @returns {Promise<Array<{id: string, title: string}>>} - Array of database objects with id and title
  */
-export async function getNotionDatabases() {
-
-    // Array to store the child databases
+export async function getNotionDatabases(notion: Client, pageId: string) {
     const childDatabases = [];
 
     try {
-        // Query all child blocks in the specified page
         let hasMore = true;
         let startCursor: string | undefined = undefined;
 
         while (hasMore) {
             const response = await notion.blocks.children.list({
-                block_id: NOTION_PAGE_ID,
+                block_id: pageId,
                 start_cursor: startCursor,
             });
 
-            // Process the results
             for (const block of response.results) {
-                // Check if the block is a child database
                 if (block.type === "child_database") {
                     const databaseId = block.id;
 
-                    // Retrieve the database title
                     try {
                         const databaseInfo = await notion.databases.retrieve({
                             database_id: databaseId,
                         });
 
-                        // Add the database to our list
                         childDatabases.push(databaseInfo);
                     } catch (error) {
                         console.error(`Error retrieving database ${databaseId}:`, error);
@@ -57,7 +58,6 @@ export async function getNotionDatabases() {
                 }
             }
 
-            // Check if there are more results to fetch
             hasMore = response.has_more;
             startCursor = response.next_cursor || undefined;
         }
