@@ -49,12 +49,12 @@ export default function Workspace() {
     }
   });
 
-  // Fetch Notion page data for the active view
+  // Fetch filtered database data for the active view
   const activeViewData = views?.find(v => v.viewType === activeView);
   
-  const { data: notionPageData, isLoading: pageLoading } = useQuery({
-    queryKey: ['/api/notion-page', activeViewData?.pageId],
-    enabled: !!activeViewData?.pageId,
+  const { data: databaseData, isLoading: pageLoading } = useQuery({
+    queryKey: ['/api/notion-database', activeViewData?.databaseId],
+    enabled: !!activeViewData?.databaseId,
     retry: false,
     meta: {
       headers: {
@@ -96,12 +96,6 @@ export default function Workspace() {
     }
   });
 
-  useEffect(() => {
-    if (notionPageData) {
-      setPageData(notionPageData);
-    }
-  }, [notionPageData]);
-
   if (viewsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -120,30 +114,13 @@ export default function Workspace() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              Setup Your Workspace
+              No Views Configured
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              No Notion views found. Let's discover your workspace structure and set up your views.
+              No database views have been set up for your account. Please contact your administrator to configure access to your databases.
             </p>
-            <Button 
-              onClick={() => discoverWorkspace.mutate()}
-              disabled={discoverWorkspace.isPending}
-              className="w-full"
-            >
-              {discoverWorkspace.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Discovering Workspace...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Discover Workspace
-                </>
-              )}
-            </Button>
           </CardContent>
         </Card>
       </div>
@@ -197,17 +174,74 @@ export default function Workspace() {
                       <span>Loading {view.title.toLowerCase()}...</span>
                     </div>
                   </div>
-                ) : pageData && activeView === view.viewType ? (
-                  <div className="notion-container">
-                    <NotionRenderer
-                      recordMap={pageData}
-                      fullPage={false}
-                      darkMode={false}
-                      disableHeader={true}
-                      components={{
-                        // Custom components can be added here
-                      }}
-                    />
+                ) : databaseData && activeView === view.viewType ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        {databaseData.total_count} records found
+                      </p>
+                    </div>
+                    
+                    {databaseData.records.length > 0 ? (
+                      <div className="grid gap-4">
+                        {databaseData.records.map((record: any) => (
+                          <Card key={record.notionId} className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="font-medium mb-2">{record.title}</h3>
+                                
+                                {/* Render common properties */}
+                                <div className="space-y-2 text-sm">
+                                  {record.properties.Status?.select?.name && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-muted-foreground">Status:</span>
+                                      <Badge variant="secondary">
+                                        {record.properties.Status.select.name}
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  
+                                  {record.properties.Priority?.select?.name && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-muted-foreground">Priority:</span>
+                                      <Badge variant={
+                                        record.properties.Priority.select.name === 'High' ? 'destructive' :
+                                        record.properties.Priority.select.name === 'Medium' ? 'default' : 'secondary'
+                                      }>
+                                        {record.properties.Priority.select.name}
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  
+                                  {record.properties.Description?.rich_text?.[0]?.plain_text && (
+                                    <div>
+                                      <span className="text-muted-foreground">Description:</span>
+                                      <p className="mt-1">{record.properties.Description.rich_text[0].plain_text}</p>
+                                    </div>
+                                  )}
+                                  
+                                  {record.properties.DueDate?.date?.start && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-muted-foreground">Due:</span>
+                                      <span>{new Date(record.properties.DueDate.date.start).toLocaleDateString()}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="text-xs text-muted-foreground">
+                                Updated: {new Date(record.lastEditedTime).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p>No records found for your account in this database.</p>
+                        <p className="text-xs mt-2">Make sure your email is added to the "User Email" field in the Notion database.</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">

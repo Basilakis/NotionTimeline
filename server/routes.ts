@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertTaskSchema, insertConfigurationSchema, insertUserSchema } from "@shared/schema";
-import { createNotionClient, createNotionAPI, getTasks as getNotionTasks, findDatabaseByTitle, extractPageIdFromUrl, getNotionDatabases } from "./notion";
+import { createNotionClient, createNotionAPI, getTasks as getNotionTasks, findDatabaseByTitle, extractPageIdFromUrl, getNotionDatabases, getFilteredDatabaseRecords } from "./notion";
 import { insertNotionViewSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -98,8 +98,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Fetch tasks from Notion
-      const notionTasks = await getNotionTasks(notion, taskView.databaseId);
+      // Fetch tasks from Notion filtered by user email
+      const notionTasks = await getNotionTasks(notion, taskView.databaseId, userEmail);
       
       // Sync tasks to local storage
       const syncedTasks = [];
@@ -253,43 +253,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get Notion page content for react-notion-x rendering
-  app.get("/api/notion-page/:pageId", async (req, res) => {
+  // Get filtered database records for a specific view
+  app.get("/api/notion-database/:databaseId", async (req, res) => {
     try {
-      const { pageId } = req.params;
+      const { databaseId } = req.params;
       const userEmail = req.headers['x-user-email'] as string;
       
       if (!userEmail) {
         return res.status(400).json({ message: "User email is required" });
       }
 
-      const config = await storage.getConfiguration(userEmail);
-      if (!config) {
-        return res.status(400).json({ message: "Configuration not found" });
+      // Get admin configuration (since you own all databases)
+      const adminConfig = await storage.getConfiguration('admin') || 
+                          await storage.getConfiguration(process.env.ADMIN_EMAIL || '');
+      
+      if (!adminConfig) {
+        return res.status(400).json({ message: "Admin configuration not found. Please set up the workspace first." });
       }
 
-      // Use NotionAPI from notion-client for react-notion-x
-      const notionAPI = createNotionAPI();
-      const recordMap = await notionAPI.getPage(pageId);
+      const notion = createNotionClient(adminConfig.notionSecret);
       
-      res.json(recordMap);
+      // Get filtered records for this user
+      const records = await getFilteredDatabaseRecords(notion, databaseId, userEmail);
+      
+      res.json({
+        database_id: databaseId,
+        user_email: userEmail,
+        records: records,
+        total_count: records.length
+      });
     } catch (error) {
-      console.error("Error fetching notion page:", error);
-      res.status(500).json({ message: "Failed to fetch notion page" });
+      console.error("Error fetching filtered database:", error);
+      res.status(500).json({ message: "Failed to fetch database records" });
     }
   });
 
-  // Discover and setup user's Notion workspace structure
-  app.post("/api/notion-workspace/discover", async (req, res) => {
+  // Setup admin workspace and discover databases (admin only)
+  app.post("/api/admin/workspace/setup", async (req, res) => {
+    try {
+      const { notionSecret, notionPageUrl, adminEmail } = req.body;
+      
+      if (!notionSecret || !notionPageUrl || !adminEmail) {
+        return res.status(400).json({ message: "Notion secret, page URL, and admin email are required" });
+      }
+
+      // Create admin configuration
+      const adminConfig = await storage.createConfiguration({
+        userEmail: adminEmail,
+        notionSecret,
+        notionPageUrl,
+        workspaceName: "Admin Workspace"
+      });
+
+      const notion = createNotionClient(notionSecret);
+      const pageId = extractPageIdFromUrl(notionPageUrl);
+
+      // Get all databases from the workspace
+      const databases = await getNotionDatabases(notion, pageId);
+      
+      res.json({
+        message: `Admin workspace configured with ${databases.length} databases`,
+        adminConfig,
+        databases
+      });
+    } catch (error) {
+      console.error("Error setting up admin workspace:", error);
+      res.status(500).json({ message: "Failed to setup admin workspace" });
+    }
+  });
+
+  // Create user views for specific databases
+  app.post("/api/user/views/setup", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
+      const { views } = req.body; // Array of { viewType, databaseId, title }
+      
       if (!userEmail) {
         return res.status(400).json({ message: "User email is required" });
       }
 
-      const config = await storage.getConfiguration(userEmail);
+      const createdViews = [];
+      for (const viewData of views) {
+        const view = await storage.createNotionView({
+          userEmail,
+          viewType: viewData.viewType,
+          pageId: viewData.databaseId,
+          databaseId: viewData.databaseId,
+          title: viewData.title,
+          icon: getIconForViewType(viewData.viewType),
+          isActive: true,
+          sortOrder: getSortOrderForViewType(viewData.viewType)
+        });
+        createdViews.push(view);
+      }
+
+      res.json({
+        message: `Created ${createdViews.length} views for ${userEmail}`,
+        views: createdViews
+      });
+    } catch (error) {
+      console.error("Error setting up user views:", error);
+      res.status(500).json({ message: "Failed to setup user views" });
+    }
+  });
+
+  // Auto-discover and setup views based on database names (admin helper)
+  app.post("/api/admin/workspace/auto-setup", async (req, res) => {
+    try {
+      const adminEmail = req.body.adminEmail || process.env.ADMIN_EMAIL;
+      
+      if (!adminEmail) {
+        return res.status(400).json({ message: "Admin email is required" });
+      }
+
+      const config = await storage.getConfiguration(adminEmail);
       if (!config) {
-        return res.status(400).json({ message: "Configuration not found" });
+        return res.status(400).json({ message: "Admin configuration not found" });
       }
 
       const notion = createNotionClient(config.notionSecret);
@@ -298,52 +377,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all databases from the workspace
       const databases = await getNotionDatabases(notion, pageId);
       
-      // Create default views based on database names
-      const defaultViewTypes = [
-        { type: 'tasks', keywords: ['task', 'todo', 'project'] },
-        { type: 'materials', keywords: ['material', 'inventory', 'stock'] },
-        { type: 'notes', keywords: ['note', 'doc', 'knowledge'] },
-        { type: 'payments', keywords: ['payment', 'invoice', 'finance'] }
-      ];
-
-      const createdViews = [];
-      for (const db of databases) {
-        if ('title' in db && db.title && Array.isArray(db.title) && db.title.length > 0) {
-          const dbTitle = db.title[0]?.plain_text?.toLowerCase() || "";
-          
-          // Find matching view type
-          const viewType = defaultViewTypes.find(vt => 
-            vt.keywords.some(keyword => dbTitle.includes(keyword))
-          );
-
-          if (viewType) {
-            // Check if view already exists
-            const existingView = await storage.getNotionViewByType(userEmail, viewType.type);
-            if (!existingView) {
-              const view = await storage.createNotionView({
-                userEmail,
-                viewType: viewType.type,
-                pageId: db.id,
-                databaseId: db.id,
-                title: db.title[0]?.plain_text || viewType.type,
-                icon: getIconForViewType(viewType.type),
-                isActive: true,
-                sortOrder: getSortOrderForViewType(viewType.type)
-              });
-              createdViews.push(view);
-            }
-          }
-        }
-      }
-
       res.json({ 
-        message: `Discovered ${databases.length} databases and created ${createdViews.length} views`,
-        databases,
-        views: createdViews
+        message: `Found ${databases.length} databases in workspace`,
+        databases: databases.map(db => ({
+          id: db.id,
+          title: 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
+            ? db.title[0]?.plain_text 
+            : 'Untitled Database',
+          url: db.url
+        }))
       });
     } catch (error) {
-      console.error("Error discovering workspace:", error);
-      res.status(500).json({ message: "Failed to discover workspace structure" });
+      console.error("Error auto-setting up workspace:", error);
+      res.status(500).json({ message: "Failed to auto-setup workspace" });
     }
   });
 
