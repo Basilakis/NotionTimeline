@@ -33,7 +33,12 @@ export default function Login() {
         title: "Login successful",
         description: `Welcome ${user.name || user.email}!`,
       });
-      setLocation('/');
+      // Redirect admin user to admin page, others to workspace
+      if (user.email === "basiliskan@gmail.com") {
+        setLocation('/admin');
+      } else {
+        setLocation('/');
+      }
     },
     onError: (error) => {
       toast({

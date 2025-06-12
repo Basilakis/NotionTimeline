@@ -5,13 +5,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Database, Settings, CheckCircle } from "lucide-react";
+import { Loader2, Database, Settings, CheckCircle, LogOut } from "lucide-react";
 
 const adminSetupSchema = z.object({
   notionSecret: z.string().min(1, "Notion integration token is required"),
@@ -27,6 +28,7 @@ interface Database {
 
 export default function AdminSetup() {
   const { toast } = useToast();
+  const { user, logout } = useAuth();
   const [databases, setDatabases] = useState<Database[]>([]);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
 
@@ -113,11 +115,24 @@ export default function AdminSetup() {
 
   return (
     <div className="container mx-auto py-8 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Admin Workspace Setup</h1>
-        <p className="text-muted-foreground mt-2">
-          Configure your centralized Notion workspace. Users will access databases through email-based filtering.
-        </p>
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">Admin Workspace Setup</h1>
+          <p className="text-muted-foreground mt-2">
+            Configure your centralized Notion workspace. Users will access databases through email-based filtering.
+          </p>
+          {user && (
+            <p className="text-sm text-gray-600 mt-1">Logged in as: {user.email}</p>
+          )}
+        </div>
+        <Button 
+          variant="outline" 
+          onClick={logout}
+          className="flex items-center gap-2"
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </Button>
       </div>
 
       {!isSetupComplete ? (
