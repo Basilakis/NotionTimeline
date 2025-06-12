@@ -384,7 +384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           title: 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
             ? db.title[0]?.plain_text 
             : 'Untitled Database',
-          url: db.url
+          url: (db as any).url || `https://notion.so/${db.id.replace(/-/g, '')}`
         }))
       });
     } catch (error) {
