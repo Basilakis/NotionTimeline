@@ -33,11 +33,11 @@ export default function Login() {
         title: "Login successful",
         description: `Welcome ${user.name || user.email}!`,
       });
-      // Redirect admin user to admin page, others to workspace
+      // Force page refresh to update auth state and redirect
       if (user.email === "basiliskan@gmail.com") {
-        setLocation('/admin');
+        window.location.href = '/admin';
       } else {
-        setLocation('/');
+        window.location.href = '/';
       }
     },
     onError: (error) => {

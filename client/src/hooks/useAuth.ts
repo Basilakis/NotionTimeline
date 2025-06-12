@@ -28,6 +28,8 @@ export function useAuth() {
     localStorage.removeItem('user');
     localStorage.removeItem('userEmail');
     setUser(null);
+    // Force refresh to update auth state
+    window.location.href = '/';
   };
 
   return {
