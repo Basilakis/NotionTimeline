@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Timeline from "@/pages/timeline";
 import Workspace from "@/pages/workspace";
+import AdminSetup from "@/pages/admin-setup";
 import Login from "@/pages/login";
 import Setup from "@/pages/setup";
 
@@ -36,6 +37,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Workspace} />
+      <Route path="/admin" component={AdminSetup} />
       <Route path="/timeline" component={Timeline} />
       <Route path="/setup" component={Setup} />
       <Route component={NotFound} />

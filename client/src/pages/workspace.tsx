@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, Settings } from "lucide-react";
 
 // Import notion-x styles
@@ -25,6 +26,22 @@ interface NotionView {
   sortOrder: number | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+interface DatabaseData {
+  database_id: string;
+  user_email: string;
+  records: NotionRecord[];
+  total_count: number;
+}
+
+interface NotionRecord {
+  notionId: string;
+  title: string;
+  userEmail: string | null;
+  createdTime: string;
+  lastEditedTime: string;
+  properties: any;
 }
 
 function getUserEmail(): string {
@@ -52,7 +69,7 @@ export default function Workspace() {
   // Fetch filtered database data for the active view
   const activeViewData = views?.find(v => v.viewType === activeView);
   
-  const { data: databaseData, isLoading: pageLoading } = useQuery({
+  const { data: databaseData, isLoading: pageLoading } = useQuery<DatabaseData>({
     queryKey: ['/api/notion-database', activeViewData?.databaseId],
     enabled: !!activeViewData?.databaseId,
     retry: false,
@@ -174,7 +191,7 @@ export default function Workspace() {
                       <span>Loading {view.title.toLowerCase()}...</span>
                     </div>
                   </div>
-                ) : databaseData && activeView === view.viewType ? (
+                ) : databaseData && activeView === view.viewType && databaseData.records ? (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">
