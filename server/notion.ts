@@ -109,12 +109,59 @@ export async function createDatabaseIfNotExists(notion: Client, pageId: string, 
 }
 
 
-// Get all tasks from a Notion database
-export async function getTasks(notion: Client, tasksDatabaseId: string) {
+// Get filtered database records by user email
+export async function getFilteredDatabaseRecords(notion: Client, databaseId: string, userEmail: string) {
     try {
         const response = await notion.databases.query({
-            database_id: tasksDatabaseId,
+            database_id: databaseId,
+            filter: {
+                property: "User Email",
+                email: {
+                    equals: userEmail
+                }
+            }
         });
+
+        return response.results.map((page: any) => {
+            const properties = page.properties;
+            
+            const record = {
+                notionId: page.id,
+                title: properties.Title?.title?.[0]?.plain_text || 
+                       properties.Name?.title?.[0]?.plain_text || 
+                       "Untitled",
+                userEmail: properties.UserEmail?.email || properties["User Email"]?.email || null,
+                createdTime: page.created_time,
+                lastEditedTime: page.last_edited_time,
+                url: page.url,
+                properties: properties
+            };
+
+            return record;
+        });
+    } catch (error) {
+        console.error("Error fetching filtered database records:", error);
+        throw new Error("Failed to fetch database records");
+    }
+}
+
+// Get all tasks from a Notion database filtered by user email
+export async function getTasks(notion: Client, tasksDatabaseId: string, userEmail?: string) {
+    try {
+        let query: any = {
+            database_id: tasksDatabaseId,
+        };
+
+        if (userEmail) {
+            query.filter = {
+                property: "User Email",
+                email: {
+                    equals: userEmail
+                }
+            };
+        }
+
+        const response = await notion.databases.query(query);
 
         return response.results.map((page: any) => {
             const properties = page.properties;
