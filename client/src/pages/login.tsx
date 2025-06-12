@@ -11,12 +11,12 @@ import { Mail, User, History } from "lucide-react";
 
 interface LoginData {
   email: string;
-  name?: string;
+  password: string;
 }
 
 export default function Login() {
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -45,16 +45,16 @@ export default function Login() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
+    if (!email || !password) {
       toast({
-        title: "Email required",
-        description: "Please enter your email address.",
+        title: "Login required",
+        description: "Please enter both email and password.",
         variant: "destructive",
       });
       return;
     }
 
-    loginMutation.mutate({ email, name });
+    loginMutation.mutate({ email, password });
   };
 
   return (
@@ -66,7 +66,7 @@ export default function Login() {
             <CardTitle className="text-2xl font-bold text-gray-900">TaskFlow</CardTitle>
           </div>
           <p className="text-gray-600 text-sm">
-            Enter your email to access your task timeline
+            Enter your credentials to access your task timeline
           </p>
         </CardHeader>
         <CardContent>
@@ -90,18 +90,19 @@ export default function Login() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-medium text-gray-700">
-                Name (Optional)
+              <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                Password
               </Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your Name"
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
                   className="pl-10"
+                  required
                 />
               </div>
             </div>
