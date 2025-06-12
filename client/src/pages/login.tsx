@@ -28,6 +28,7 @@ export default function Login() {
     onSuccess: (user) => {
       // Store user data in localStorage
       localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('userEmail', user.email);
       toast({
         title: "Login successful",
         description: `Welcome ${user.name || user.email}!`,

@@ -10,25 +10,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, name } = insertUserSchema.parse(req.body);
+      const { email, password } = req.body;
       
-      let user = await storage.getUserByEmail(email);
-      if (!user) {
-        user = await storage.createUser({ email, name });
+      // Check for specific admin credentials
+      if (email === "basiliskan@gmail.com" && password === "MATERIALS123!@#bank") {
+        let user = await storage.getUserByEmail(email);
+        if (!user) {
+          user = await storage.createUser({ 
+            email: email, 
+            name: "Admin User" 
+          });
+        } else {
+          await storage.updateUserLastLogin(email);
+        }
+        
+        res.json(user);
       } else {
-        await storage.updateUserLastLogin(email);
+        return res.status(401).json({ 
+          message: "Invalid credentials" 
+        });
+      }
+    } catch (error) {
+      console.error("Error during login:", error);
+      res.status(500).json({ message: "Failed to login" });
+    }
+  });
+
+  // Get current user info
+  app.get("/api/auth/user", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const user = await storage.getUserByEmail(userEmail);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
       
       res.json(user);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid login data",
-          errors: error.errors 
-        });
-      }
-      console.error("Error during login:", error);
-      res.status(500).json({ message: "Failed to login" });
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 

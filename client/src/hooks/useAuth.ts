@@ -26,6 +26,7 @@ export function useAuth() {
 
   const logout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('userEmail');
     setUser(null);
   };
 
