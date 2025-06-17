@@ -11,7 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Key, Globe, Save, AlertCircle } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, Key, Globe, Save, AlertCircle, MessageSquare, Mail, Eye, EyeOff, TestTube } from "lucide-react";
 
 const settingsSchema = z.object({
   notionSecret: z.string().min(1, "Notion integration token is required"),
@@ -19,9 +20,31 @@ const settingsSchema = z.object({
   workspaceName: z.string().min(1, "Workspace name is required")
 });
 
+const apiSettingsSchema = z.object({
+  twilioAccountSid: z.string().min(1, "Twilio Account SID is required"),
+  twilioAuthToken: z.string().min(1, "Twilio Auth Token is required"),
+  twilioPhoneNumber: z.string().min(1, "Twilio Phone Number is required"),
+  awsAccessKeyId: z.string().min(1, "AWS Access Key ID is required"),
+  awsSecretAccessKey: z.string().min(1, "AWS Secret Access Key is required"),
+  awsRegion: z.string().min(1, "AWS Region is required")
+});
+
 export function AdminSettings() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingAPI, setIsEditingAPI] = useState(false);
+  const [showSecrets, setShowSecrets] = useState({
+    twilioAuthToken: false,
+    awsSecretAccessKey: false
+  });
+  const [apiSettings, setApiSettings] = useState({
+    twilioAccountSid: "",
+    twilioAuthToken: "",
+    twilioPhoneNumber: "",
+    awsAccessKeyId: "",
+    awsSecretAccessKey: "",
+    awsRegion: "us-east-1"
+  });
 
   const form = useForm<z.infer<typeof settingsSchema>>({
     resolver: zodResolver(settingsSchema),
@@ -38,16 +61,49 @@ export function AdminSettings() {
     retry: false,
   });
 
+  // Query API settings
+  const { data: apiConfig, isLoading: isLoadingAPIConfig } = useQuery({
+    queryKey: ['/api/admin/settings/api'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/settings/api', {
+        headers: {
+          'x-user-email': localStorage.getItem('userEmail') || ''
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch API settings');
+      }
+      
+      return response.json();
+    },
+    retry: false,
+  });
+
   // Update form values when config is loaded
   useEffect(() => {
     if (config) {
       form.reset({
-        notionSecret: config.notionSecret || "",
-        notionPageUrl: config.notionPageUrl || "",
-        workspaceName: config.workspaceName || ""
+        notionSecret: (config as any).notionSecret || "",
+        notionPageUrl: (config as any).notionPageUrl || "",
+        workspaceName: (config as any).workspaceName || ""
       });
     }
   }, [config, form]);
+
+  // Update API settings when loaded
+  useEffect(() => {
+    if (apiConfig) {
+      setApiSettings({
+        twilioAccountSid: (apiConfig as any).twilioAccountSid || "",
+        twilioAuthToken: (apiConfig as any).twilioAuthToken || "",
+        twilioPhoneNumber: (apiConfig as any).twilioPhoneNumber || "",
+        awsAccessKeyId: (apiConfig as any).awsAccessKeyId || "",
+        awsSecretAccessKey: (apiConfig as any).awsSecretAccessKey || "",
+        awsRegion: (apiConfig as any).awsRegion || "us-east-1"
+      });
+    }
+  }, [apiConfig]);
 
   // Update configuration mutation
   const updateConfig = useMutation({
@@ -299,6 +355,157 @@ export function AdminSettings() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* API Configuration Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            API Configuration
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Twilio Settings */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <MessageSquare className="h-4 w-4" />
+                <h3 className="text-lg font-medium">Twilio SMS Settings</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="twilioAccountSid">Account SID</Label>
+                  <Input
+                    id="twilioAccountSid"
+                    type="text"
+                    placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    value={apiSettings.twilioAccountSid}
+                    onChange={(e) => setApiSettings({...apiSettings, twilioAccountSid: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="twilioAuthToken">Auth Token</Label>
+                  <div className="relative">
+                    <Input
+                      id="twilioAuthToken"
+                      type={showSecrets.twilioAuthToken ? "text" : "password"}
+                      placeholder="Your Twilio Auth Token"
+                      value={apiSettings.twilioAuthToken}
+                      onChange={(e) => setApiSettings({...apiSettings, twilioAuthToken: e.target.value})}
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => setShowSecrets({...showSecrets, twilioAuthToken: !showSecrets.twilioAuthToken})}
+                    >
+                      {showSecrets.twilioAuthToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="twilioPhoneNumber">Phone Number</Label>
+                  <Input
+                    id="twilioPhoneNumber"
+                    type="text"
+                    placeholder="+1234567890"
+                    value={apiSettings.twilioPhoneNumber}
+                    onChange={(e) => setApiSettings({...apiSettings, twilioPhoneNumber: e.target.value})}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* AWS SES Settings */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Mail className="h-4 w-4" />
+                <h3 className="text-lg font-medium">AWS SES Email Settings</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="awsAccessKeyId">Access Key ID</Label>
+                  <Input
+                    id="awsAccessKeyId"
+                    type="text"
+                    placeholder="AKIAIOSFODNN7EXAMPLE"
+                    value={apiSettings.awsAccessKeyId}
+                    onChange={(e) => setApiSettings({...apiSettings, awsAccessKeyId: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="awsSecretAccessKey">Secret Access Key</Label>
+                  <div className="relative">
+                    <Input
+                      id="awsSecretAccessKey"
+                      type={showSecrets.awsSecretAccessKey ? "text" : "password"}
+                      placeholder="Your AWS Secret Access Key"
+                      value={apiSettings.awsSecretAccessKey}
+                      onChange={(e) => setApiSettings({...apiSettings, awsSecretAccessKey: e.target.value})}
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => setShowSecrets({...showSecrets, awsSecretAccessKey: !showSecrets.awsSecretAccessKey})}
+                    >
+                      {showSecrets.awsSecretAccessKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="awsRegion">AWS Region</Label>
+                  <Input
+                    id="awsRegion"
+                    type="text"
+                    placeholder="us-east-1"
+                    value={apiSettings.awsRegion}
+                    onChange={(e) => setApiSettings({...apiSettings, awsRegion: e.target.value})}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                onClick={() => {
+                  // Save API settings
+                  fetch('/api/admin/settings/api', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'x-user-email': localStorage.getItem('userEmail') || ''
+                    },
+                    body: JSON.stringify(apiSettings)
+                  }).then(res => {
+                    if (res.ok) {
+                      toast({
+                        title: "API Settings Saved",
+                        description: "Your API configuration has been updated successfully."
+                      });
+                    } else {
+                      toast({
+                        title: "Save Failed",
+                        description: "Failed to save API settings",
+                        variant: "destructive"
+                      });
+                    }
+                  });
+                }}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save API Settings
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
