@@ -966,6 +966,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API Settings Management Routes
+  
+  // Get API settings
+  app.get("/api/admin/settings/api", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Return current environment variables (masked for security)
+      const apiSettings = {
+        twilioAccountSid: process.env.TWILIO_ACCOUNT_SID ? process.env.TWILIO_ACCOUNT_SID.substring(0, 8) + "..." : "",
+        twilioAuthToken: process.env.TWILIO_AUTH_TOKEN ? "****" : "",
+        twilioPhoneNumber: process.env.TWILIO_PHONE_NUMBER || "",
+        awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID ? process.env.AWS_ACCESS_KEY_ID.substring(0, 8) + "..." : "",
+        awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ? "****" : "",
+        awsRegion: process.env.AWS_REGION || "us-east-1"
+      };
+
+      res.json(apiSettings);
+    } catch (error) {
+      console.error("Error fetching API settings:", error);
+      res.status(500).json({ message: "Failed to fetch API settings" });
+    }
+  });
+
+  // Save API settings (note: this updates environment variables for the session)
+  app.post("/api/admin/settings/api", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { 
+        twilioAccountSid, 
+        twilioAuthToken, 
+        twilioPhoneNumber, 
+        awsAccessKeyId, 
+        awsSecretAccessKey, 
+        awsRegion 
+      } = req.body;
+
+      // Update environment variables for this session
+      if (twilioAccountSid) process.env.TWILIO_ACCOUNT_SID = twilioAccountSid;
+      if (twilioAuthToken) process.env.TWILIO_AUTH_TOKEN = twilioAuthToken;
+      if (twilioPhoneNumber) process.env.TWILIO_PHONE_NUMBER = twilioPhoneNumber;
+      if (awsAccessKeyId) process.env.AWS_ACCESS_KEY_ID = awsAccessKeyId;
+      if (awsSecretAccessKey) process.env.AWS_SECRET_ACCESS_KEY = awsSecretAccessKey;
+      if (awsRegion) process.env.AWS_REGION = awsRegion;
+
+      res.json({ message: "API settings updated successfully" });
+    } catch (error) {
+      console.error("Error saving API settings:", error);
+      res.status(500).json({ message: "Failed to save API settings" });
+    }
+  });
+
+  // Test Twilio connection
+  app.post("/api/admin/test/twilio", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Test Twilio configuration by checking credentials
+      if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+        return res.status(400).json({ message: "Twilio credentials not configured" });
+      }
+
+      // Try to initialize Twilio client to test credentials
+      try {
+        const twilio = require('twilio');
+        const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+        
+        // Test by fetching account info
+        await client.api.accounts(process.env.TWILIO_ACCOUNT_SID).fetch();
+        
+        res.json({ message: "Twilio connection successful" });
+      } catch (twilioError: any) {
+        res.status(400).json({ message: `Twilio connection failed: ${twilioError.message}` });
+      }
+    } catch (error) {
+      console.error("Error testing Twilio:", error);
+      res.status(500).json({ message: "Failed to test Twilio connection" });
+    }
+  });
+
+  // Test AWS SES connection
+  app.post("/api/admin/test/ses", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Test AWS SES configuration
+      if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+        return res.status(400).json({ message: "AWS credentials not configured" });
+      }
+
+      try {
+        const { SESClient, GetSendQuotaCommand } = require('@aws-sdk/client-ses');
+        
+        const sesClient = new SESClient({
+          region: process.env.AWS_REGION || 'us-east-1',
+          credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+          }
+        });
+
+        // Test by getting send quota
+        await sesClient.send(new GetSendQuotaCommand({}));
+        
+        res.json({ message: "AWS SES connection successful" });
+      } catch (sesError: any) {
+        res.status(400).json({ message: `AWS SES connection failed: ${sesError.message}` });
+      }
+    } catch (error) {
+      console.error("Error testing AWS SES:", error);
+      res.status(500).json({ message: "Failed to test AWS SES connection" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
