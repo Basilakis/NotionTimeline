@@ -419,6 +419,42 @@ export function AdminSettings() {
                   />
                 </div>
               </div>
+              
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    fetch('/api/admin/test/twilio', {
+                      method: 'POST',
+                      headers: {
+                        'x-user-email': localStorage.getItem('userEmail') || ''
+                      }
+                    }).then(res => res.json()).then(data => {
+                      if (data.message.includes('successful')) {
+                        toast({
+                          title: "Twilio Test Successful",
+                          description: data.message
+                        });
+                      } else {
+                        toast({
+                          title: "Twilio Test Failed",
+                          description: data.message,
+                          variant: "destructive"
+                        });
+                      }
+                    }).catch(err => {
+                      toast({
+                        title: "Test Failed",
+                        description: "Unable to test Twilio connection",
+                        variant: "destructive"
+                      });
+                    });
+                  }}
+                >
+                  <TestTube className="h-4 w-4 mr-2" />
+                  Test Twilio
+                </Button>
+              </div>
             </div>
 
             <Separator />
@@ -472,6 +508,42 @@ export function AdminSettings() {
                     onChange={(e) => setApiSettings({...apiSettings, awsRegion: e.target.value})}
                   />
                 </div>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    fetch('/api/admin/test/ses', {
+                      method: 'POST',
+                      headers: {
+                        'x-user-email': localStorage.getItem('userEmail') || ''
+                      }
+                    }).then(res => res.json()).then(data => {
+                      if (data.message.includes('successful')) {
+                        toast({
+                          title: "AWS SES Test Successful",
+                          description: data.message
+                        });
+                      } else {
+                        toast({
+                          title: "AWS SES Test Failed",
+                          description: data.message,
+                          variant: "destructive"
+                        });
+                      }
+                    }).catch(err => {
+                      toast({
+                        title: "Test Failed",
+                        description: "Unable to test AWS SES connection",
+                        variant: "destructive"
+                      });
+                    });
+                  }}
+                >
+                  <TestTube className="h-4 w-4 mr-2" />
+                  Test AWS SES
+                </Button>
               </div>
             </div>
 
