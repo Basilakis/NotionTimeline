@@ -38,8 +38,13 @@ import {
   Mail,
   Calendar,
   Download,
-  RefreshCw
+  RefreshCw,
+  Bell,
+  MessageSquare
 } from "lucide-react";
+import { ReminderModal } from "./reminder-modal";
+import { SMSModal } from "./sms-modal";
+import { EmailModal } from "./email-modal";
 
 interface CRMUser {
   id: string;
@@ -64,6 +69,9 @@ export function CRMUsers() {
   const [selectedUser, setSelectedUser] = useState<CRMUser | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [newUser, setNewUser] = useState({
     userName: "",
     userEmail: "",
@@ -302,6 +310,29 @@ export function CRMUsers() {
     refetchUsers();
   };
 
+  const openReminderModal = (user: CRMUser) => {
+    setSelectedUser(user);
+    setIsReminderModalOpen(true);
+  };
+
+  const openSMSModal = (user: CRMUser) => {
+    if (!user.userPhone) {
+      toast({
+        title: "No Phone Number",
+        description: "This user doesn't have a phone number registered",
+        variant: "destructive"
+      });
+      return;
+    }
+    setSelectedUser(user);
+    setIsSMSModalOpen(true);
+  };
+
+  const openEmailModal = (user: CRMUser) => {
+    setSelectedUser(user);
+    setIsEmailModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -467,6 +498,7 @@ export function CRMUsers() {
                   <TableHead>Phone</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -495,6 +527,35 @@ export function CRMUsers() {
                     </TableCell>
                     <TableCell>
                       {new Date(user.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openReminderModal(user)}
+                          title="Set Reminder"
+                        >
+                          <Bell className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openSMSModal(user)}
+                          title="Send SMS"
+                          disabled={!user.userPhone}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEmailModal(user)}
+                          title="Send Email"
+                        >
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -560,6 +621,34 @@ export function CRMUsers() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Communication Modals */}
+      {selectedUser && (
+        <>
+          <ReminderModal
+            isOpen={isReminderModalOpen}
+            onClose={() => setIsReminderModalOpen(false)}
+            userId={selectedUser.id}
+            userName={selectedUser.userName}
+          />
+          
+          <SMSModal
+            isOpen={isSMSModalOpen}
+            onClose={() => setIsSMSModalOpen(false)}
+            userId={selectedUser.id}
+            userName={selectedUser.userName}
+            userPhone={selectedUser.userPhone}
+          />
+          
+          <EmailModal
+            isOpen={isEmailModalOpen}
+            onClose={() => setIsEmailModalOpen(false)}
+            userId={selectedUser.id}
+            userName={selectedUser.userName}
+            userEmail={selectedUser.userEmail}
+          />
+        </>
+      )}
     </div>
   );
 }
