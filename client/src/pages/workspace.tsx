@@ -136,8 +136,25 @@ export default function Workspace() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              No database views have been set up for your account. Please contact your administrator to configure access to your databases.
+              No database views have been set up for your account. Click below to discover and configure your Notion workspace automatically.
             </p>
+            <Button 
+              onClick={() => discoverWorkspace.mutate()}
+              disabled={discoverWorkspace.isPending}
+              className="w-full"
+            >
+              {discoverWorkspace.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Discovering Workspace...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Discover Notion Workspace
+                </>
+              )}
+            </Button>
           </CardContent>
         </Card>
       </div>

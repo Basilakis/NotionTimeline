@@ -1093,6 +1093,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Notion workspace discovery route
+  app.post("/api/notion-workspace/discover", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(401).json({ message: "User email required" });
+      }
+
+      // Get user configuration
+      const config = await storage.getConfiguration(userEmail);
+      if (!config || !config.notionSecret || !config.notionPageUrl) {
+        return res.status(400).json({ message: "Notion configuration not found. Please configure your Notion settings first." });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+
+      try {
+        // Discover databases in the Notion workspace
+        const databases = await getNotionDatabases(notion, pageId);
+        
+        if (databases.length === 0) {
+          return res.status(404).json({ message: "No databases found in the specified Notion page." });
+        }
+
+        let viewsCreated = 0;
+
+        // Create notion views for each database found
+        for (const database of databases) {
+          const databaseTitle = database.title && Array.isArray(database.title) && database.title.length > 0
+            ? database.title[0]?.plain_text || "Untitled Database"
+            : "Untitled Database";
+
+          // Determine view type based on database title
+          let viewType = 'general';
+          let icon = '📊';
+          let sortOrder = 100;
+
+          if (databaseTitle.toLowerCase().includes('task')) {
+            viewType = 'tasks';
+            icon = '✅';
+            sortOrder = 1;
+          } else if (databaseTitle.toLowerCase().includes('project')) {
+            viewType = 'projects';
+            icon = '📋';
+            sortOrder = 2;
+          } else if (databaseTitle.toLowerCase().includes('user') || databaseTitle.toLowerCase().includes('people')) {
+            viewType = 'users';
+            icon = '👥';
+            sortOrder = 3;
+          } else if (databaseTitle.toLowerCase().includes('document') || databaseTitle.toLowerCase().includes('note')) {
+            viewType = 'documents';
+            icon = '📄';
+            sortOrder = 4;
+          }
+
+          // Check if view already exists
+          const existingView = await storage.getNotionViewByType(userEmail, viewType);
+          
+          if (!existingView) {
+            // Create new view
+            await storage.createNotionView({
+              userEmail,
+              viewType,
+              pageId,
+              databaseId: database.id,
+              title: databaseTitle,
+              icon,
+              isActive: true,
+              sortOrder
+            });
+            viewsCreated++;
+          }
+        }
+
+        res.json({ 
+          message: `Workspace discovery complete. Found ${databases.length} databases and created ${viewsCreated} new views.`,
+          databasesFound: databases.length,
+          viewsCreated 
+        });
+
+      } catch (notionError: any) {
+        console.error("Notion API error:", notionError);
+        res.status(400).json({ message: `Failed to access Notion workspace: ${notionError.message}` });
+      }
+
+    } catch (error) {
+      console.error("Error discovering workspace:", error);
+      res.status(500).json({ message: "Failed to discover workspace" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
