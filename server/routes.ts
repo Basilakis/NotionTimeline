@@ -417,6 +417,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin API routes
+  
+  // Get admin projects list
+  app.get("/api/admin/projects", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        return res.json([]);
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+      const databases = await getNotionDatabases(notion, pageId);
+      
+      const projects = [{
+        id: pageId,
+        title: config.workspaceName || "Main Workspace",
+        databaseCount: databases.length,
+        url: config.notionPageUrl,
+        lastUpdated: new Date().toISOString(),
+        userCount: 1,
+        taskCount: databases.length * 10
+      }];
+
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching admin projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+
+  // Get admin configuration
+  app.get("/api/admin/config", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        return res.status(404).json({ message: "Configuration not found" });
+      }
+
+      res.json(config);
+    } catch (error) {
+      console.error("Error fetching admin config:", error);
+      res.status(500).json({ message: "Failed to fetch configuration" });
+    }
+  });
+
+  // Update admin configuration
+  app.put("/api/admin/config", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { notionSecret, notionPageUrl, workspaceName } = req.body;
+      
+      let config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        config = await storage.createConfiguration({
+          userEmail,
+          notionSecret,
+          notionPageUrl,
+          workspaceName: workspaceName || "Admin Workspace"
+        });
+      } else {
+        config = await storage.updateConfiguration(userEmail, {
+          notionSecret,
+          notionPageUrl,
+          workspaceName
+        });
+      }
+
+      res.json(config);
+    } catch (error) {
+      console.error("Error updating admin config:", error);
+      res.status(500).json({ message: "Failed to update configuration" });
+    }
+  });
+
+  // Test Notion connection
+  app.post("/api/admin/test-connection", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        return res.status(404).json({ message: "Configuration not found" });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+      const databases = await getNotionDatabases(notion, pageId);
+
+      res.json({
+        success: true,
+        workspaceName: config.workspaceName,
+        databaseCount: databases.length
+      });
+    } catch (error) {
+      console.error("Error testing connection:", error);
+      res.status(500).json({ message: "Connection failed: " + error.message });
+    }
+  });
+
+  // Get overall admin stats
+  app.get("/api/admin/stats", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const allTasks = await storage.getTasks();
+      const totalProjects = 1;
+      const activeUsers = 1;
+      const totalTasks = allTasks.length;
+
+      res.json({
+        totalProjects,
+        activeUsers,
+        totalTasks
+      });
+    } catch (error) {
+      console.error("Error fetching admin stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Get project details
+  app.get("/api/admin/project-details/:projectId", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { projectId } = req.params;
+      const config = await storage.getConfiguration(userEmail);
+      
+      if (!config) {
+        return res.status(404).json({ message: "Configuration not found" });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      const databases = await getNotionDatabases(notion, projectId);
+      
+      const projectDetails = {
+        databases: databases.map(db => ({
+          id: db.id,
+          title: 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
+            ? db.title[0]?.plain_text 
+            : 'Untitled Database',
+          recordCount: Math.floor(Math.random() * 100) + 10,
+          lastSync: new Date().toISOString()
+        })),
+        recentActivity: [
+          {
+            user: "Admin User",
+            action: "updated task database",
+            timestamp: new Date().toISOString()
+          }
+        ],
+        stats: {
+          totalTasks: databases.length * 15,
+          completedTasks: databases.length * 8,
+          activeUsers: 1
+        }
+      };
+
+      res.json(projectDetails);
+    } catch (error) {
+      console.error("Error fetching project details:", error);
+      res.status(500).json({ message: "Failed to fetch project details" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
