@@ -5,6 +5,7 @@ import { insertTaskSchema, insertConfigurationSchema, insertUserSchema } from "@
 import { createNotionClient, createNotionAPI, getTasks as getNotionTasks, findDatabaseByTitle, extractPageIdFromUrl, getNotionDatabases, getFilteredDatabaseRecords } from "./notion";
 import { insertNotionViewSchema } from "@shared/schema";
 import { z } from "zod";
+import { userDB, type CRMUser } from "./userDatabase";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -530,7 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error testing connection:", error);
-      res.status(500).json({ message: "Connection failed: " + error.message });
+      res.status(500).json({ message: "Connection failed: " + (error as any).message });
     }
   });
 
@@ -606,8 +607,224 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CRM User Management API Routes
+  
+  // Get all CRM users
+  app.get("/api/admin/crm/users", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { search } = req.query;
+      let users: CRMUser[];
+
+      if (search && typeof search === 'string') {
+        users = await userDB.searchUsers(search);
+      } else {
+        users = await userDB.getAllUsers();
+      }
+
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching CRM users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Get CRM user stats
+  app.get("/api/admin/crm/stats", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const stats = await userDB.getUsersStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching CRM stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Create new CRM user
+  app.post("/api/admin/crm/users", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userName, userEmail: newUserEmail, userPhone, notionId } = req.body;
+      
+      if (!userName || !newUserEmail) {
+        return res.status(400).json({ message: "User name and email are required" });
+      }
+
+      const newUser = await userDB.createUser({
+        userName,
+        userEmail: newUserEmail,
+        userPhone: userPhone || "",
+        notionId
+      });
+
+      res.status(201).json(newUser);
+    } catch (error) {
+      console.error("Error creating CRM user:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
+  // Update CRM user
+  app.put("/api/admin/crm/users/:userId", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const { userName, userEmail: newUserEmail, userPhone, notionId } = req.body;
+
+      const updatedUser = await userDB.updateUser(userId, {
+        userName,
+        userEmail: newUserEmail,
+        userPhone,
+        notionId
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating CRM user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Delete CRM user
+  app.delete("/api/admin/crm/users/:userId", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const deleted = await userDB.deleteUser(userId);
+
+      if (!deleted) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting CRM user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Sync users from Notion database
+  app.post("/api/admin/crm/sync-from-notion", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { databaseId } = req.body;
+      
+      if (!databaseId) {
+        return res.status(400).json({ message: "Database ID is required" });
+      }
+
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        return res.status(404).json({ message: "Configuration not found" });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      const response = await notion.databases.query({
+        database_id: databaseId
+      });
+
+      let syncedCount = 0;
+      const syncErrors: string[] = [];
+
+      for (const page of response.results) {
+        try {
+          if ('properties' in page) {
+            const properties = page.properties;
+            
+            // Extract user data from Notion properties
+            const userName = extractTextFromProperty(properties['User Name'] || properties['Name']);
+            const userEmailFromNotion = extractEmailFromProperty(properties['User Email'] || properties['Email']);
+            const userPhone = extractTextFromProperty(properties['User Phone'] || properties['Phone']);
+
+            if (userName && userEmailFromNotion) {
+              await userDB.upsertUser({
+                userName,
+                userEmail: userEmailFromNotion,
+                userPhone: userPhone || "",
+                notionId: page.id
+              });
+              syncedCount++;
+            }
+          }
+        } catch (error: any) {
+          syncErrors.push(`Failed to sync user from page ${page.id}: ${error.message}`);
+        }
+      }
+
+      res.json({
+        message: `Synced ${syncedCount} users from Notion`,
+        syncedCount,
+        errors: syncErrors
+      });
+    } catch (error) {
+      console.error("Error syncing users from Notion:", error);
+      res.status(500).json({ message: "Failed to sync users from Notion" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
+}
+
+// Helper functions for extracting Notion properties
+function extractTextFromProperty(property: any): string {
+  if (!property) return "";
+  
+  if (property.type === "title" && property.title?.length > 0) {
+    return property.title[0]?.plain_text || "";
+  }
+  if (property.type === "rich_text" && property.rich_text?.length > 0) {
+    return property.rich_text[0]?.plain_text || "";
+  }
+  if (property.type === "phone_number") {
+    return property.phone_number || "";
+  }
+  return "";
+}
+
+function extractEmailFromProperty(property: any): string {
+  if (!property) return "";
+  
+  if (property.type === "email") {
+    return property.email || "";
+  }
+  if (property.type === "rich_text" && property.rich_text?.length > 0) {
+    const text = property.rich_text[0]?.plain_text || "";
+    // Basic email validation
+    if (text.includes("@")) {
+      return text;
+    }
+  }
+  return "";
 }
 
 function mapNotionStatusToLocal(notionStatus: string | null, isCompleted: boolean): string {
