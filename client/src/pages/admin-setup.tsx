@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminDashboard } from "@/components/admin/dashboard";
 import { AdminSettings } from "@/components/admin/settings";
+import { CRMUsers } from "@/components/admin/crm-users";
 
 interface Project {
   id: string;
@@ -12,12 +13,25 @@ interface Project {
 }
 
 export default function AdminSetup() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'settings'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'settings' | 'crm'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
 
   const handleProjectSelect = (project: Project) => {
     setSelectedProject(project);
     setActiveView('dashboard');
+  };
+
+  const renderMainContent = () => {
+    switch (activeView) {
+      case 'dashboard':
+        return <AdminDashboard selectedProject={selectedProject} />;
+      case 'crm':
+        return <CRMUsers />;
+      case 'settings':
+        return <AdminSettings />;
+      default:
+        return <AdminDashboard selectedProject={selectedProject} />;
+    }
   };
 
   return (
@@ -33,11 +47,7 @@ export default function AdminSetup() {
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
         <div className="p-8">
-          {activeView === 'dashboard' ? (
-            <AdminDashboard selectedProject={selectedProject} />
-          ) : (
-            <AdminSettings />
-          )}
+          {renderMainContent()}
         </div>
       </div>
     </div>

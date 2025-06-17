@@ -10,7 +10,8 @@ import {
   ExternalLink, 
   FolderOpen, 
   ChevronRight,
-  LogOut 
+  LogOut,
+  Users
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -23,8 +24,8 @@ interface Project {
 }
 
 interface SidebarProps {
-  activeView: 'dashboard' | 'settings';
-  onViewChange: (view: 'dashboard' | 'settings') => void;
+  activeView: 'dashboard' | 'settings' | 'crm';
+  onViewChange: (view: 'dashboard' | 'settings' | 'crm') => void;
   onProjectSelect: (project: Project) => void;
   selectedProject?: Project;
 }
@@ -74,6 +75,14 @@ export function AdminSidebar({ activeView, onViewChange, onProjectSelect, select
           >
             <Database className="h-4 w-4 mr-2" />
             Projects Dashboard
+          </Button>
+          <Button
+            variant={activeView === 'crm' ? 'default' : 'ghost'}
+            className="w-full justify-start"
+            onClick={() => onViewChange('crm')}
+          >
+            <Users className="h-4 w-4 mr-2" />
+            CRM Users
           </Button>
           <Button
             variant={activeView === 'settings' ? 'default' : 'ghost'}
