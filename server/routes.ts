@@ -6,6 +6,8 @@ import { createNotionClient, createNotionAPI, getTasks as getNotionTasks, findDa
 import { insertNotionViewSchema } from "@shared/schema";
 import { z } from "zod";
 import { userDB, type CRMUser } from "./userDatabase";
+import { reminderDB, type Reminder } from "./reminderDatabase";
+import { emailService, smsService } from "./communications";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -788,6 +790,179 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error syncing users from Notion:", error);
       res.status(500).json({ message: "Failed to sync users from Notion" });
+    }
+  });
+
+  // Reminder Management API Routes
+  
+  // Get reminders for a user
+  app.get("/api/admin/crm/users/:userId/reminders", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const reminders = await reminderDB.getRemindersByUserId(userId);
+      res.json(reminders);
+    } catch (error) {
+      console.error("Error fetching reminders:", error);
+      res.status(500).json({ message: "Failed to fetch reminders" });
+    }
+  });
+
+  // Create a new reminder
+  app.post("/api/admin/crm/users/:userId/reminders", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const { message, reminderDate, reminderType } = req.body;
+
+      if (!message || !reminderDate || !reminderType) {
+        return res.status(400).json({ message: "Message, reminder date, and type are required" });
+      }
+
+      const reminder = await reminderDB.createReminder({
+        userId,
+        message,
+        reminderDate,
+        reminderType
+      });
+
+      res.status(201).json(reminder);
+    } catch (error) {
+      console.error("Error creating reminder:", error);
+      res.status(500).json({ message: "Failed to create reminder" });
+    }
+  });
+
+  // Update a reminder
+  app.put("/api/admin/crm/reminders/:reminderId", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { reminderId } = req.params;
+      const { message, reminderDate, reminderType } = req.body;
+
+      const updatedReminder = await reminderDB.updateReminder(reminderId, {
+        message,
+        reminderDate,
+        reminderType
+      });
+
+      if (!updatedReminder) {
+        return res.status(404).json({ message: "Reminder not found" });
+      }
+
+      res.json(updatedReminder);
+    } catch (error) {
+      console.error("Error updating reminder:", error);
+      res.status(500).json({ message: "Failed to update reminder" });
+    }
+  });
+
+  // Delete a reminder
+  app.delete("/api/admin/crm/reminders/:reminderId", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { reminderId } = req.params;
+      const deleted = await reminderDB.deleteReminder(reminderId);
+
+      if (!deleted) {
+        return res.status(404).json({ message: "Reminder not found" });
+      }
+
+      res.json({ message: "Reminder deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting reminder:", error);
+      res.status(500).json({ message: "Failed to delete reminder" });
+    }
+  });
+
+  // Send SMS to user
+  app.post("/api/admin/crm/users/:userId/send-sms", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const { message } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const user = await userDB.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (!user.userPhone) {
+        return res.status(400).json({ message: "User has no phone number" });
+      }
+
+      const success = await smsService.sendSMS(user.userPhone, message);
+      
+      if (success) {
+        res.json({ message: "SMS sent successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to send SMS" });
+      }
+    } catch (error) {
+      console.error("Error sending SMS:", error);
+      res.status(500).json({ message: "Failed to send SMS" });
+    }
+  });
+
+  // Send email to user
+  app.post("/api/admin/crm/users/:userId/send-email", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const { subject, htmlBody, textBody } = req.body;
+
+      if (!subject || !htmlBody) {
+        return res.status(400).json({ message: "Subject and message content are required" });
+      }
+
+      const user = await userDB.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const success = await emailService.sendEmail(
+        user.userEmail,
+        subject,
+        htmlBody,
+        textBody
+      );
+      
+      if (success) {
+        res.json({ message: "Email sent successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to send email" });
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      res.status(500).json({ message: "Failed to send email" });
     }
   });
 
