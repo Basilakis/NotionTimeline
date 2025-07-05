@@ -73,17 +73,19 @@ export default function UserDemo() {
   // Fetch database data for the active view
   const activeViewData = views?.find(v => v.viewType === activeView);
   
-  const { data: databaseData, isLoading: pageLoading } = useQuery({
+  const { data: databaseData, isLoading: pageLoading, error: databaseError } = useQuery({
     queryKey: ['/api/notion-database', activeViewData?.databaseId],
     enabled: !!activeViewData?.databaseId && simulateUser,
-    retry: false,
-    onSuccess: (data) => {
-      console.log('[Demo] Database query success:', data);
-    },
-    onError: (error) => {
-      console.log('[Demo] Database query error:', error);
-    }
+    retry: false
   });
+  
+  // Log database query results
+  if (databaseData) {
+    console.log('[Demo] Database query success:', databaseData);
+  }
+  if (databaseError) {
+    console.log('[Demo] Database query error:', databaseError);
+  }
 
   // Workspace discovery mutation
   const discoverWorkspace = useMutation({
