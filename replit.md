@@ -148,6 +148,18 @@ interface NotionView {
 
 ### 🔄 Recent Changes (Last Updated: January 5, 2025)
 
+#### Demo Page Configuration Fix
+- **Problem Solved**: Demo page showing "configuration required" error
+- **Solution**: Auto-creation of demo views using admin's Notion configuration
+- **Implementation**: Fallback logic to use admin config for demo users
+- **User Experience**: Demo page now works seamlessly with any user email
+
+#### Enhanced Project Filtering System
+- **Dual-Field Filtering**: Checks both "User Email" and "People" fields in Notion
+- **Complete Project Visibility**: Now shows all 4 projects where user is involved
+- **Smart Assignment Detection**: Includes projects where user is team member
+- **Improved Discovery**: Project Template, Vertex Developments, ethos, creativeG all visible
+
 #### Persistent Settings Storage Implementation
 - **Problem Solved**: Settings lost on every redeployment
 - **Solution**: JSON file-based persistent storage for API settings

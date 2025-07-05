@@ -255,7 +255,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User email is required" });
       }
 
-      const views = await storage.getNotionViews(userEmail);
+      // Check if views exist for this user
+      let views = await storage.getNotionViews(userEmail);
+      
+      // If no views found and user is not admin, check if admin has Notion config and create demo views
+      if (views.length === 0 && userEmail !== "basiliskan@gmail.com") {
+        console.log(`[Notion Views] No views found for ${userEmail}, checking admin config for demo...`);
+        
+        const adminConfig = await storage.getConfiguration('basiliskan@gmail.com');
+        if (adminConfig) {
+          console.log(`[Notion Views] Admin config found, creating demo view for ${userEmail}...`);
+          
+          // Create a demo view using admin's database but for this user
+          const demoView = await storage.createNotionView({
+            userEmail: userEmail,
+            viewType: 'projects',
+            pageId: 'direct',
+            databaseId: '07ede7dbc952491784e9c5022523e2e0', // Admin's database
+            title: 'Projects',
+            icon: '📋',
+            isActive: true,
+            sortOrder: 2
+          });
+          
+          views = [demoView];
+          console.log(`[Notion Views] Created demo view for ${userEmail}`);
+        }
+      }
+
       res.json(views);
     } catch (error) {
       console.error("Error fetching notion views:", error);
