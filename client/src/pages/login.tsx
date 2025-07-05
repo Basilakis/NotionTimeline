@@ -11,12 +11,10 @@ import { Mail, User, History } from "lucide-react";
 
 interface LoginData {
   email: string;
-  password: string;
 }
 
 export default function Login() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -51,16 +49,16 @@ export default function Login() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
+    if (!email) {
       toast({
-        title: "Login required",
-        description: "Please enter both email and password.",
+        title: "Email required",
+        description: "Please enter your email address.",
         variant: "destructive",
       });
       return;
     }
 
-    loginMutation.mutate({ email, password });
+    loginMutation.mutate({ email });
   };
 
   return (
@@ -72,7 +70,7 @@ export default function Login() {
             <CardTitle className="text-2xl font-bold text-gray-900">TaskFlow</CardTitle>
           </div>
           <p className="text-gray-600 text-sm">
-            Enter your credentials to access your task timeline
+            Enter your email address to access your task timeline
           </p>
         </CardHeader>
         <CardContent>
@@ -95,23 +93,7 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                Password
-              </Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
+
 
             <Button 
               type="submit" 

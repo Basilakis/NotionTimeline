@@ -13,10 +13,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const { email } = req.body;
       
-      // Check for specific admin credentials
-      if (email === "basiliskan@gmail.com" && password === "MATERIALS123!@#bank") {
+      if (!email) {
+        return res.status(400).json({ 
+          message: "Email is required" 
+        });
+      }
+      
+      // Check for admin email
+      if (email === "basiliskan@gmail.com") {
         let user = await storage.getUserByEmail(email);
         if (!user) {
           user = await storage.createUser({ 
@@ -29,9 +35,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         res.json(user);
       } else {
-        return res.status(401).json({ 
-          message: "Invalid credentials" 
-        });
+        // For non-admin users, create or get user automatically
+        let user = await storage.getUserByEmail(email);
+        if (!user) {
+          user = await storage.createUser({ 
+            email: email, 
+            name: null 
+          });
+        } else {
+          await storage.updateUserLastLogin(email);
+        }
+        
+        res.json(user);
       }
     } catch (error) {
       console.error("Error during login:", error);
