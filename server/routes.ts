@@ -980,14 +980,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      // Return current environment variables (masked for security)
+      // Load persistent settings
+      const persistentSettings = await storage.getApiSettings();
+      
+      // Return current settings (masked for security)
       const apiSettings = {
-        twilioAccountSid: process.env.TWILIO_ACCOUNT_SID ? process.env.TWILIO_ACCOUNT_SID.substring(0, 8) + "..." : "",
-        twilioAuthToken: process.env.TWILIO_AUTH_TOKEN ? "****" : "",
-        twilioPhoneNumber: process.env.TWILIO_PHONE_NUMBER || "",
-        awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID ? process.env.AWS_ACCESS_KEY_ID.substring(0, 8) + "..." : "",
-        awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ? "****" : "",
-        awsRegion: process.env.AWS_REGION || "us-east-1"
+        twilioAccountSid: persistentSettings.TWILIO_ACCOUNT_SID ? persistentSettings.TWILIO_ACCOUNT_SID.substring(0, 8) + "..." : "",
+        twilioAuthToken: persistentSettings.TWILIO_AUTH_TOKEN ? "****" : "",
+        twilioPhoneNumber: persistentSettings.TWILIO_PHONE_NUMBER || "",
+        awsAccessKeyId: persistentSettings.AWS_ACCESS_KEY_ID ? persistentSettings.AWS_ACCESS_KEY_ID.substring(0, 8) + "..." : "",
+        awsSecretAccessKey: persistentSettings.AWS_SECRET_ACCESS_KEY ? "****" : "",
+        awsRegion: persistentSettings.AWS_REGION || "us-east-1"
       };
 
       res.json(apiSettings);
@@ -997,7 +1000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Save API settings (note: this updates environment variables for the session)
+  // Save API settings (persists to JSON file and updates environment variables)
   app.post("/api/admin/settings/api", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
@@ -1014,7 +1017,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         awsRegion 
       } = req.body;
 
-      // Update environment variables for this session
+      // Save to persistent storage
+      if (twilioAccountSid) await storage.setApiSetting('TWILIO_ACCOUNT_SID', twilioAccountSid);
+      if (twilioAuthToken) await storage.setApiSetting('TWILIO_AUTH_TOKEN', twilioAuthToken);
+      if (twilioPhoneNumber) await storage.setApiSetting('TWILIO_PHONE_NUMBER', twilioPhoneNumber);
+      if (awsAccessKeyId) await storage.setApiSetting('AWS_ACCESS_KEY_ID', awsAccessKeyId);
+      if (awsSecretAccessKey) await storage.setApiSetting('AWS_SECRET_ACCESS_KEY', awsSecretAccessKey);
+      if (awsRegion) await storage.setApiSetting('AWS_REGION', awsRegion);
+
+      // Also update environment variables for this session
       if (twilioAccountSid) process.env.TWILIO_ACCOUNT_SID = twilioAccountSid;
       if (twilioAuthToken) process.env.TWILIO_AUTH_TOKEN = twilioAuthToken;
       if (twilioPhoneNumber) process.env.TWILIO_PHONE_NUMBER = twilioPhoneNumber;
@@ -1022,7 +1033,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (awsSecretAccessKey) process.env.AWS_SECRET_ACCESS_KEY = awsSecretAccessKey;
       if (awsRegion) process.env.AWS_REGION = awsRegion;
 
-      res.json({ message: "API settings updated successfully" });
+      res.json({ message: "API settings updated and saved successfully" });
     } catch (error) {
       console.error("Error saving API settings:", error);
       res.status(500).json({ message: "Failed to save API settings" });

@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
 
 // Check for required environment variables in production
 if (process.env.NODE_ENV === "production") {
@@ -48,7 +49,29 @@ app.use((req, res, next) => {
   next();
 });
 
+// Initialize persistent settings on startup
+async function initializePersistentSettings() {
+  try {
+    const persistentSettings = await storage.getApiSettings();
+    
+    // Load saved settings into environment variables
+    if (persistentSettings.TWILIO_ACCOUNT_SID) process.env.TWILIO_ACCOUNT_SID = persistentSettings.TWILIO_ACCOUNT_SID;
+    if (persistentSettings.TWILIO_AUTH_TOKEN) process.env.TWILIO_AUTH_TOKEN = persistentSettings.TWILIO_AUTH_TOKEN;
+    if (persistentSettings.TWILIO_PHONE_NUMBER) process.env.TWILIO_PHONE_NUMBER = persistentSettings.TWILIO_PHONE_NUMBER;
+    if (persistentSettings.AWS_ACCESS_KEY_ID) process.env.AWS_ACCESS_KEY_ID = persistentSettings.AWS_ACCESS_KEY_ID;
+    if (persistentSettings.AWS_SECRET_ACCESS_KEY) process.env.AWS_SECRET_ACCESS_KEY = persistentSettings.AWS_SECRET_ACCESS_KEY;
+    if (persistentSettings.AWS_REGION) process.env.AWS_REGION = persistentSettings.AWS_REGION;
+    
+    log("Persistent settings loaded successfully");
+  } catch (error) {
+    log("No persistent settings found, starting with defaults");
+  }
+}
+
 (async () => {
+  // Initialize persistent settings first
+  await initializePersistentSettings();
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -1,4 +1,6 @@
-import { users, tasks, configurations, notionViews, type User, type InsertUser, type Task, type InsertTask, type Configuration, type InsertConfiguration, type NotionView, type InsertNotionView } from "@shared/schema";
+import { users, tasks, configurations, notionViews, type User, type InsertUser, type Task, type InsertTask, type Configuration, type InsertConfiguration, type NotionView, type InsertNotionView, type ApiSetting, type InsertApiSetting, type SystemSetting, type InsertSystemSetting } from "@shared/schema";
+import { promises as fs } from 'fs';
+import path from 'path';
 
 export interface IStorage {
   // User methods
@@ -29,6 +31,12 @@ export interface IStorage {
   createNotionView(view: InsertNotionView): Promise<NotionView>;
   updateNotionView(id: number, view: Partial<InsertNotionView>): Promise<NotionView | undefined>;
   deleteNotionView(id: number): Promise<boolean>;
+
+  // Persistent Settings methods
+  getApiSettings(): Promise<Record<string, string>>;
+  setApiSetting(key: string, value: string): Promise<void>;
+  getApiSetting(key: string): Promise<string | undefined>;
+  deleteApiSetting(key: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -40,6 +48,7 @@ export class MemStorage implements IStorage {
   private currentTaskId: number;
   private currentConfigId: number;
   private currentViewId: number;
+  private settingsFile: string;
 
   constructor() {
     this.users = new Map();
@@ -50,6 +59,7 @@ export class MemStorage implements IStorage {
     this.currentTaskId = 1;
     this.currentConfigId = 1;
     this.currentViewId = 1;
+    this.settingsFile = path.join(process.cwd(), 'server', 'api-settings.json');
   }
 
   // User methods
@@ -258,6 +268,48 @@ export class MemStorage implements IStorage {
 
   async deleteNotionView(id: number): Promise<boolean> {
     return this.notionViews.delete(id);
+  }
+
+  // Persistent Settings methods
+  private async readSettingsFile(): Promise<Record<string, string>> {
+    try {
+      const data = await fs.readFile(this.settingsFile, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      // File doesn't exist or is invalid, return empty object
+      return {};
+    }
+  }
+
+  private async writeSettingsFile(settings: Record<string, string>): Promise<void> {
+    const dir = path.dirname(this.settingsFile);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(this.settingsFile, JSON.stringify(settings, null, 2));
+  }
+
+  async getApiSettings(): Promise<Record<string, string>> {
+    return this.readSettingsFile();
+  }
+
+  async setApiSetting(key: string, value: string): Promise<void> {
+    const settings = await this.readSettingsFile();
+    settings[key] = value;
+    await this.writeSettingsFile(settings);
+  }
+
+  async getApiSetting(key: string): Promise<string | undefined> {
+    const settings = await this.readSettingsFile();
+    return settings[key];
+  }
+
+  async deleteApiSetting(key: string): Promise<boolean> {
+    const settings = await this.readSettingsFile();
+    if (key in settings) {
+      delete settings[key];
+      await this.writeSettingsFile(settings);
+      return true;
+    }
+    return false;
   }
 }
 

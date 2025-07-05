@@ -53,6 +53,28 @@ export const notionViews = pgTable("notion_views", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Persistent API settings table
+export const apiSettings = pgTable("api_settings", {
+  id: serial("id").primaryKey(),
+  settingKey: text("setting_key").notNull().unique(),
+  settingValue: text("setting_value"),
+  isEncrypted: boolean("is_encrypted").default(false),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// System settings for categories like Twilio, AWS SES, etc.
+export const systemSettings = pgTable("system_settings", {
+  id: serial("id").primaryKey(),
+  category: text("category").notNull(), // "twilio", "aws_ses", "general"
+  settingKey: text("setting_key").notNull(),
+  settingValue: text("setting_value"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   name: true,
@@ -76,6 +98,18 @@ export const insertNotionViewSchema = createInsertSchema(notionViews).omit({
   updatedAt: true,
 });
 
+export const insertApiSettingSchema = createInsertSchema(apiSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -87,3 +121,9 @@ export type Configuration = typeof configurations.$inferSelect;
 
 export type InsertNotionView = z.infer<typeof insertNotionViewSchema>;
 export type NotionView = typeof notionViews.$inferSelect;
+
+export type InsertApiSetting = z.infer<typeof insertApiSettingSchema>;
+export type ApiSetting = typeof apiSettings.$inferSelect;
+
+export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
+export type SystemSetting = typeof systemSettings.$inferSelect;

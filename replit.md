@@ -63,8 +63,9 @@ A comprehensive React-based task management application with Notion database int
 #### Data Storage
 - **Primary Storage**: In-memory storage (MemStorage) for development
 - **User Data**: JSON file storage for CRM users and reminders
-- **Configuration**: Database storage for Notion and API settings
+- **API Settings**: JSON file storage for persistent API configuration
 - **Session Data**: PostgreSQL for session persistence
+- **Configurations**: Database storage for Notion settings
 
 #### API Architecture
 - **RESTful Design**: Standard HTTP methods for all operations
@@ -147,11 +148,17 @@ interface NotionView {
 
 ### 🔄 Recent Changes (Last Updated: January 5, 2025)
 
-#### Workspace Discovery Enhancement
-- **Problem Solved**: "No Views Configured" error when accessing workspace
-- **Solution**: Added automatic workspace discovery functionality
-- **Implementation**: Backend route scans Notion databases and creates views
-- **User Experience**: Discovery button replaces error message
+#### Persistent Settings Storage Implementation
+- **Problem Solved**: Settings lost on every redeployment
+- **Solution**: JSON file-based persistent storage for API settings
+- **Implementation**: Server-side storage with automatic load on startup
+- **User Experience**: Settings now persist across server restarts and deployments
+
+#### Enhanced Page Discovery System
+- **Page-First Scanning**: Scans for pages with "User Email" properties before databases
+- **Hierarchical Structure**: Workspace → User Pages → Databases within pages
+- **User-Specific Filtering**: Only shows databases containing user's actual data
+- **Improved Error Messages**: Clear feedback about discovery results
 
 #### Communication System Completion
 - **SMS Integration**: Full Twilio integration with phone validation
@@ -163,7 +170,7 @@ interface NotionView {
 - **Dynamic Configuration**: Admin can set API keys through interface
 - **Connection Testing**: Built-in test functionality for all services
 - **Security**: Masked inputs and secure credential handling
-- **Environment Integration**: Runtime environment variable updates
+- **Persistent Storage**: Settings survive server restarts and redeployments
 
 ### 🚀 Current Deployment Status
 - **Development Mode**: Running on Replit with hot reload
