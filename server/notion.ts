@@ -121,168 +121,57 @@ export async function getFilteredDatabaseRecords(notion: Client, databaseId: str
     try {
         console.log(`[getFilteredDatabaseRecords] Checking database ${databaseId} for user ${userEmail}`);
         
-        // First, get the database schema to understand what properties exist
-        const database = await notion.databases.retrieve({ database_id: databaseId });
-        const properties = database.properties;
-        
-        console.log(`[getFilteredDatabaseRecords] Database properties:`, Object.keys(properties));
-        
-        // Look for email-related properties
-        const emailPropertyNames = ['User Email', 'UserEmail', 'Email', 'user_email', 'email', 'User', 'Assignee'];
-        let emailProperty = null;
-        
-        for (const propName of emailPropertyNames) {
-            if (properties[propName]) {
-                emailProperty = propName;
-                console.log(`[getFilteredDatabaseRecords] Found email property: ${propName} (type: ${properties[propName].type})`);
-                break;
-            }
-        }
-        
-        if (!emailProperty) {
-            console.log(`[getFilteredDatabaseRecords] No email property found, getting all records to check manually...`);
-            // If no email property found, get all records and check manually
-            const response = await notion.databases.query({
-                database_id: databaseId
-            });
-            
-            const allRecords = response.results.map((page: any) => {
-                const properties = page.properties;
-                
-                const record = {
-                    notionId: page.id,
-                    title: properties.Title?.title?.[0]?.plain_text || 
-                           properties.Name?.title?.[0]?.plain_text || 
-                           "Untitled",
-                    userEmail: extractEmailFromProperty(properties),
-                    createdTime: page.created_time,
-                    lastEditedTime: page.last_edited_time,
-                    url: page.url,
-                    properties: properties
-                };
-
-                return record;
-            });
-            
-            const filteredRecords = allRecords.filter(record => 
-                record.userEmail && record.userEmail.toLowerCase() === userEmail.toLowerCase()
-            );
-            
-            console.log(`[getFilteredDatabaseRecords] Manual filter found ${filteredRecords.length} of ${allRecords.length} records for user`);
-            return filteredRecords;
-        }
-        
-        // Try to filter by the found email property
-        const propertyType = properties[emailProperty].type;
-        let filter: any;
-        
-        if (propertyType === 'email') {
-            filter = {
-                property: emailProperty,
-                email: {
-                    equals: userEmail
-                }
-            };
-        } else if (propertyType === 'rich_text' || propertyType === 'title') {
-            filter = {
-                property: emailProperty,
-                rich_text: {
-                    contains: userEmail
-                }
-            };
-        } else {
-            console.log(`[getFilteredDatabaseRecords] Unsupported property type ${propertyType}, getting all records...`);
-            const response = await notion.databases.query({
-                database_id: databaseId
-            });
-            
-            const allRecords = response.results.map((page: any) => {
-                const properties = page.properties;
-                
-                const record = {
-                    notionId: page.id,
-                    title: properties.Title?.title?.[0]?.plain_text || 
-                           properties.Name?.title?.[0]?.plain_text || 
-                           "Untitled",
-                    userEmail: extractEmailFromProperty(properties),
-                    createdTime: page.created_time,
-                    lastEditedTime: page.last_edited_time,
-                    url: page.url,
-                    properties: properties
-                };
-
-                return record;
-            });
-            
-            return allRecords.filter(record => 
-                record.userEmail && record.userEmail.toLowerCase() === userEmail.toLowerCase()
-            );
-        }
-        
-        console.log(`[getFilteredDatabaseRecords] Using filter:`, JSON.stringify(filter, null, 2));
-        
+        // Get all records without filtering first
         const response = await notion.databases.query({
-            database_id: databaseId,
-            filter
+            database_id: databaseId
         });
+
+        console.log(`[getFilteredDatabaseRecords] Total records in database: ${response.results.length}`);
         
-        const results = response.results.map((page: any) => {
+        // Filter records by checking both User Email field and People field
+        const filteredResults = response.results.filter((page: any) => {
             const properties = page.properties;
             
-            const record = {
+            // Check if user email is in the User Email field
+            const emailInField = properties.UserEmail?.email === userEmail || 
+                                 properties["User Email"]?.email === userEmail;
+            
+            // Check if user email is in the People field
+            const people = properties.People?.people || [];
+            const emailInPeople = people.some((person: any) => 
+                person.person?.email === userEmail
+            );
+            
+            const projectName = properties?.["Project name"]?.title?.[0]?.plain_text || "Untitled";
+            console.log(`[getFilteredDatabaseRecords] Project "${projectName}": emailInField=${emailInField}, emailInPeople=${emailInPeople}`);
+            
+            return emailInField || emailInPeople;
+        });
+
+        console.log(`[getFilteredDatabaseRecords] Found ${filteredResults.length} records for user ${userEmail}`);
+        
+        // Map to our record format
+        const results = filteredResults.map((page: any) => {
+            const properties = page.properties;
+            
+            return {
                 notionId: page.id,
                 title: properties.Title?.title?.[0]?.plain_text || 
                        properties.Name?.title?.[0]?.plain_text || 
+                       properties["Project name"]?.title?.[0]?.plain_text ||
                        "Untitled",
-                userEmail: properties.UserEmail?.email || properties["User Email"]?.email || extractEmailFromProperty(properties),
+                userEmail: properties.UserEmail?.email || properties["User Email"]?.email || null,
                 createdTime: page.created_time,
                 lastEditedTime: page.last_edited_time,
                 url: page.url,
                 properties: properties
             };
-
-            return record;
         });
         
-        console.log(`[getFilteredDatabaseRecords] Found ${results.length} records`);
         return results;
     } catch (error) {
         console.error(`Error querying database ${databaseId}:`, error);
-        // Fallback: try to get all records and filter manually
-        try {
-            console.log(`[getFilteredDatabaseRecords] Trying fallback approach...`);
-            const response = await notion.databases.query({
-                database_id: databaseId
-            });
-            
-            const allRecords = response.results.map((page: any) => {
-                const properties = page.properties;
-                
-                const record = {
-                    notionId: page.id,
-                    title: properties.Title?.title?.[0]?.plain_text || 
-                           properties.Name?.title?.[0]?.plain_text || 
-                           "Untitled",
-                    userEmail: extractEmailFromProperty(properties),
-                    createdTime: page.created_time,
-                    lastEditedTime: page.last_edited_time,
-                    url: page.url,
-                    properties: properties
-                };
-
-                return record;
-            });
-            
-            const filteredRecords = allRecords.filter(record => 
-                record.userEmail && record.userEmail.toLowerCase() === userEmail.toLowerCase()
-            );
-            
-            console.log(`[getFilteredDatabaseRecords] Fallback found ${filteredRecords.length} of ${allRecords.length} records`);
-            return filteredRecords;
-        } catch (fallbackError) {
-            console.error(`Fallback query also failed:`, fallbackError);
-            return [];
-        }
+        return [];
     }
 }
 

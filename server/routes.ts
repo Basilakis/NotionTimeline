@@ -1269,6 +1269,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint for checking all database records (no filtering)
+  app.get("/api/debug/notion-database-all/:databaseId", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { databaseId } = req.params;
+      const adminConfig = await storage.getConfiguration('basiliskan@gmail.com');
+      
+      if (!adminConfig) {
+        return res.status(400).json({ message: "Admin configuration not found" });
+      }
+
+      const notion = createNotionClient(adminConfig.notionSecret);
+      
+      // Get ALL records without any filtering
+      const response = await notion.databases.query({
+        database_id: databaseId
+      });
+
+      const allRecords = response.results.map((page: any) => {
+        const properties = page.properties;
+        return {
+          notionId: page.id,
+          projectName: properties?.["Project name"]?.title?.[0]?.plain_text || "Untitled",
+          userEmail: properties?.["User Email"]?.email || null,
+          status: properties?.Status?.status?.name || null,
+          people: properties?.People?.people || [],
+          createdTime: page.created_time,
+          lastEditedTime: page.last_edited_time,
+          url: page.url
+        };
+      });
+
+      res.json({
+        database_id: databaseId,
+        total_records: allRecords.length,
+        records: allRecords
+      });
+    } catch (error) {
+      console.error("Error fetching all database records:", error);
+      res.status(500).json({ message: "Failed to fetch all database records" });
+    }
+  });
+
   // Debug endpoint to inspect Notion page structure
   app.get("/api/debug/notion-page", async (req, res) => {
     try {
