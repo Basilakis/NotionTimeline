@@ -185,19 +185,35 @@ export default function Workspace() {
       <div className={`container mx-auto py-6 ${hasProposalRecords ? 'relative z-10' : ''}`}>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Workspace</h1>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => discoverWorkspace.mutate()}
-            disabled={discoverWorkspace.isPending}
-          >
-            {discoverWorkspace.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            Refresh Views
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.location.href = '/demo'}
+            >
+              🧪 Test Users
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.location.href = '/admin'}
+            >
+              ⚙️ Admin
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => discoverWorkspace.mutate()}
+              disabled={discoverWorkspace.isPending}
+            >
+              {discoverWorkspace.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Refresh Views
+            </Button>
+          </div>
         </div>
 
         <Tabs value={activeView} onValueChange={setActiveView} className="space-y-4">

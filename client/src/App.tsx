@@ -10,6 +10,7 @@ import Workspace from "@/pages/workspace";
 import AdminSetup from "@/pages/admin-setup";
 import Login from "@/pages/login";
 import Setup from "@/pages/setup";
+import UserDemo from "@/pages/user-demo";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/admin" component={AdminSetup} />
       <Route path="/timeline" component={Timeline} />
       <Route path="/setup" component={Setup} />
+      <Route path="/demo" component={UserDemo} />
       <Route component={NotFound} />
     </Switch>
   );
