@@ -279,6 +279,14 @@ export default function UserDemo() {
                     <RefreshCw className="h-6 w-6 animate-spin mr-2" />
                     Loading user data...
                   </div>
+                ) : !databaseData ? (
+                  <div className="text-center py-8">
+                    <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">No data available</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Active view: {activeViewData?.title || 'None'} | Database ID: {activeViewData?.databaseId || 'None'}
+                    </p>
+                  </div>
                 ) : databaseData && (databaseData as any).records ? (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -362,10 +370,13 @@ export default function UserDemo() {
                 ) : (
                   <div className="text-center py-8">
                     <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="font-semibold mb-2">Configuration Required</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Unable to load data. Please check your Notion configuration.
+                    <h3 className="font-semibold mb-2">Data Structure Debug</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Debug info for databaseData:
                     </p>
+                    <div className="text-xs text-left bg-gray-100 p-4 rounded max-h-40 overflow-y-auto">
+                      <pre>{JSON.stringify(databaseData, null, 2)}</pre>
+                    </div>
                   </div>
                 )}
               </CardContent>
