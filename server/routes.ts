@@ -291,12 +291,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get admin configuration (since you own all databases)
-      const adminConfig = await storage.getConfiguration('admin') || 
-                          await storage.getConfiguration(process.env.ADMIN_EMAIL || '');
+      console.log(`[Database Records] Looking for config for user: ${userEmail}`);
+      let adminConfig = await storage.getConfiguration(userEmail);
       
       if (!adminConfig) {
+        console.log(`[Database Records] Config not found for ${userEmail}, trying admin emails...`);
+        adminConfig = await storage.getConfiguration('basiliskan@gmail.com') || 
+                     await storage.getConfiguration('admin') || 
+                     await storage.getConfiguration(process.env.ADMIN_EMAIL || '');
+      }
+      
+      if (!adminConfig) {
+        console.log(`[Database Records] No configuration found for any admin user`);
         return res.status(400).json({ message: "Admin configuration not found. Please set up the workspace first." });
       }
+      
+      console.log(`[Database Records] Found config for workspace: ${adminConfig.workspaceName}`);
 
       const notion = createNotionClient(adminConfig.notionSecret);
       
