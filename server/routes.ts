@@ -1129,7 +1129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // First, discover pages within the workspace that have User Email properties
         const workspaceStructure = await discoverWorkspacePages(notion, pageId, userEmail);
         
-        if (workspaceStructure.userPages.length === 0 && workspaceStructure.databases.length === 0) {
+        if (workspaceStructure.userPages.length === 0 && workspaceStructure.userDatabases.length === 0) {
           return res.status(404).json({ message: "No databases found for your user email. Please ensure your email is added to the 'User Email' property in relevant Notion pages or databases." });
         }
 

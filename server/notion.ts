@@ -33,6 +33,7 @@ export async function getNotionDatabases(notion: Client, pageId: string) {
     const childDatabases = [];
 
     try {
+        console.log(`[getNotionDatabases] Scanning page ${pageId} for databases...`);
         let hasMore = true;
         let startCursor: string | undefined = undefined;
 
@@ -42,15 +43,20 @@ export async function getNotionDatabases(notion: Client, pageId: string) {
                 start_cursor: startCursor,
             });
 
+            console.log(`[getNotionDatabases] Found ${response.results.length} blocks, checking for databases...`);
+
             for (const block of response.results) {
+                console.log(`[getNotionDatabases] Block type: ${('type' in block) ? block.type : 'unknown'}`);
                 if ('type' in block && block.type === "child_database") {
                     const databaseId = block.id;
+                    console.log(`[getNotionDatabases] Found database ${databaseId}`);
 
                     try {
                         const databaseInfo = await notion.databases.retrieve({
                             database_id: databaseId,
                         });
 
+                        console.log(`[getNotionDatabases] Successfully retrieved database: ${databaseInfo.title?.[0]?.plain_text || 'Untitled'}`);
                         childDatabases.push(databaseInfo);
                     } catch (error) {
                         console.error(`Error retrieving database ${databaseId}:`, error);
@@ -62,6 +68,7 @@ export async function getNotionDatabases(notion: Client, pageId: string) {
             startCursor = response.next_cursor || undefined;
         }
 
+        console.log(`[getNotionDatabases] Completed scan, found ${childDatabases.length} total databases`);
         return childDatabases;
     } catch (error) {
         console.error("Error listing child databases:", error);
@@ -112,17 +119,114 @@ export async function createDatabaseIfNotExists(notion: Client, pageId: string, 
 // Get filtered database records by user email
 export async function getFilteredDatabaseRecords(notion: Client, databaseId: string, userEmail: string) {
     try {
-        const response = await notion.databases.query({
-            database_id: databaseId,
-            filter: {
-                property: "User Email",
+        console.log(`[getFilteredDatabaseRecords] Checking database ${databaseId} for user ${userEmail}`);
+        
+        // First, get the database schema to understand what properties exist
+        const database = await notion.databases.retrieve({ database_id: databaseId });
+        const properties = database.properties;
+        
+        console.log(`[getFilteredDatabaseRecords] Database properties:`, Object.keys(properties));
+        
+        // Look for email-related properties
+        const emailPropertyNames = ['User Email', 'UserEmail', 'Email', 'user_email', 'email', 'User', 'Assignee'];
+        let emailProperty = null;
+        
+        for (const propName of emailPropertyNames) {
+            if (properties[propName]) {
+                emailProperty = propName;
+                console.log(`[getFilteredDatabaseRecords] Found email property: ${propName} (type: ${properties[propName].type})`);
+                break;
+            }
+        }
+        
+        if (!emailProperty) {
+            console.log(`[getFilteredDatabaseRecords] No email property found, getting all records to check manually...`);
+            // If no email property found, get all records and check manually
+            const response = await notion.databases.query({
+                database_id: databaseId
+            });
+            
+            const allRecords = response.results.map((page: any) => {
+                const properties = page.properties;
+                
+                const record = {
+                    notionId: page.id,
+                    title: properties.Title?.title?.[0]?.plain_text || 
+                           properties.Name?.title?.[0]?.plain_text || 
+                           "Untitled",
+                    userEmail: extractEmailFromProperty(properties),
+                    createdTime: page.created_time,
+                    lastEditedTime: page.last_edited_time,
+                    url: page.url,
+                    properties: properties
+                };
+
+                return record;
+            });
+            
+            const filteredRecords = allRecords.filter(record => 
+                record.userEmail && record.userEmail.toLowerCase() === userEmail.toLowerCase()
+            );
+            
+            console.log(`[getFilteredDatabaseRecords] Manual filter found ${filteredRecords.length} of ${allRecords.length} records for user`);
+            return filteredRecords;
+        }
+        
+        // Try to filter by the found email property
+        const propertyType = properties[emailProperty].type;
+        let filter: any;
+        
+        if (propertyType === 'email') {
+            filter = {
+                property: emailProperty,
                 email: {
                     equals: userEmail
                 }
-            }
-        });
+            };
+        } else if (propertyType === 'rich_text' || propertyType === 'title') {
+            filter = {
+                property: emailProperty,
+                rich_text: {
+                    contains: userEmail
+                }
+            };
+        } else {
+            console.log(`[getFilteredDatabaseRecords] Unsupported property type ${propertyType}, getting all records...`);
+            const response = await notion.databases.query({
+                database_id: databaseId
+            });
+            
+            const allRecords = response.results.map((page: any) => {
+                const properties = page.properties;
+                
+                const record = {
+                    notionId: page.id,
+                    title: properties.Title?.title?.[0]?.plain_text || 
+                           properties.Name?.title?.[0]?.plain_text || 
+                           "Untitled",
+                    userEmail: extractEmailFromProperty(properties),
+                    createdTime: page.created_time,
+                    lastEditedTime: page.last_edited_time,
+                    url: page.url,
+                    properties: properties
+                };
 
-        return response.results.map((page: any) => {
+                return record;
+            });
+            
+            return allRecords.filter(record => 
+                record.userEmail && record.userEmail.toLowerCase() === userEmail.toLowerCase()
+            );
+        }
+        
+        console.log(`[getFilteredDatabaseRecords] Using filter:`, JSON.stringify(filter, null, 2));
+        
+        const response = await notion.databases.query({
+            database_id: databaseId,
+            filter
+        });
+        
+        const results = response.results.map((page: any) => {
             const properties = page.properties;
             
             const record = {
@@ -130,7 +234,7 @@ export async function getFilteredDatabaseRecords(notion: Client, databaseId: str
                 title: properties.Title?.title?.[0]?.plain_text || 
                        properties.Name?.title?.[0]?.plain_text || 
                        "Untitled",
-                userEmail: properties.UserEmail?.email || properties["User Email"]?.email || null,
+                userEmail: properties.UserEmail?.email || properties["User Email"]?.email || extractEmailFromProperty(properties),
                 createdTime: page.created_time,
                 lastEditedTime: page.last_edited_time,
                 url: page.url,
@@ -139,9 +243,46 @@ export async function getFilteredDatabaseRecords(notion: Client, databaseId: str
 
             return record;
         });
+        
+        console.log(`[getFilteredDatabaseRecords] Found ${results.length} records`);
+        return results;
     } catch (error) {
-        console.error("Error fetching filtered database records:", error);
-        throw new Error("Failed to fetch database records");
+        console.error(`Error querying database ${databaseId}:`, error);
+        // Fallback: try to get all records and filter manually
+        try {
+            console.log(`[getFilteredDatabaseRecords] Trying fallback approach...`);
+            const response = await notion.databases.query({
+                database_id: databaseId
+            });
+            
+            const allRecords = response.results.map((page: any) => {
+                const properties = page.properties;
+                
+                const record = {
+                    notionId: page.id,
+                    title: properties.Title?.title?.[0]?.plain_text || 
+                           properties.Name?.title?.[0]?.plain_text || 
+                           "Untitled",
+                    userEmail: extractEmailFromProperty(properties),
+                    createdTime: page.created_time,
+                    lastEditedTime: page.last_edited_time,
+                    url: page.url,
+                    properties: properties
+                };
+
+                return record;
+            });
+            
+            const filteredRecords = allRecords.filter(record => 
+                record.userEmail && record.userEmail.toLowerCase() === userEmail.toLowerCase()
+            );
+            
+            console.log(`[getFilteredDatabaseRecords] Fallback found ${filteredRecords.length} of ${allRecords.length} records`);
+            return filteredRecords;
+        } catch (fallbackError) {
+            console.error(`Fallback query also failed:`, fallbackError);
+            return [];
+        }
     }
 }
 
@@ -298,8 +439,12 @@ export async function discoverWorkspacePages(notion: Client, pageId: string, use
   const allDatabases = [];
 
   try {
+    console.log(`[Discovery] Starting discovery for user: ${userEmail} in page: ${pageId}`);
+    
     // First, check databases directly in the main page
+    console.log(`[Discovery] Checking main page databases...`);
     const mainPageDatabases = await getNotionDatabases(notion, pageId);
+    console.log(`[Discovery] Found ${mainPageDatabases.length} databases in main page`);
     
     for (const db of mainPageDatabases) {
       allDatabases.push({
@@ -331,8 +476,10 @@ export async function discoverWorkspacePages(notion: Client, pageId: string, use
     }
 
     // Now scan for child pages
+    console.log(`[Discovery] Scanning for child pages...`);
     let hasMore = true;
     let startCursor: string | undefined = undefined;
+    let totalChildPages = 0;
 
     while (hasMore) {
       const response = await notion.blocks.children.list({
@@ -341,8 +488,12 @@ export async function discoverWorkspacePages(notion: Client, pageId: string, use
         page_size: 100,
       });
 
+      console.log(`[Discovery] Found ${response.results.length} blocks in this batch`);
+
       for (const block of response.results) {
         if ('type' in block && block.type === "child_page") {
+          totalChildPages++;
+          console.log(`[Discovery] Processing child page ${totalChildPages}: ${block.id}`);
           try {
             const page = await notion.pages.retrieve({
               page_id: block.id,
