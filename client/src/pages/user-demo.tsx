@@ -73,9 +73,14 @@ export default function UserDemo() {
   // Fetch database data for the active view
   const activeViewData = views?.find(v => v.viewType === activeView);
   
+  // Debug the query URL
+  const queryUrl = activeViewData?.databaseId ? `/api/notion-database/${activeViewData.databaseId}` : null;
+  console.log('[Demo] Query URL:', queryUrl);
+  console.log('[Demo] Active view data:', activeViewData);
+  
   const { data: databaseData, isLoading: pageLoading, error: databaseError } = useQuery({
-    queryKey: [`/api/notion-database/${activeViewData?.databaseId}`],
-    enabled: !!activeViewData?.databaseId && simulateUser,
+    queryKey: [queryUrl],
+    enabled: !!queryUrl && simulateUser,
     retry: false
   });
   
