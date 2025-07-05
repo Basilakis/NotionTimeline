@@ -62,6 +62,14 @@ async function initializePersistentSettings() {
     if (persistentSettings.AWS_SECRET_ACCESS_KEY) process.env.AWS_SECRET_ACCESS_KEY = persistentSettings.AWS_SECRET_ACCESS_KEY;
     if (persistentSettings.AWS_REGION) process.env.AWS_REGION = persistentSettings.AWS_REGION;
     
+    // Also check for saved Notion configurations for the admin user
+    const adminConfig = await storage.getConfiguration("basiliskan@gmail.com");
+    if (adminConfig) {
+      log(`Notion configuration found for admin: ${adminConfig.workspaceName} (Page: ${adminConfig.notionPageUrl})`);
+    } else {
+      log("No Notion configuration found for admin user");
+    }
+    
     log("Persistent settings loaded successfully");
   } catch (error) {
     log("No persistent settings found, starting with defaults");

@@ -1200,6 +1200,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to inspect Notion page structure
+  app.get("/api/debug/notion-page", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const config = await storage.getConfiguration(userEmail);
+      if (!config || !config.notionSecret || !config.notionPageUrl) {
+        return res.status(400).json({ message: "Notion configuration not found" });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+
+      // Get basic page info
+      const pageInfo = await notion.pages.retrieve({ page_id: pageId });
+      
+      // Get page blocks
+      const blocksResponse = await notion.blocks.children.list({
+        block_id: pageId,
+        page_size: 100
+      });
+
+      // Get detailed block info
+      const blockDetails = blocksResponse.results.map((block: any) => ({
+        id: block.id,
+        type: block.type,
+        has_children: block.has_children,
+        // Add specific block content based on type
+        ...(block.type === 'child_page' && { title: block.child_page?.title }),
+        ...(block.type === 'child_database' && { title: block.child_database?.title })
+      }));
+
+      res.json({
+        pageId,
+        pageUrl: config.notionPageUrl,
+        pageInfo: {
+          id: pageInfo.id,
+          created_time: pageInfo.created_time,
+          last_edited_time: pageInfo.last_edited_time,
+          url: pageInfo.url
+        },
+        totalBlocks: blocksResponse.results.length,
+        hasMore: blocksResponse.has_more,
+        blocks: blockDetails
+      });
+    } catch (error) {
+      console.error("Error debugging Notion page:", error);
+      res.status(500).json({ 
+        message: "Failed to debug Notion page",
+        error: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

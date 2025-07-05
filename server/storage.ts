@@ -182,9 +182,27 @@ export class MemStorage implements IStorage {
     }
   }
 
-  // Configuration methods
+  // Configuration methods with persistent storage
+  private configFile = path.join(process.cwd(), 'server', 'notion-configs.json');
+
+  private async readConfigFile(): Promise<Record<string, Configuration>> {
+    try {
+      const data = await fs.readFile(this.configFile, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      return {};
+    }
+  }
+
+  private async writeConfigFile(configs: Record<string, Configuration>): Promise<void> {
+    const dir = path.dirname(this.configFile);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(this.configFile, JSON.stringify(configs, null, 2));
+  }
+
   async getConfiguration(userEmail: string): Promise<Configuration | undefined> {
-    return this.configurations.get(userEmail);
+    const persistentConfigs = await this.readConfigFile();
+    return persistentConfigs[userEmail] || this.configurations.get(userEmail);
   }
 
   async createConfiguration(insertConfig: InsertConfiguration): Promise<Configuration> {
@@ -200,12 +218,20 @@ export class MemStorage implements IStorage {
       createdAt: now,
       updatedAt: now
     };
+    
+    // Save to both memory and persistent storage
     this.configurations.set(insertConfig.userEmail, config);
+    
+    const persistentConfigs = await this.readConfigFile();
+    persistentConfigs[insertConfig.userEmail] = config;
+    await this.writeConfigFile(persistentConfigs);
+    
     return config;
   }
 
   async updateConfiguration(userEmail: string, configUpdate: Partial<InsertConfiguration>): Promise<Configuration | undefined> {
-    const existingConfig = this.configurations.get(userEmail);
+    const persistentConfigs = await this.readConfigFile();
+    const existingConfig = persistentConfigs[userEmail] || this.configurations.get(userEmail);
     if (!existingConfig) return undefined;
 
     const updatedConfig: Configuration = {
@@ -213,7 +239,12 @@ export class MemStorage implements IStorage {
       ...configUpdate,
       updatedAt: new Date()
     };
+    
+    // Save to both memory and persistent storage
     this.configurations.set(userEmail, updatedConfig);
+    persistentConfigs[userEmail] = updatedConfig;
+    await this.writeConfigFile(persistentConfigs);
+    
     return updatedConfig;
   }
 
