@@ -303,7 +303,7 @@ export function AdminDashboard({ selectedProject }: DashboardProps) {
                             <TableCell>
                               {subPage.userEmail ? (
                                 <div className="flex items-center gap-2">
-                                  <User className="h-4 w-4 text-gray-500" />
+                                  <Users className="h-4 w-4 text-gray-500" />
                                   <span className="text-sm">{subPage.userEmail}</span>
                                 </div>
                               ) : (

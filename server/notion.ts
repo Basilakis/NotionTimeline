@@ -165,7 +165,7 @@ export async function getProjectHierarchy(notion: Client, pageId: string) {
       });
 
       for (const block of response.results) {
-        if (block.type === "child_page") {
+        if ('type' in block && block.type === "child_page") {
           // Get the child page details
           try {
             const page = await notion.pages.retrieve({
@@ -289,6 +289,136 @@ function extractEmailFromProperty(properties: any): string | null {
     }
   }
   return null;
+}
+
+// Discover workspace pages and databases for a specific user
+export async function discoverWorkspacePages(notion: Client, pageId: string, userEmail: string) {
+  const userPages = [];
+  const userDatabases = [];
+  const allDatabases = [];
+
+  try {
+    // First, check databases directly in the main page
+    const mainPageDatabases = await getNotionDatabases(notion, pageId);
+    
+    for (const db of mainPageDatabases) {
+      allDatabases.push({
+        id: db.id,
+        title: 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
+          ? db.title[0]?.plain_text 
+          : 'Untitled Database',
+        parentPageId: pageId,
+        parentPageTitle: "Main Workspace"
+      });
+
+      // Check if this database has records for the user
+      try {
+        const userRecords = await getFilteredDatabaseRecords(notion, db.id, userEmail);
+        if (userRecords.length > 0) {
+          userDatabases.push({
+            id: db.id,
+            title: 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
+              ? db.title[0]?.plain_text 
+              : 'Untitled Database',
+            parentPageId: pageId,
+            parentPageTitle: "Main Workspace",
+            recordCount: userRecords.length
+          });
+        }
+      } catch (dbError) {
+        console.error(`Error checking database ${db.id} for user:`, dbError);
+      }
+    }
+
+    // Now scan for child pages
+    let hasMore = true;
+    let startCursor: string | undefined = undefined;
+
+    while (hasMore) {
+      const response = await notion.blocks.children.list({
+        block_id: pageId,
+        start_cursor: startCursor,
+        page_size: 100,
+      });
+
+      for (const block of response.results) {
+        if ('type' in block && block.type === "child_page") {
+          try {
+            const page = await notion.pages.retrieve({
+              page_id: block.id,
+            });
+
+            if ('properties' in page && page.properties) {
+              const pageTitle = extractTextFromProperty(page.properties);
+              const pageUserEmail = extractEmailFromProperty(page.properties);
+              
+              // Check if this page belongs to the user or has the user's email
+              if (pageUserEmail === userEmail) {
+                userPages.push({
+                  id: block.id,
+                  title: pageTitle || "Untitled Page",
+                  userEmail: pageUserEmail,
+                  url: `https://notion.so/${block.id.replace(/-/g, '')}`
+                });
+              }
+
+              // Check databases within this page regardless of ownership
+              const pageDatabases = await getNotionDatabases(notion, block.id);
+              
+              for (const db of pageDatabases) {
+                allDatabases.push({
+                  id: db.id,
+                  title: 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
+                    ? db.title[0]?.plain_text 
+                    : 'Untitled Database',
+                  parentPageId: block.id,
+                  parentPageTitle: pageTitle || "Untitled Page"
+                });
+
+                // Check if this database has records for the user
+                try {
+                  const userRecords = await getFilteredDatabaseRecords(notion, db.id, userEmail);
+                  if (userRecords.length > 0) {
+                    userDatabases.push({
+                      id: db.id,
+                      title: 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
+                        ? db.title[0]?.plain_text 
+                        : 'Untitled Database',
+                      parentPageId: block.id,
+                      parentPageTitle: pageTitle || "Untitled Page",
+                      recordCount: userRecords.length
+                    });
+                  }
+                } catch (dbError) {
+                  console.error(`Error checking database ${db.id} for user:`, dbError);
+                }
+              }
+            }
+          } catch (pageError) {
+            console.error(`Error retrieving page ${block.id}:`, pageError);
+          }
+        }
+      }
+
+      hasMore = response.has_more;
+      startCursor = response.next_cursor || undefined;
+    }
+
+    return {
+      userPages,
+      userDatabases,
+      databases: allDatabases,
+      totalFound: userPages.length + userDatabases.length
+    };
+  } catch (error) {
+    console.error("Error discovering workspace pages:", error);
+    return {
+      userPages: [],
+      userDatabases: [],
+      databases: [],
+      totalFound: 0
+    };
+  }
 }
 
 export async function getTasks(notion: Client, tasksDatabaseId: string, userEmail?: string) {

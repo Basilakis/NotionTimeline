@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertTaskSchema, insertConfigurationSchema, insertUserSchema } from "@shared/schema";
-import { createNotionClient, createNotionAPI, getTasks as getNotionTasks, findDatabaseByTitle, extractPageIdFromUrl, getNotionDatabases, getFilteredDatabaseRecords, getProjectHierarchy } from "./notion";
+import { createNotionClient, createNotionAPI, getTasks as getNotionTasks, findDatabaseByTitle, extractPageIdFromUrl, getNotionDatabases, getFilteredDatabaseRecords, getProjectHierarchy, discoverWorkspacePages } from "./notion";
 import { insertNotionViewSchema } from "@shared/schema";
 import { z } from "zod";
 import { userDB, type CRMUser } from "./userDatabase";
@@ -1115,20 +1115,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pageId = extractPageIdFromUrl(config.notionPageUrl);
 
       try {
-        // Discover databases in the Notion workspace
-        const databases = await getNotionDatabases(notion, pageId);
+        // First, discover pages within the workspace that have User Email properties
+        const workspaceStructure = await discoverWorkspacePages(notion, pageId, userEmail);
         
-        if (databases.length === 0) {
-          return res.status(404).json({ message: "No databases found in the specified Notion page." });
+        if (workspaceStructure.userPages.length === 0 && workspaceStructure.databases.length === 0) {
+          return res.status(404).json({ message: "No databases found for your user email. Please ensure your email is added to the 'User Email' property in relevant Notion pages or databases." });
         }
 
         let viewsCreated = 0;
 
-        // Create notion views for each database found
-        for (const database of databases) {
-          const databaseTitle = database.title && Array.isArray(database.title) && database.title.length > 0
-            ? database.title[0]?.plain_text || "Untitled Database"
-            : "Untitled Database";
+        // Create views for user-specific databases
+        for (const dbInfo of workspaceStructure.userDatabases) {
+          const databaseTitle = dbInfo.title || "Untitled Database";
 
           // Determine view type based on database title
           let viewType = 'general';
@@ -1161,8 +1159,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.createNotionView({
               userEmail,
               viewType,
-              pageId,
-              databaseId: database.id,
+              pageId: dbInfo.parentPageId,
+              databaseId: dbInfo.id,
               title: databaseTitle,
               icon,
               isActive: true,
@@ -1173,8 +1171,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         res.json({ 
-          message: `Workspace discovery complete. Found ${databases.length} databases and created ${viewsCreated} new views.`,
-          databasesFound: databases.length,
+          message: `Workspace discovery complete. Found ${workspaceStructure.userPages.length} user pages and ${workspaceStructure.userDatabases.length} databases with your data. Created ${viewsCreated} new views.`,
+          userPagesFound: workspaceStructure.userPages.length,
+          userDatabasesFound: workspaceStructure.userDatabases.length,
+          totalDatabasesScanned: workspaceStructure.databases.length,
           viewsCreated 
         });
 
