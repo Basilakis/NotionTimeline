@@ -1126,11 +1126,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pageId = extractPageIdFromUrl(config.notionPageUrl);
 
       try {
-        // First, discover pages within the workspace that have User Email properties
-        const workspaceStructure = await discoverWorkspacePages(notion, pageId, userEmail);
+        // First, try to determine if the provided URL is a database or page
+        let workspaceStructure;
+        let isDatabaseUrl = false;
+        
+        try {
+          // Try to retrieve as a page first
+          await notion.pages.retrieve({ page_id: pageId });
+          console.log(`[Discovery] URL is a page, scanning for child databases...`);
+          workspaceStructure = await discoverWorkspacePages(notion, pageId, userEmail);
+        } catch (pageError: any) {
+          if (pageError.message?.includes('is a database, not a page')) {
+            console.log(`[Discovery] URL is a database, checking it directly...`);
+            isDatabaseUrl = true;
+            
+            // If it's a database, check it directly for user records
+            try {
+              const userRecords = await getFilteredDatabaseRecords(notion, pageId, userEmail);
+              const database = await notion.databases.retrieve({ database_id: pageId });
+              
+              if (userRecords.length > 0) {
+                workspaceStructure = {
+                  userPages: [],
+                  userDatabases: [{
+                    id: pageId,
+                    title: 'title' in database && database.title && Array.isArray(database.title) && database.title.length > 0 
+                      ? database.title[0]?.plain_text 
+                      : 'Untitled Database',
+                    parentPageId: 'direct',
+                    parentPageTitle: 'Direct Database',
+                    recordCount: userRecords.length
+                  }],
+                  databases: [{
+                    id: pageId,
+                    title: 'title' in database && database.title && Array.isArray(database.title) && database.title.length > 0 
+                      ? database.title[0]?.plain_text 
+                      : 'Untitled Database',
+                    parentPageId: 'direct',
+                    parentPageTitle: 'Direct Database'
+                  }],
+                  totalFound: 1
+                };
+              } else {
+                workspaceStructure = {
+                  userPages: [],
+                  userDatabases: [],
+                  databases: [],
+                  totalFound: 0
+                };
+              }
+            } catch (dbError) {
+              console.error("Error checking database directly:", dbError);
+              throw dbError;
+            }
+          } else {
+            throw pageError;
+          }
+        }
         
         if (workspaceStructure.userPages.length === 0 && workspaceStructure.userDatabases.length === 0) {
-          return res.status(404).json({ message: "No databases found for your user email. Please ensure your email is added to the 'User Email' property in relevant Notion pages or databases." });
+          if (isDatabaseUrl) {
+            return res.status(404).json({ message: "No records found for your user email in this database. Please ensure your email is added to a 'User Email' property in the database records." });
+          } else {
+            return res.status(404).json({ message: "No databases found for your user email. Please ensure your email is added to the 'User Email' property in relevant Notion pages or databases." });
+          }
         }
 
         let viewsCreated = 0;
