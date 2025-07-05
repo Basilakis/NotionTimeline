@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3 } from "lucide-react";
+import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye } from "lucide-react";
 
 interface NotionView {
   id: number;
@@ -63,6 +64,8 @@ export default function UserDemo() {
   const [activeView, setActiveView] = useState<string>('projects');
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
 
   // Set user email for testing
   const handleSetUserEmail = () => {
@@ -143,6 +146,20 @@ export default function UserDemo() {
     retry: false
   });
 
+  // Fetch all tasks
+  const { data: allTasks } = useQuery<{tasks: any[], total: number}>({
+    queryKey: ['/api/tasks'],
+    enabled: simulateUser,
+    retry: false
+  });
+
+  // Fetch specific task details for modal
+  const { data: taskDetails, isLoading: taskDetailsLoading } = useQuery<any>({
+    queryKey: [`/api/tasks/${selectedTask?.id}`],
+    enabled: !!selectedTask?.id && simulateUser,
+    retry: false
+  });
+
   // Toggle project expansion
   const toggleProjectExpansion = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
@@ -164,12 +181,38 @@ export default function UserDemo() {
     }
   }, [databaseData, databaseError]);
 
+  // Get task details by ID from fetched tasks
+  const getTaskById = (taskId: string) => {
+    return allTasks?.tasks?.find(task => task.id === taskId);
+  };
+
+  // Render task status badge
+  const renderTaskStatus = (status: string) => {
+    const statusColors: { [key: string]: string } = {
+      'Not started': 'bg-gray-100 text-gray-800',
+      'In progress': 'bg-blue-100 text-blue-800', 
+      'Complete': 'bg-green-100 text-green-800',
+      'Completed': 'bg-green-100 text-green-800',
+      'Todo': 'bg-yellow-100 text-yellow-800',
+      'Doing': 'bg-blue-100 text-blue-800',
+      'Done': 'bg-green-100 text-green-800'
+    };
+    const colorClass = statusColors[status] || 'bg-gray-100 text-gray-800';
+    return <span className={`px-2 py-1 rounded-full text-xs font-medium ${colorClass}`}>{status}</span>;
+  };
+
+  // Open task modal
+  const openTaskModal = (task: any) => {
+    setSelectedTask(task);
+    setTaskModalOpen(true);
+  };
+
   // Render project relationship data (tasks, relations)
   const renderProjectRelations = (record: DatabaseRecord) => {
-    const tasks = record.properties?.Tasks?.relation || [];
+    const taskRelations = record.properties?.Tasks?.relation || [];
     const dates = record.properties?.Dates?.date;
     
-    if (tasks.length === 0 && !dates) return null;
+    if (taskRelations.length === 0 && !dates) return null;
 
     return (
       <div className="mt-4 space-y-3 border-t pt-3">
@@ -184,21 +227,48 @@ export default function UserDemo() {
           </div>
         )}
         
-        {tasks.length > 0 && (
+        {taskRelations.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <BarChart3 className="h-4 w-4 text-green-600" />
-              <span>Related Tasks ({tasks.length})</span>
+              <span>Related Tasks ({taskRelations.length})</span>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {tasks.slice(0, 6).map((task: any, index: number) => (
-                <div key={index} className="text-xs bg-gray-50 p-2 rounded border">
-                  <span className="font-mono text-gray-600">Task ID: {task.id}</span>
-                </div>
-              ))}
-              {tasks.length > 6 && (
-                <div className="text-xs text-gray-500 col-span-2">
-                  +{tasks.length - 6} more tasks
+            <div className="space-y-2">
+              {taskRelations.slice(0, 6).map((taskRef: any, index: number) => {
+                const task = getTaskById(taskRef.id);
+                return (
+                  <div 
+                    key={index} 
+                    className="bg-gray-50 p-3 rounded border hover:bg-gray-100 cursor-pointer transition-colors"
+                    onClick={() => task && openTaskModal(task)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">
+                          {task?.title || `Untitled Task`}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {task?.status && renderTaskStatus(task.status)}
+                          {task?.priority && (
+                            <span className="text-xs text-gray-600">
+                              Priority: {task.priority}
+                            </span>
+                          )}
+                          {task?.dueDate && (
+                            <span className="text-xs text-gray-600">
+                              Due: {new Date(task.dueDate).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Eye className="h-4 w-4 text-gray-400" />
+                    </div>
+                  </div>
+                );
+              })}
+              {taskRelations.length > 6 && (
+                <div className="text-xs text-gray-500 text-center py-2">
+                  +{taskRelations.length - 6} more tasks
                 </div>
               )}
             </div>
@@ -296,16 +366,6 @@ export default function UserDemo() {
 
                 {/* Project relations and tasks */}
                 {renderProjectRelations(record)}
-
-                {/* All properties debug */}
-                <details className="mt-4">
-                  <summary className="text-sm font-medium text-gray-600 cursor-pointer hover:text-gray-900">
-                    View Raw Properties Data
-                  </summary>
-                  <div className="mt-2 p-3 bg-gray-50 rounded text-xs overflow-auto">
-                    <pre>{JSON.stringify(record.properties, null, 2)}</pre>
-                  </div>
-                </details>
 
                 {/* Action buttons */}
                 <div className="flex gap-2 pt-3 border-t">
@@ -507,6 +567,102 @@ export default function UserDemo() {
           </CardContent>
         </Card>
       )}
+
+      {/* Task Details Modal */}
+      <Dialog open={taskModalOpen} onOpenChange={setTaskModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Task Details</DialogTitle>
+          </DialogHeader>
+          
+          {taskDetailsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading task details...</span>
+            </div>
+          ) : taskDetails ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold">{taskDetails.title}</h3>
+                {taskDetails.description && (
+                  <p className="text-gray-600 mt-1">{taskDetails.description}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-500">Status</Label>
+                  <div className="mt-1">
+                    {renderTaskStatus(taskDetails.status)}
+                  </div>
+                </div>
+                
+                {taskDetails.priority && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Priority</Label>
+                    <div className="mt-1">
+                      <Badge variant="outline">{taskDetails.priority}</Badge>
+                    </div>
+                  </div>
+                )}
+                
+                {taskDetails.assignee && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Assignee</Label>
+                    <div className="mt-1 text-sm">{taskDetails.assignee}</div>
+                  </div>
+                )}
+                
+                {taskDetails.dueDate && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Due Date</Label>
+                    <div className="mt-1 text-sm">
+                      {new Date(taskDetails.dueDate).toLocaleDateString()}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm text-gray-500">
+                <div>
+                  <Label className="text-sm font-medium text-gray-500">Created</Label>
+                  <div className="mt-1">
+                    {new Date(taskDetails.createdTime).toLocaleDateString()}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-500">Last Updated</Label>
+                  <div className="mt-1">
+                    {new Date(taskDetails.lastEditedTime).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t">
+                <Button asChild variant="outline">
+                  <a href={taskDetails.url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open in Notion
+                  </a>
+                </Button>
+                <Button variant="outline" onClick={() => setTaskModalOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          ) : selectedTask ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold">{selectedTask.title}</h3>
+              </div>
+              <div className="text-gray-500">Task details not available</div>
+              <Button variant="outline" onClick={() => setTaskModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

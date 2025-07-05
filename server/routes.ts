@@ -1358,6 +1358,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get tasks from Task database
+  app.get("/api/tasks", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      // Get user's Notion configuration
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        return res.status(404).json({ message: "Notion configuration not found" });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      
+      // Find the Task database
+      const views = await storage.getNotionViews(userEmail);
+      const taskView = views.find(v => v.viewType === 'tasks');
+      
+      if (!taskView || !taskView.databaseId) {
+        return res.status(404).json({ message: "Task database not found" });
+      }
+
+      // Query the Task database
+      const response = await notion.databases.query({
+        database_id: taskView.databaseId,
+        page_size: 100
+      });
+
+      const tasks = response.results.map((page: any) => {
+        const properties = page.properties || {};
+        
+        return {
+          id: page.id,
+          title: extractTextFromProperty(properties.Title || properties.Name || properties.Task),
+          status: properties.Status?.select?.name || properties.Status?.status?.name || 'Unknown',
+          priority: properties.Priority?.select?.name || null,
+          assignee: properties.Assignee?.people?.[0]?.name || null,
+          dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
+          createdTime: page.created_time,
+          lastEditedTime: page.last_edited_time,
+          url: page.url,
+          project: properties.Project?.relation?.[0]?.id || null,
+          description: extractTextFromProperty(properties.Description),
+          properties: properties
+        };
+      });
+
+      res.json({
+        tasks,
+        total: tasks.length
+      });
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch tasks",
+        error: error.message 
+      });
+    }
+  });
+
+  // Get specific task by ID
+  app.get("/api/tasks/:taskId", async (req, res) => {
+    try {
+      const { taskId } = req.params;
+      const userEmail = req.headers['x-user-email'] as string;
+      
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      // Get user's Notion configuration
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        return res.status(404).json({ message: "Notion configuration not found" });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      
+      // Get the specific task page
+      const page = await notion.pages.retrieve({ page_id: taskId });
+      const properties = page.properties || {};
+      
+      const task = {
+        id: page.id,
+        title: extractTextFromProperty(properties.Title || properties.Name || properties.Task),
+        status: properties.Status?.select?.name || properties.Status?.status?.name || 'Unknown',
+        priority: properties.Priority?.select?.name || null,
+        assignee: properties.Assignee?.people?.[0]?.name || null,
+        dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
+        createdTime: page.created_time,
+        lastEditedTime: page.last_edited_time,
+        url: page.url,
+        project: properties.Project?.relation?.[0]?.id || null,
+        description: extractTextFromProperty(properties.Description),
+        properties: properties
+      };
+
+      res.json(task);
+    } catch (error) {
+      console.error("Error fetching task:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch task",
+        error: error.message 
+      });
+    }
+  });
+
   // Debug endpoint to inspect Notion page structure
   app.get("/api/debug/notion-page", async (req, res) => {
     try {
