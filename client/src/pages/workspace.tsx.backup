@@ -166,38 +166,37 @@ export default function Workspace() {
   return (
     <div className="container mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Workspace</h1>
+        <h1 className="text-2xl font-bold">My Workspace</h1>
         <Button
           variant="outline"
-          size="sm"
           onClick={() => discoverWorkspace.mutate()}
           disabled={discoverWorkspace.isPending}
         >
           {discoverWorkspace.isPending ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className="mr-2 h-4 w-4" />
           )}
           Refresh Views
         </Button>
       </div>
 
-      <Tabs value={activeView} onValueChange={setActiveView} className="space-y-4">
+      <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           {activeViews.map((view) => (
-            <TabsTrigger key={view.id} value={view.viewType}>
-              <span className="mr-2">{view.icon}</span>
+            <TabsTrigger key={view.id} value={view.viewType} className="flex items-center gap-2">
+              {view.icon && <span>{view.icon}</span>}
               {view.title}
             </TabsTrigger>
           ))}
         </TabsList>
-
+        
         {activeViews.map((view) => (
-          <TabsContent key={view.id} value={view.viewType}>
+          <TabsContent key={view.id} value={view.viewType} className="mt-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <span>{view.icon}</span>
+                  {view.icon && <span>{view.icon}</span>}
                   {view.title}
                 </CardTitle>
               </CardHeader>
@@ -239,52 +238,51 @@ export default function Workspace() {
                                     )}
                                   </div>
                                 
-                                  {/* Render common properties */}
-                                  <div className="space-y-2 text-sm">
-                                    {record.properties.Status?.select?.name && (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-muted-foreground">Status:</span>
-                                        <Badge variant="secondary">
-                                          {record.properties.Status.select.name}
-                                        </Badge>
-                                      </div>
-                                    )}
-                                    
-                                    {record.properties.Priority?.select?.name && (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-muted-foreground">Priority:</span>
-                                        <Badge variant={
-                                          record.properties.Priority.select.name === 'High' ? 'destructive' :
-                                          record.properties.Priority.select.name === 'Medium' ? 'default' : 'secondary'
-                                        }>
-                                          {record.properties.Priority.select.name}
-                                        </Badge>
-                                      </div>
-                                    )}
-                                    
-                                    {record.properties.Description?.rich_text?.[0]?.plain_text && (
-                                      <div>
-                                        <span className="text-muted-foreground">Description:</span>
-                                        <p className="mt-1">{record.properties.Description.rich_text[0].plain_text}</p>
-                                      </div>
-                                    )}
-                                    
-                                    {record.properties.DueDate?.date?.start && (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-muted-foreground">Due:</span>
-                                        <span>{new Date(record.properties.DueDate.date.start).toLocaleDateString()}</span>
-                                      </div>
-                                    )}
-                                  </div>
+                                {/* Render common properties */}
+                                <div className="space-y-2 text-sm">
+                                  {record.properties.Status?.select?.name && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-muted-foreground">Status:</span>
+                                      <Badge variant="secondary">
+                                        {record.properties.Status.select.name}
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  
+                                  {record.properties.Priority?.select?.name && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-muted-foreground">Priority:</span>
+                                      <Badge variant={
+                                        record.properties.Priority.select.name === 'High' ? 'destructive' :
+                                        record.properties.Priority.select.name === 'Medium' ? 'default' : 'secondary'
+                                      }>
+                                        {record.properties.Priority.select.name}
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  
+                                  {record.properties.Description?.rich_text?.[0]?.plain_text && (
+                                    <div>
+                                      <span className="text-muted-foreground">Description:</span>
+                                      <p className="mt-1">{record.properties.Description.rich_text[0].plain_text}</p>
+                                    </div>
+                                  )}
+                                  
+                                  {record.properties.DueDate?.date?.start && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-muted-foreground">Due:</span>
+                                      <span>{new Date(record.properties.DueDate.date.start).toLocaleDateString()}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               
                               <div className="text-xs text-muted-foreground">
                                 Updated: {new Date(record.lastEditedTime).toLocaleDateString()}
                               </div>
-                            </Card>
-                          );
-                        })}
+                            </div>
+                          </Card>
+                        ))}
                       </div>
                     ) : (
                       <div className="text-center py-8 text-muted-foreground">
