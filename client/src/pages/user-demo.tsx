@@ -55,6 +55,7 @@ export default function UserDemo() {
     if (testUserEmail.trim()) {
       localStorage.setItem('userEmail', testUserEmail);
       setSimulateUser(true);
+      console.log('[Demo] Set user email in localStorage:', testUserEmail);
       toast({
         title: "User Email Set",
         description: `Now testing as: ${testUserEmail}`,
@@ -66,12 +67,7 @@ export default function UserDemo() {
   const { data: views, isLoading: viewsLoading, refetch: refetchViews } = useQuery<NotionView[]>({
     queryKey: ['/api/notion-views'],
     enabled: simulateUser && !!testUserEmail,
-    retry: false,
-    meta: {
-      headers: {
-        'x-user-email': testUserEmail
-      }
-    }
+    retry: false
   });
 
   // Fetch database data for the active view
@@ -81,21 +77,23 @@ export default function UserDemo() {
     queryKey: ['/api/notion-database', activeViewData?.databaseId],
     enabled: !!activeViewData?.databaseId && simulateUser,
     retry: false,
-    meta: {
-      headers: {
-        'x-user-email': testUserEmail
-      }
+    onSuccess: (data) => {
+      console.log('[Demo] Database query success:', data);
+    },
+    onError: (error) => {
+      console.log('[Demo] Database query error:', error);
     }
   });
 
   // Workspace discovery mutation
   const discoverWorkspace = useMutation({
     mutationFn: async () => {
+      const userEmail = localStorage.getItem('userEmail') || testUserEmail;
       const response = await fetch('/api/notion-workspace/discover', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-email': testUserEmail
+          'x-user-email': userEmail
         }
       });
       
