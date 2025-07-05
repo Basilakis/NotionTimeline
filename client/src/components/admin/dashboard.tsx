@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Database, 
   Users, 
@@ -11,7 +12,9 @@ import {
   ExternalLink, 
   Calendar,
   BarChart3,
-  Plus
+  Plus,
+  Eye,
+  RefreshCw
 } from "lucide-react";
 
 interface Project {
@@ -48,6 +51,12 @@ interface DashboardProps {
 }
 
 export function AdminDashboard({ selectedProject }: DashboardProps) {
+  // Query all projects for admin
+  const { data: allProjects = [], isLoading: isLoadingProjects, refetch: refetchProjects } = useQuery<Project[]>({
+    queryKey: ['/api/admin/projects'],
+    retry: false,
+  });
+
   // Query project details when a project is selected
   const { data: projectDetails, isLoading: isLoadingDetails } = useQuery<ProjectDetails>({
     queryKey: ['/api/admin/project-details', selectedProject?.id],
@@ -68,11 +77,21 @@ export function AdminDashboard({ selectedProject }: DashboardProps) {
   if (!selectedProject) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Projects Dashboard</h1>
-          <p className="text-gray-600 mt-1">
-            Select a project from the sidebar to view detailed information and manage databases.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Projects Dashboard</h1>
+            <p className="text-gray-600 mt-1">
+              All connected Notion projects and their databases
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => refetchProjects()}
+            disabled={isLoadingProjects}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingProjects ? 'animate-spin' : ''}`} />
+            Refresh Projects
+          </Button>
         </div>
 
         {/* Overall Stats Cards */}
@@ -83,9 +102,24 @@ export function AdminDashboard({ selectedProject }: DashboardProps) {
               <Database className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{overallStats?.totalProjects || 0}</div>
+              <div className="text-2xl font-bold">{allProjects.length || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Connected Notion workspaces
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Databases</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {allProjects.reduce((sum, project) => sum + project.databaseCount, 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Across all projects
               </p>
             </CardContent>
           </Card>
@@ -117,20 +151,99 @@ export function AdminDashboard({ selectedProject }: DashboardProps) {
           </Card>
         </div>
 
-        {/* Welcome/Setup Section */}
-        <Card className="text-center py-12">
+        {/* All Projects Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              All Connected Projects
+            </CardTitle>
+          </CardHeader>
           <CardContent>
-            <Database className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Welcome to the Admin Dashboard
-            </h3>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              Manage your Notion workspaces, monitor project activity, and configure user access from this central hub.
-            </p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Project
-            </Button>
+            {isLoadingProjects ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+                Loading projects...
+              </div>
+            ) : allProjects.length === 0 ? (
+              <div className="text-center py-8">
+                <Database className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No Projects Connected
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Configure your first Notion workspace integration to get started.
+                </p>
+                <Button variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add New Project
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project Name</TableHead>
+                      <TableHead>Databases</TableHead>
+                      <TableHead>Last Updated</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allProjects.map((project) => (
+                      <TableRow key={project.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Database className="h-4 w-4 text-gray-500" />
+                            <div>
+                              <div className="font-medium">{project.title}</div>
+                              <div className="text-sm text-muted-foreground">
+                                ID: {project.id.substring(0, 8)}...
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {project.databaseCount} databases
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {new Date(project.lastUpdated).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(project.lastUpdated).toLocaleTimeString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openNotionPage(project.url)}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                // This would select the project to view details
+                                console.log('View project details:', project.id);
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
