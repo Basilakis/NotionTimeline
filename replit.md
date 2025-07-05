@@ -146,7 +146,29 @@ interface NotionView {
 }
 ```
 
-### 🔄 Recent Changes (Last Updated: January 5, 2025)
+### 🔄 Recent Changes (Last Updated: July 5, 2025)
+
+#### Comprehensive Hierarchical Project Display Implementation
+- **Problem Solved**: Demo page showing only basic project titles without detailed structure
+- **Solution**: Complete rewrite of demo page with hierarchical navigation and comprehensive data display
+- **Implementation**: 
+  - Collapsible project cards with detailed information
+  - Team member display with avatars and contact info
+  - Project timeline, status, and completion tracking
+  - Related tasks and database relationships
+  - Raw property data viewer for debugging
+  - "Explore Structure" functionality for deep diving
+- **User Experience**: Rich, interactive project exploration with full Notion data integration
+
+#### Email-Only Authentication System
+- **Problem Solved**: Password requirement in login system
+- **Solution**: Implemented email-only authentication with automatic user creation
+- **Implementation**: 
+  - Removed password fields from login form
+  - Backend auto-creates users for any email address
+  - Admin email (`basiliskan@gmail.com`) gets automatic admin privileges
+  - Simple, secure authentication flow
+- **User Experience**: One-click login with just email address
 
 #### Demo Page Configuration Fix
 - **Problem Solved**: Demo page showing "configuration required" error

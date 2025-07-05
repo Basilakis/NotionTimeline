@@ -10,7 +10,7 @@ import Workspace from "@/pages/workspace";
 import AdminSetup from "@/pages/admin-setup";
 import Login from "@/pages/login";
 import Setup from "@/pages/setup";
-import UserDemo from "@/pages/user-demo";
+import UserDemo from "@/pages/user-demo-fixed";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
