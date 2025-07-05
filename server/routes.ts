@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertTaskSchema, insertConfigurationSchema, insertUserSchema } from "@shared/schema";
-import { createNotionClient, createNotionAPI, getTasks as getNotionTasks, findDatabaseByTitle, extractPageIdFromUrl, getNotionDatabases, getFilteredDatabaseRecords } from "./notion";
+import { createNotionClient, createNotionAPI, getTasks as getNotionTasks, findDatabaseByTitle, extractPageIdFromUrl, getNotionDatabases, getFilteredDatabaseRecords, getProjectHierarchy } from "./notion";
 import { insertNotionViewSchema } from "@shared/schema";
 import { z } from "zod";
 import { userDB, type CRMUser } from "./userDatabase";
@@ -422,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin API routes
   
-  // Get admin projects list
+  // Get admin projects list with hierarchical structure
   app.get("/api/admin/projects", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
@@ -437,16 +437,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const notion = createNotionClient(config.notionSecret);
       const pageId = extractPageIdFromUrl(config.notionPageUrl);
-      const databases = await getNotionDatabases(notion, pageId);
+      
+      // Get project hierarchy: Main project -> Sub-pages -> Databases
+      const projectHierarchy = await getProjectHierarchy(notion, pageId);
       
       const projects = [{
         id: pageId,
         title: config.workspaceName || "Main Workspace",
-        databaseCount: databases.length,
+        databaseCount: projectHierarchy.totalDatabases,
+        subPageCount: projectHierarchy.subPages.length,
         url: config.notionPageUrl,
         lastUpdated: new Date().toISOString(),
-        userCount: 1,
-        taskCount: databases.length * 10
+        userCount: projectHierarchy.uniqueUsers.length,
+        taskCount: projectHierarchy.totalRecords,
+        subPages: projectHierarchy.subPages
       }];
 
       res.json(projects);

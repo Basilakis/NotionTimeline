@@ -14,17 +14,39 @@ import {
   BarChart3,
   Plus,
   Eye,
-  RefreshCw
+  RefreshCw,
+  ChevronRight,
+  ChevronDown,
+  FileText,
+  Folder
 } from "lucide-react";
+
+interface SubPage {
+  id: string;
+  title: string;
+  userEmail: string | null;
+  databaseCount: number;
+  recordCount: number;
+  databases: Array<{
+    id: string;
+    title: string;
+    recordCount: number;
+    url: string;
+  }>;
+  url: string;
+  lastUpdated: string;
+}
 
 interface Project {
   id: string;
   title: string;
   databaseCount: number;
+  subPageCount: number;
   url: string;
   lastUpdated: string;
   userCount?: number;
   taskCount?: number;
+  subPages: SubPage[];
 }
 
 interface ProjectDetails {
@@ -51,11 +73,23 @@ interface DashboardProps {
 }
 
 export function AdminDashboard({ selectedProject }: DashboardProps) {
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  
   // Query all projects for admin
   const { data: allProjects = [], isLoading: isLoadingProjects, refetch: refetchProjects } = useQuery<Project[]>({
     queryKey: ['/api/admin/projects'],
     retry: false,
   });
+
+  const toggleProjectExpansion = (projectId: string) => {
+    const newExpanded = new Set(expandedProjects);
+    if (newExpanded.has(projectId)) {
+      newExpanded.delete(projectId);
+    } else {
+      newExpanded.add(projectId);
+    }
+    setExpandedProjects(newExpanded);
+  };
 
   // Query project details when a project is selected
   const { data: projectDetails, isLoading: isLoadingDetails } = useQuery<ProjectDetails>({
@@ -184,61 +218,138 @@ export function AdminDashboard({ selectedProject }: DashboardProps) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Project Name</TableHead>
-                      <TableHead>Databases</TableHead>
+                      <TableHead>Structure</TableHead>
+                      <TableHead>Owner/User</TableHead>
+                      <TableHead>Databases/Records</TableHead>
                       <TableHead>Last Updated</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {allProjects.map((project) => (
-                      <TableRow key={project.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Database className="h-4 w-4 text-gray-500" />
-                            <div>
-                              <div className="font-medium">{project.title}</div>
-                              <div className="text-sm text-muted-foreground">
-                                ID: {project.id.substring(0, 8)}...
+                      <>
+                        {/* Main Project Row */}
+                        <TableRow key={project.id} className="bg-muted/50">
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => toggleProjectExpansion(project.id)}
+                              >
+                                {expandedProjects.has(project.id) ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Folder className="h-4 w-4 text-blue-600" />
+                              <div>
+                                <div className="font-medium">{project.title}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  Main Project • {project.subPageCount || 0} sub-pages
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {project.databaseCount} databases
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {new Date(project.lastUpdated).toLocaleDateString()}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(project.lastUpdated).toLocaleTimeString()}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openNotionPage(project.url)}
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                // This would select the project to view details
-                                console.log('View project details:', project.id);
-                              }}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              Admin Project
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <Badge variant="secondary">
+                                {project.databaseCount} total databases
+                              </Badge>
+                              <div className="text-xs text-muted-foreground">
+                                {project.userCount || 0} users
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {new Date(project.lastUpdated).toLocaleDateString()}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openNotionPage(project.url)}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Sub-pages */}
+                        {expandedProjects.has(project.id) && project.subPages?.map((subPage) => (
+                          <TableRow key={subPage.id} className="border-l-2 border-l-blue-200">
+                            <TableCell>
+                              <div className="flex items-center gap-2 ml-8">
+                                <FileText className="h-4 w-4 text-green-600" />
+                                <div>
+                                  <div className="font-medium">{subPage.title}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    Sub-page • {subPage.databaseCount} databases
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {subPage.userEmail ? (
+                                <div className="flex items-center gap-2">
+                                  <User className="h-4 w-4 text-gray-500" />
+                                  <span className="text-sm">{subPage.userEmail}</span>
+                                </div>
+                              ) : (
+                                <Badge variant="outline" className="text-gray-500">
+                                  No user assigned
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <Badge variant="default">
+                                  {subPage.recordCount} records
+                                </Badge>
+                                <div className="text-xs text-muted-foreground">
+                                  {subPage.databaseCount} databases
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {new Date(subPage.lastUpdated).toLocaleDateString()}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openNotionPage(subPage.url)}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    console.log('View databases:', subPage.databases);
+                                  }}
+                                >
+                                  <Database className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </>
                     ))}
                   </TableBody>
                 </Table>

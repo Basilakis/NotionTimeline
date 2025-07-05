@@ -146,6 +146,151 @@ export async function getFilteredDatabaseRecords(notion: Client, databaseId: str
 }
 
 // Get all tasks from a Notion database filtered by user email
+export async function getProjectHierarchy(notion: Client, pageId: string) {
+  const subPages = [];
+  const uniqueUsers = new Set();
+  let totalDatabases = 0;
+  let totalRecords = 0;
+
+  try {
+    // Get all child pages of the main project
+    let hasMore = true;
+    let startCursor: string | undefined = undefined;
+
+    while (hasMore) {
+      const response = await notion.blocks.children.list({
+        block_id: pageId,
+        start_cursor: startCursor,
+        page_size: 100,
+      });
+
+      for (const block of response.results) {
+        if (block.type === "child_page") {
+          // Get the child page details
+          try {
+            const page = await notion.pages.retrieve({
+              page_id: block.id,
+            });
+
+            if ('properties' in page && page.properties) {
+              // Extract page information
+              const pageTitle = extractTextFromProperty(page.properties);
+              const userEmail = extractEmailFromProperty(page.properties);
+              
+              if (userEmail) {
+                uniqueUsers.add(userEmail);
+              }
+
+              // Get databases within this sub-page
+              const pageDatabases = await getNotionDatabases(notion, block.id);
+              
+              let pageRecordCount = 0;
+              const databases = [];
+
+              for (const db of pageDatabases) {
+                try {
+                  // Get record count for each database
+                  const dbResponse = await notion.databases.query({
+                    database_id: db.id,
+                    page_size: 1,
+                  });
+                  
+                  const recordCount = dbResponse.results.length;
+                  pageRecordCount += recordCount;
+                  totalRecords += recordCount;
+
+                  databases.push({
+                    id: db.id,
+                    title: 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
+                      ? db.title[0]?.plain_text 
+                      : 'Untitled Database',
+                    recordCount,
+                    url: `https://notion.so/${db.id.replace(/-/g, '')}`
+                  });
+                } catch (dbError) {
+                  console.error(`Error querying database ${db.id}:`, dbError);
+                }
+              }
+
+              totalDatabases += pageDatabases.length;
+
+              subPages.push({
+                id: block.id,
+                title: pageTitle || "Untitled Page",
+                userEmail: userEmail || null,
+                databaseCount: pageDatabases.length,
+                recordCount: pageRecordCount,
+                databases,
+                url: `https://notion.so/${block.id.replace(/-/g, '')}`,
+                lastUpdated: 'last_edited_time' in page ? page.last_edited_time : new Date().toISOString()
+              });
+            }
+          } catch (pageError) {
+            console.error(`Error retrieving page ${block.id}:`, pageError);
+          }
+        }
+      }
+
+      hasMore = response.has_more;
+      startCursor = response.next_cursor || undefined;
+    }
+
+    // Also check for databases directly in the main page
+    const mainPageDatabases = await getNotionDatabases(notion, pageId);
+    totalDatabases += mainPageDatabases.length;
+
+    return {
+      subPages,
+      uniqueUsers: Array.from(uniqueUsers),
+      totalDatabases,
+      totalRecords,
+      mainPageDatabases: mainPageDatabases.length
+    };
+  } catch (error) {
+    console.error("Error getting project hierarchy:", error);
+    return {
+      subPages: [],
+      uniqueUsers: [],
+      totalDatabases: 0,
+      totalRecords: 0,
+      mainPageDatabases: 0
+    };
+  }
+}
+
+// Helper function to extract text from Notion properties
+function extractTextFromProperty(properties: any): string {
+  // Look for title property
+  for (const [key, prop] of Object.entries(properties)) {
+    if ((prop as any).type === 'title' && (prop as any).title) {
+      return (prop as any).title[0]?.plain_text || '';
+    }
+  }
+  return '';
+}
+
+// Helper function to extract email from Notion properties
+function extractEmailFromProperty(properties: any): string | null {
+  // Look for email-related properties
+  const emailKeys = ['User Email', 'UserEmail', 'Email', 'user_email', 'email'];
+  
+  for (const key of emailKeys) {
+    const prop = properties[key];
+    if (prop) {
+      if (prop.type === 'email' && prop.email) {
+        return prop.email;
+      }
+      if (prop.type === 'rich_text' && prop.rich_text?.[0]?.plain_text) {
+        return prop.rich_text[0].plain_text;
+      }
+      if (prop.type === 'title' && prop.title?.[0]?.plain_text) {
+        return prop.title[0].plain_text;
+      }
+    }
+  }
+  return null;
+}
+
 export async function getTasks(notion: Client, tasksDatabaseId: string, userEmail?: string) {
     try {
         let query: any = {
