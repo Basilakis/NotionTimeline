@@ -14,7 +14,7 @@ import { useStatusNotification, createStatusChangeData } from "@/hooks/useStatus
 import { useAuth } from "@/hooks/useAuth";
 import TaskTimeline from "@/components/TaskTimeline";
 import KanbanBoard from "@/components/KanbanBoard";
-import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, RefreshCw, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard, ShoppingCart } from "lucide-react";
+import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard, ShoppingCart } from "lucide-react";
 import vertexLogo from "@assets/VertexDevelopments_1751826186443.png";
 
 // Notion color mapping to Tailwind classes (matching KanbanBoard)
@@ -394,49 +394,9 @@ export default function Workspace() {
   const taskDetailsLoading = false;
 
 
-  // Workspace discovery mutation
-  const discoverWorkspace = useMutation({
-    mutationFn: async () => {
-      console.log("[Workspace] Auto-discovering workspace for user:", userEmail);
-      const response = await fetch('/api/notion-workspace/discover', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': userEmail
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      
-      return response.json();
-    },
-    onSuccess: (data) => {
-      console.log("[Workspace] Auto-discovery complete:", data);
-      toast({
-        title: "Workspace Discovery Complete",
-        description: data.message
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/notion-views'] });
-    },
-    onError: (error: Error) => {
-      console.error("[Workspace] Auto-discovery failed:", error);
-      toast({
-        title: "Discovery Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  });
 
-  // Auto-discover workspace if no views are found
-  useEffect(() => {
-    if (!viewsLoading && views && views.length === 0 && userEmail) {
-      console.log("[Workspace] Auto-discovering workspace for user:", userEmail);
-      discoverWorkspace.mutate();
-    }
-  }, [views, viewsLoading, userEmail]);
+
+
 
   // Auto-load tasks when views are available
   useEffect(() => {
@@ -629,20 +589,7 @@ export default function Workspace() {
               </Button>
             </>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => discoverWorkspace.mutate()}
-            disabled={discoverWorkspace.isPending}
-            className="border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white"
-          >
-            {discoverWorkspace.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            Refresh Views
-          </Button>
+
 
           <Button
             variant="ghost"
