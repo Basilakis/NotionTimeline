@@ -157,17 +157,9 @@ export default function Workspace() {
     }
   });
 
-  // Fetch individual task details
-  const { data: taskDetails, isLoading: taskDetailsLoading } = useQuery<Task>({
-    queryKey: ['/api/tasks', selectedTask?.id],
-    enabled: !!selectedTask?.id,
-    retry: false,
-    meta: {
-      headers: {
-        'x-user-email': userEmail
-      }
-    }
-  });
+  // Use the selected task directly since it already has all details including subtasks
+  const taskDetails = selectedTask;
+  const taskDetailsLoading = false;
 
   // Workspace discovery mutation
   const discoverWorkspace = useMutation({

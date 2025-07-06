@@ -140,6 +140,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const title = extractTextFromProperty(titleProperty) || 'Untitled Task';
           
+          // Fetch subtasks for this task
+          let subtasks = [];
+          try {
+            // Get child pages (subtasks)
+            const childBlocks = await notion.blocks.children.list({
+              block_id: taskId,
+              page_size: 50
+            });
+
+            const childPageBlocks = childBlocks.results.filter((block: any) => block.type === 'child_page');
+            
+            for (const childBlock of childPageBlocks) {
+              try {
+                const childPage = await notion.pages.retrieve({ page_id: childBlock.id });
+                const childProperties = (childPage as any).properties || {};
+                
+                // Extract child page title
+                const childTitleProperty = childProperties.title || childProperties.Title || childProperties.Name ||
+                                          Object.values(childProperties).find((prop: any) => prop.type === 'title');
+                const childTitle = extractTextFromProperty(childTitleProperty) || childBlock.child_page?.title || 'Untitled Subtask';
+                
+                subtasks.push({
+                  id: childBlock.id,
+                  title: childTitle,
+                  status: childProperties.Status?.select?.name || childProperties.Status?.status?.name || 'No Status',
+                  type: 'child_page',
+                  lastEditedTime: (childPage as any).last_edited_time
+                });
+              } catch (childError) {
+                console.log(`[Subtask] Could not fetch child page ${childBlock.id}:`, childError.message);
+              }
+            }
+
+            // Also check for related tasks/subtasks from relations
+            const relatedTasks = properties['Sub-tasks']?.relation || properties.Subtasks?.relation || properties.Related?.relation || [];
+            for (const relatedTask of relatedTasks) {
+              try {
+                const relatedPage = await notion.pages.retrieve({ page_id: relatedTask.id });
+                const relatedProperties = (relatedPage as any).properties || {};
+                
+                const relatedTitleProperty = relatedProperties.title || relatedProperties.Title || relatedProperties.Name ||
+                                            Object.values(relatedProperties).find((prop: any) => prop.type === 'title');
+                const relatedTitle = extractTextFromProperty(relatedTitleProperty) || 'Untitled Related Task';
+                
+                subtasks.push({
+                  id: relatedTask.id,
+                  title: relatedTitle,
+                  status: relatedProperties.Status?.select?.name || relatedProperties.Status?.status?.name || 'No Status',
+                  type: 'relation',
+                  lastEditedTime: (relatedPage as any).last_edited_time
+                });
+              } catch (relatedError) {
+                console.log(`[Subtask] Could not fetch related task ${relatedTask.id}:`, relatedError.message);
+              }
+            }
+          } catch (subtaskError) {
+            console.log(`[Subtask] Could not fetch subtasks for task ${taskId}:`, subtaskError.message);
+          }
+
           const task = {
             id: taskId,
             title: title,
@@ -154,7 +213,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             createdTime: (page as any).created_time,
             lastEditedTime: (page as any).last_edited_time,
             url: (page as any).url,
-            properties: properties
+            properties: properties,
+            subtasks: subtasks
           };
 
           tasks.push(task);
