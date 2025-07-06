@@ -1346,6 +1346,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Find all databases in the workspace including child databases
+  // Search for Αγορές database by finding specific task "Εξωτερικά Παράθυρα"
+  app.get('/api/notion-workspace/find-agores-by-task', async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        return res.status(404).json({ message: "No Notion configuration found" });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      let parentPageId = extractPageIdFromUrl(config.notionPageUrl);
+
+      // Find parent page if current is database
+      try {
+        const currentDb = await notion.databases.retrieve({ database_id: parentPageId });
+        if ('parent' in currentDb && currentDb.parent.type === 'page_id') {
+          parentPageId = currentDb.parent.page_id;
+        }
+      } catch (err) {
+        // Current ID is already a page
+      }
+
+      console.log(`[Find Agores by Task] Searching for "Εξωτερικά Παράθυρα" to locate Αγορές database...`);
+
+      // Get all databases using the enhanced scanner
+      const allDatabases = await getNotionDatabases(notion, parentPageId);
+      console.log(`[Find Agores by Task] Found ${allDatabases.length} total databases to search`);
+
+      // Search through each database for the specific task
+      for (const database of allDatabases) {
+        try {
+          const databaseTitle = database.title?.[0]?.plain_text || 'Untitled';
+          console.log(`[Find Agores by Task] Searching database: "${databaseTitle}" (${database.id})`);
+
+          // First, get the database schema to understand the properties
+          const databaseSchema = await notion.databases.retrieve({ database_id: database.id });
+          const properties = databaseSchema.properties;
+          
+          // Find the title property (it might be named differently)
+          let titleProperty = null;
+          for (const [propName, propData] of Object.entries(properties)) {
+            if (propData.type === 'title') {
+              titleProperty = propName;
+              break;
+            }
+          }
+          
+          if (!titleProperty) {
+            console.log(`[Find Agores by Task] No title property found in database: ${databaseTitle}`);
+            continue;
+          }
+          
+          console.log(`[Find Agores by Task] Using title property: "${titleProperty}" for database: ${databaseTitle}`);
+          
+          // Query the database for the specific task
+          const response = await notion.databases.query({
+            database_id: database.id,
+            filter: {
+              property: titleProperty,
+              title: {
+                contains: "Εξωτερικά Παράθυρα"
+              }
+            }
+          });
+
+          if (response.results.length > 0) {
+            console.log(`[Find Agores by Task] Found "Εξωτερικά Παράθυρα" in database: "${databaseTitle}"`);
+            console.log(`[Find Agores by Task] This must be the Αγορές database!`);
+
+            // Create the Αγορές view
+            const existingView = await storage.getNotionViewByType(userEmail, 'αγορές');
+            if (!existingView) {
+              const newView = await storage.createNotionView({
+                userEmail: userEmail,
+                viewType: 'αγορές',
+                pageId: parentPageId,
+                databaseId: database.id,
+                title: 'Αγορές',
+                icon: '🛒',
+                isActive: true,
+                sortOrder: 3
+              });
+
+              console.log(`[Find Agores by Task] Created Αγορές view for database: ${database.id}`);
+              
+              return res.json({
+                found: true,
+                database: {
+                  id: database.id,
+                  title: databaseTitle,
+                  actualTitle: databaseTitle
+                },
+                task: response.results[0],
+                viewCreated: true,
+                view: newView
+              });
+            } else {
+              return res.json({
+                found: true,
+                database: {
+                  id: database.id,
+                  title: databaseTitle,
+                  actualTitle: databaseTitle
+                },
+                task: response.results[0],
+                viewCreated: false,
+                view: existingView
+              });
+            }
+          }
+        } catch (error) {
+          console.log(`[Find Agores by Task] Error searching database ${database.id}:`, error);
+          // Continue searching other databases
+        }
+      }
+
+      res.json({ 
+        found: false, 
+        message: `Task "Εξωτερικά Παράθυρα" not found in any of the ${allDatabases.length} databases`,
+        databasesSearched: allDatabases.length
+      });
+
+    } catch (error) {
+      console.error("Error finding Αγορές database by task:", error);
+      res.status(500).json({ 
+        message: "Failed to find Αγορές database by task",
+        error: (error as Error).message 
+      });
+    }
+  });
+
   // Quick search for Αγορές database only
   app.get('/api/notion-workspace/find-agores', async (req, res) => {
     try {

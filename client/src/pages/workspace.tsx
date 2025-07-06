@@ -269,6 +269,49 @@ export default function Workspace() {
   const taskDetails = selectedTask;
   const taskDetailsLoading = false;
 
+  // Search for Agores database by specific task
+  const findAgoresByTask = useMutation({
+    mutationFn: async () => {
+      console.log("[Agores Search] Searching for Εξωτερικά Παράθυρα to locate Αγορές database...");
+      const response = await fetch('/api/notion-workspace/find-agores-by-task', {
+        headers: { 'x-user-email': userEmail }
+      });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Search failed: ${text}`);
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log("[Agores Search] Result:", data);
+      if (data.found) {
+        toast({
+          title: "Αγορές Database Found!",
+          description: `Located in database: ${data.database.actualTitle}`,
+          variant: "default"
+        });
+        // Invalidate and refetch views to show new tab
+        queryClient.invalidateQueries({ queryKey: ['/api/notion-views'] });
+      } else {
+        toast({
+          title: "Αγορές Database Not Found",
+          description: data.message,
+          variant: "destructive"
+        });
+      }
+    },
+    onError: (error: Error) => {
+      console.error("[Agores Search] Failed:", error);
+      toast({
+        title: "Search Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   // Workspace discovery mutation
   const discoverWorkspace = useMutation({
     mutationFn: async () => {
@@ -500,6 +543,19 @@ export default function Workspace() {
               <RefreshCw className="h-4 w-4 mr-2" />
             )}
             Refresh Views
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => findAgoresByTask.mutate()}
+            disabled={findAgoresByTask.isPending}
+          >
+            {findAgoresByTask.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <span className="mr-2">🛒</span>
+            )}
+            Find Αγορές
           </Button>
           <Button
             variant="ghost"
