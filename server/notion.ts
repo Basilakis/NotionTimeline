@@ -489,6 +489,40 @@ export async function getTasks(notion: Client, tasksDatabaseId: string, userEmai
                 ? new Date(properties.CompletedAt.date.start)
                 : null;
 
+            // Enhanced status handling - get both main status and sub-status
+            let mainStatus = null;
+            let subStatus = null;
+            let statusDisplay = null;
+            
+            if (properties.Status) {
+                // Check for status property (newer format)
+                if (properties.Status.status) {
+                    mainStatus = properties.Status.status.name;
+                    statusDisplay = mainStatus;
+                }
+                // Check for select property (older format)
+                else if (properties.Status.select) {
+                    statusDisplay = properties.Status.select.name;
+                    
+                    // Try to parse main status and sub-status
+                    if (statusDisplay && statusDisplay.includes(' - ')) {
+                        const parts = statusDisplay.split(' - ');
+                        mainStatus = parts[0].trim();
+                        subStatus = parts[1].trim();
+                    } else {
+                        mainStatus = statusDisplay;
+                    }
+                }
+            }
+            
+            // Check for separate sub-status property
+            if (properties.SubStatus || properties['Sub Status'] || properties['Sub-Status']) {
+                const subStatusProp = properties.SubStatus || properties['Sub Status'] || properties['Sub-Status'];
+                if (subStatusProp.select?.name) {
+                    subStatus = subStatusProp.select.name;
+                }
+            }
+
             return {
                 notionId: page.id,
                 title: properties.Title?.title?.[0]?.plain_text || "Untitled Task",
@@ -498,7 +532,9 @@ export async function getTasks(notion: Client, tasksDatabaseId: string, userEmai
                 dueDate,
                 completedAt,
                 priority: properties.Priority?.select?.name || null,
-                status: properties.Status?.status?.name || null,
+                status: statusDisplay || "Not Started",
+                mainStatus: mainStatus || "Not Started",
+                subStatus: subStatus,
                 userEmail: properties.UserEmail?.email || properties["User Email"]?.email || null,
                 assignee: properties.Assignee?.people?.[0]?.name || null,
             };

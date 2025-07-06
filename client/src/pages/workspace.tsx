@@ -68,6 +68,8 @@ interface Task {
   id: string;
   title: string;
   status: string;
+  mainStatus?: string;
+  subStatus?: string;
   priority: string;
   dueDate: string | null;
   description: string;
@@ -474,10 +476,10 @@ export default function Workspace() {
                       <CardContent className="pt-0">
                         <div className="space-y-6">
                           {/* Project Details */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                             {/* Left Column */}
                             <div className="space-y-4">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-3">
                                 <div className="flex items-center gap-2 text-sm">
                                   <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
                                   <span>Created: {new Date(project.createdTime).toLocaleDateString()}</span>
@@ -486,28 +488,19 @@ export default function Workspace() {
                                   <Clock className="h-4 w-4 text-gray-500 flex-shrink-0" />
                                   <span>Updated: {new Date(project.lastEditedTime).toLocaleDateString()}</span>
                                 </div>
-                              </div>
-
-                              {(() => {
-                                const summary = getProjectSummary(project.notionId);
-                                return summary && (
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {(() => {
+                                  const summary = getProjectSummary(project.notionId);
+                                  return summary && (
                                     <div className="flex items-center gap-2 text-sm">
                                       <Percent className="h-4 w-4 text-green-600 flex-shrink-0" />
                                       <span>Completion: <span className="font-medium text-green-600">{summary.completion}%</span></span>
                                     </div>
-                                    {summary.projectPrice > 0 && (
-                                      <div className="flex items-center gap-2 text-sm">
-                                        <DollarSign className="h-4 w-4 text-purple-600 flex-shrink-0" />
-                                        <span>Price: <span className="font-medium text-purple-600">€{summary.projectPrice.toLocaleString()}</span></span>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })()}
+                                  );
+                                })()}
+                              </div>
 
                               {/* Team Information */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-3">
                                 {project.properties?.People?.people?.length > 0 && (
                                   <div className="flex items-center gap-2 text-sm">
                                     <Users className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -523,56 +516,63 @@ export default function Workspace() {
                               </div>
                             </div>
 
-                            {/* Right Column - Documents & Payments */}
+                            {/* Right Column - Financial & Documents */}
                             <div className="space-y-4">
                               {(() => {
                                 const summary = getProjectSummary(project.notionId);
                                 if (!summary) return null;
                                 
                                 return (
-                                  <>
-                                    {/* Documents Row */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                      {summary.proposalUrl ? (
-                                        <div className="flex items-center gap-2 text-sm">
-                                          <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                                          <Button
-                                            variant="link"
-                                            size="sm"
-                                            onClick={() => window.open(summary.proposalUrl, '_blank')}
-                                            className="h-auto p-0 text-sm text-blue-600 hover:text-blue-800 text-left"
-                                          >
-                                            {summary.proposal}
-                                          </Button>
-                                        </div>
-                                      ) : summary.proposal !== 'Not Set' && (
-                                        <div className="flex items-center gap-2 text-sm">
-                                          <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                                          <span>Proposal: {summary.proposal}</span>
-                                        </div>
-                                      )}
-                                      
-                                      {summary.materialsProposalUrl ? (
-                                        <div className="flex items-center gap-2 text-sm">
-                                          <Package className="h-4 w-4 text-orange-600 flex-shrink-0" />
-                                          <Button
-                                            variant="link"
-                                            size="sm"
-                                            onClick={() => window.open(summary.materialsProposalUrl, '_blank')}
-                                            className="h-auto p-0 text-sm text-orange-600 hover:text-orange-800 text-left"
-                                          >
-                                            {summary.materialsProposal}
-                                          </Button>
-                                        </div>
-                                      ) : summary.materialsProposal !== 'Not Set' && (
-                                        <div className="flex items-center gap-2 text-sm">
-                                          <Package className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                                          <span>Materials: {summary.materialsProposal}</span>
-                                        </div>
-                                      )}
-                                    </div>
+                                  <div className="space-y-3">
+                                    {/* Project Price */}
+                                    {summary.projectPrice > 0 && (
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <DollarSign className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                        <span>Price: <span className="font-medium text-purple-600">€{summary.projectPrice.toLocaleString()}</span></span>
+                                      </div>
+                                    )}
                                     
-                                    {/* Payments Row */}
+                                    {/* Materials */}
+                                    {summary.materialsProposalUrl ? (
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <Package className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                                        <Button
+                                          variant="link"
+                                          size="sm"
+                                          onClick={() => window.open(summary.materialsProposalUrl, '_blank')}
+                                          className="h-auto p-0 text-sm text-orange-600 hover:text-orange-800 text-left"
+                                        >
+                                          Materials: {summary.materialsProposal}
+                                        </Button>
+                                      </div>
+                                    ) : summary.materialsProposal !== 'Not Set' && (
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <Package className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                        <span>Materials: {summary.materialsProposal}</span>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Proposal */}
+                                    {summary.proposalUrl ? (
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                        <Button
+                                          variant="link"
+                                          size="sm"
+                                          onClick={() => window.open(summary.proposalUrl, '_blank')}
+                                          className="h-auto p-0 text-sm text-blue-600 hover:text-blue-800 text-left"
+                                        >
+                                          Proposal: {summary.proposal}
+                                        </Button>
+                                      </div>
+                                    ) : summary.proposal !== 'Not Set' && (
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                        <span>Proposal: {summary.proposal}</span>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Payments */}
                                     {summary.totalPayments && (
                                       <div className="flex items-start gap-2">
                                         <CreditCard className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
@@ -591,7 +591,7 @@ export default function Workspace() {
                                         </div>
                                       </div>
                                     )}
-                                  </>
+                                  </div>
                                 );
                               })()}
                             </div>
@@ -616,9 +616,21 @@ export default function Workspace() {
                                         <div className="flex-1">
                                           <div className="flex items-center gap-2 mb-1">
                                             <h5 className="font-medium text-gray-800">{task.title}</h5>
-                                            <Badge variant={task.isCompleted ? "default" : "secondary"} className="text-xs">
-                                              {task.status}
-                                            </Badge>
+                                            <div className="flex items-center gap-1">
+                                              {task.mainStatus && (
+                                                <Badge variant={
+                                                  task.mainStatus === 'Complete' ? 'default' :
+                                                  task.mainStatus === 'In Progress' ? 'secondary' : 'outline'
+                                                } className="text-xs">
+                                                  {task.mainStatus}
+                                                </Badge>
+                                              )}
+                                              {task.subStatus && (
+                                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                                  {task.subStatus}
+                                                </Badge>
+                                              )}
+                                            </div>
                                             {task.priority && (
                                               <Badge variant={
                                                 task.priority === 'High' ? 'destructive' :

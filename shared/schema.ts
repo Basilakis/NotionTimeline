@@ -15,7 +15,9 @@ export const tasks = pgTable("tasks", {
   notionId: text("notion_id").notNull().unique(),
   title: text("title").notNull(),
   description: text("description"),
-  status: text("status").notNull(), // "completed", "pending", "not_started"
+  status: text("status").notNull(), // Full status display
+  mainStatus: text("main_status"), // Main status category (To-do, In Progress, Complete)
+  subStatus: text("sub_status"), // Sub-status within main category
   assignee: text("assignee"),
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),
