@@ -1535,33 +1535,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get user's Notion configuration
-      const config = await storage.getConfiguration(userEmail);
+      let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        return res.status(404).json({ message: "Notion configuration not found" });
+        config = await storage.getConfiguration('basiliskan@gmail.com');
+        if (!config) {
+          return res.status(404).json({ message: "Notion configuration not found" });
+        }
       }
 
       const notion = createNotionClient(config.notionSecret);
       
-      // Get the specific task page
-      const page = await notion.pages.retrieve({ page_id: taskId });
-      const properties = (page as any).properties || {};
+      console.log(`[Task Details] Fetching task: ${taskId}`);
       
-      const task = {
-        id: page.id,
-        title: extractTextFromProperty(properties.Title || properties.Name || properties.Task),
-        status: properties.Status?.select?.name || properties.Status?.status?.name || 'Unknown',
-        priority: properties.Priority?.select?.name || null,
-        assignee: properties.Assignee?.people?.[0]?.name || null,
-        dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
-        createdTime: (page as any).created_time,
-        lastEditedTime: (page as any).last_edited_time,
-        url: (page as any).url,
-        project: properties.Project?.relation?.[0]?.id || null,
-        description: extractTextFromProperty(properties.Description),
-        properties: properties
-      };
+      try {
+        // Get the specific task page
+        const page = await notion.pages.retrieve({ page_id: taskId });
+        const properties = (page as any).properties || {};
+        
+        // Try multiple possible field names for the title
+        const titleProperty = properties.Title || properties.Name || properties.Task || 
+                             properties['Task Name'] || properties.Item || 
+                             Object.values(properties).find((prop: any) => prop.type === 'title');
+        
+        const title = extractTextFromProperty(titleProperty) || 'Untitled Entry';
+        
+        console.log(`[Task Details] Found task: ${title}`);
+        
+        // Get page content (description)
+        let description = '';
+        try {
+          const blocks = await notion.blocks.children.list({
+            block_id: taskId,
+            page_size: 10
+          });
+          
+          // Extract text from blocks
+          description = blocks.results.map((block: any) => {
+            if (block.type === 'paragraph' && block.paragraph?.rich_text) {
+              return block.paragraph.rich_text.map((text: any) => text.plain_text).join('');
+            } else if (block.type === 'heading_1' && block.heading_1?.rich_text) {
+              return block.heading_1.rich_text.map((text: any) => text.plain_text).join('');
+            } else if (block.type === 'heading_2' && block.heading_2?.rich_text) {
+              return block.heading_2.rich_text.map((text: any) => text.plain_text).join('');
+            } else if (block.type === 'heading_3' && block.heading_3?.rich_text) {
+              return block.heading_3.rich_text.map((text: any) => text.plain_text).join('');
+            } else if (block.type === 'bulleted_list_item' && block.bulleted_list_item?.rich_text) {
+              return '• ' + block.bulleted_list_item.rich_text.map((text: any) => text.plain_text).join('');
+            }
+            return '';
+          }).filter(text => text.length > 0).join('\n');
+        } catch (blockError) {
+          console.log(`[Task Details] Could not fetch content for ${taskId}`);
+        }
+        
+        const task = {
+          id: page.id,
+          title: title,
+          status: properties.Status?.select?.name || properties.Status?.status?.name || 'No Status',
+          priority: properties.Priority?.select?.name || null,
+          assignee: properties.Assignee?.people?.[0]?.name || 
+                   (properties.People?.people?.[0]?.name) || null,
+          dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
+          createdTime: (page as any).created_time,
+          lastEditedTime: (page as any).last_edited_time,
+          url: (page as any).url,
+          project: properties.Project?.relation?.[0]?.id || null,
+          description: description || extractTextFromProperty(properties.Description) || 'No description available',
+          properties: properties
+        };
 
-      res.json(task);
+        res.json(task);
+      } catch (pageError) {
+        console.error(`[Task Details] Error fetching page ${taskId}:`, pageError);
+        res.status(404).json({ 
+          message: "Task not found or not accessible",
+          error: "This task may not be shared with the integration",
+          taskId
+        });
+      }
     } catch (error) {
       console.error("Error fetching task:", error);
       res.status(500).json({ 

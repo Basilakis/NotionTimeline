@@ -409,34 +409,9 @@ export default function UserDemo() {
               <span>Project Tasks ({taskRelations.length})</span>
             </div>
             <div className="space-y-2">
-              {taskRelations.slice(0, 6).map((taskRef: any, index: number) => {
-                const task = getTaskById(taskRef.id);
-                return (
-                  <div 
-                    key={index} 
-                    className="bg-gray-50 p-3 rounded border hover:bg-gray-100 cursor-pointer transition-colors"
-                    onClick={() => {
-                      setSelectedTask({ id: taskRef.id, title: task?.title || 'Loading...' });
-                      setTaskModalOpen(true);
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">
-                          {task?.title || 'Task ' + (index + 1)}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          {task?.status && renderTaskStatus(task.status)}
-                          <span className="text-xs text-gray-600">
-                            Task ID: {taskRef.id.slice(0, 8)}...
-                          </span>
-                        </div>
-                      </div>
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    </div>
-                  </div>
-                );
-              })}
+              {taskRelations.slice(0, 6).map((taskRef: any, index: number) => (
+                <TaskCard key={taskRef.id} taskId={taskRef.id} />
+              ))}
               {taskRelations.length > 6 && (
                 <div className="text-xs text-gray-500 text-center py-2">
                   +{taskRelations.length - 6} more tasks
