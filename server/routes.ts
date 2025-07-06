@@ -1346,8 +1346,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Find all databases in the workspace including child databases
-  // Search for Αγορές database by finding specific task "Εξωτερικά Παράθυρα"
-  app.get('/api/notion-workspace/find-agores-by-task', async (req, res) => {
+  // Create Αγορές view directly with known database ID
+  app.post('/api/notion-views/create-agores-direct', async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
       
@@ -1361,126 +1361,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const notion = createNotionClient(config.notionSecret);
-      let parentPageId = extractPageIdFromUrl(config.notionPageUrl);
-
-      // Find parent page if current is database
+      const agoresDatabaseId = '22868d53a05c802fb41df44b941c31a0';
+      
+      // Verify the database exists and get its details
       try {
-        const currentDb = await notion.databases.retrieve({ database_id: parentPageId });
-        if ('parent' in currentDb && currentDb.parent.type === 'page_id') {
-          parentPageId = currentDb.parent.page_id;
-        }
-      } catch (err) {
-        // Current ID is already a page
-      }
+        const agoresDatabase = await notion.databases.retrieve({ 
+          database_id: agoresDatabaseId 
+        });
 
-      console.log(`[Find Agores by Task] Searching for "Εξωτερικά Παράθυρα" to locate Αγορές database...`);
+        const databaseTitle = agoresDatabase.title?.[0]?.plain_text || 'Αγορές';
+        console.log(`[Create Agores Direct] Found Αγορές database: "${databaseTitle}"`);
 
-      // Get all databases using the enhanced scanner
-      const allDatabases = await getNotionDatabases(notion, parentPageId);
-      console.log(`[Find Agores by Task] Found ${allDatabases.length} total databases to search`);
-
-      // Search through each database for the specific task
-      for (const database of allDatabases) {
+        // Get parent page ID for the view
+        let parentPageId = extractPageIdFromUrl(config.notionPageUrl);
         try {
-          const databaseTitle = database.title?.[0]?.plain_text || 'Untitled';
-          console.log(`[Find Agores by Task] Searching database: "${databaseTitle}" (${database.id})`);
+          const currentDb = await notion.databases.retrieve({ database_id: parentPageId });
+          if ('parent' in currentDb && currentDb.parent.type === 'page_id') {
+            parentPageId = currentDb.parent.page_id;
+          }
+        } catch (err) {
+          // Current ID is already a page
+        }
 
-          // First, get the database schema to understand the properties
-          const databaseSchema = await notion.databases.retrieve({ database_id: database.id });
-          const properties = databaseSchema.properties;
-          
-          // Find the title property (it might be named differently)
-          let titleProperty = null;
-          for (const [propName, propData] of Object.entries(properties)) {
-            if (propData.type === 'title') {
-              titleProperty = propName;
-              break;
-            }
-          }
-          
-          if (!titleProperty) {
-            console.log(`[Find Agores by Task] No title property found in database: ${databaseTitle}`);
-            continue;
-          }
-          
-          console.log(`[Find Agores by Task] Using title property: "${titleProperty}" for database: ${databaseTitle}`);
-          
-          // Query the database for the specific task
-          const response = await notion.databases.query({
-            database_id: database.id,
-            filter: {
-              property: titleProperty,
-              title: {
-                contains: "Εξωτερικά Παράθυρα"
-              }
-            }
+        // Create or get existing Αγορές view
+        const existingView = await storage.getNotionViewByType(userEmail, 'αγορές');
+        if (!existingView) {
+          const newView = await storage.createNotionView({
+            userEmail: userEmail,
+            viewType: 'αγορές',
+            pageId: parentPageId,
+            databaseId: agoresDatabaseId,
+            title: 'Αγορές',
+            icon: '🛒',
+            isActive: true,
+            sortOrder: 3
           });
 
-          if (response.results.length > 0) {
-            console.log(`[Find Agores by Task] Found "Εξωτερικά Παράθυρα" in database: "${databaseTitle}"`);
-            console.log(`[Find Agores by Task] This must be the Αγορές database!`);
-
-            // Create the Αγορές view
-            const existingView = await storage.getNotionViewByType(userEmail, 'αγορές');
-            if (!existingView) {
-              const newView = await storage.createNotionView({
-                userEmail: userEmail,
-                viewType: 'αγορές',
-                pageId: parentPageId,
-                databaseId: database.id,
-                title: 'Αγορές',
-                icon: '🛒',
-                isActive: true,
-                sortOrder: 3
-              });
-
-              console.log(`[Find Agores by Task] Created Αγορές view for database: ${database.id}`);
-              
-              return res.json({
-                found: true,
-                database: {
-                  id: database.id,
-                  title: databaseTitle,
-                  actualTitle: databaseTitle
-                },
-                task: response.results[0],
-                viewCreated: true,
-                view: newView
-              });
-            } else {
-              return res.json({
-                found: true,
-                database: {
-                  id: database.id,
-                  title: databaseTitle,
-                  actualTitle: databaseTitle
-                },
-                task: response.results[0],
-                viewCreated: false,
-                view: existingView
-              });
+          console.log(`[Create Agores Direct] Created Αγορές view`);
+          return res.json({
+            success: true,
+            view: newView,
+            database: {
+              id: agoresDatabaseId,
+              title: databaseTitle
             }
-          }
-        } catch (error) {
-          console.log(`[Find Agores by Task] Error searching database ${database.id}:`, error);
-          // Continue searching other databases
+          });
+        } else {
+          return res.json({
+            success: true,
+            view: existingView,
+            database: {
+              id: agoresDatabaseId,
+              title: databaseTitle
+            },
+            message: "Αγορές view already exists"
+          });
         }
+
+      } catch (error) {
+        console.error(`[Create Agores Direct] Error accessing database ${agoresDatabaseId}:`, error);
+        return res.status(404).json({ 
+          message: "Αγορές database not accessible with the provided ID",
+          databaseId: agoresDatabaseId,
+          error: (error as Error).message 
+        });
       }
 
-      res.json({ 
-        found: false, 
-        message: `Task "Εξωτερικά Παράθυρα" not found in any of the ${allDatabases.length} databases`,
-        databasesSearched: allDatabases.length
-      });
-
     } catch (error) {
-      console.error("Error finding Αγορές database by task:", error);
+      console.error("Error creating Αγορές view:", error);
       res.status(500).json({ 
-        message: "Failed to find Αγορές database by task",
+        message: "Failed to create Αγορές view",
         error: (error as Error).message 
       });
     }
   });
+
+  // Auto-create Αγορές tab during workspace discovery
+  // This will check for the known Αγορές database ID during normal discovery
+  const originalDiscoverLogic = async (userEmail: string) => {
+    // Existing discovery logic...
+    const agoresDatabaseId = '22868d53a05c802fb41df44b941c31a0';
+    
+    try {
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) return;
+
+      const notion = createNotionClient(config.notionSecret);
+      
+      // Check if Αγορές database is accessible
+      const agoresDatabase = await notion.databases.retrieve({ 
+        database_id: agoresDatabaseId 
+      });
+
+      // Auto-create Αγορές view if it doesn't exist
+      const existingView = await storage.getNotionViewByType(userEmail, 'αγορές');
+      if (!existingView) {
+        let parentPageId = extractPageIdFromUrl(config.notionPageUrl);
+        try {
+          const currentDb = await notion.databases.retrieve({ database_id: parentPageId });
+          if ('parent' in currentDb && currentDb.parent.type === 'page_id') {
+            parentPageId = currentDb.parent.page_id;
+          }
+        } catch (err) {
+          // Current ID is already a page
+        }
+
+        await storage.createNotionView({
+          userEmail: userEmail,
+          viewType: 'αγορές',
+          pageId: parentPageId,
+          databaseId: agoresDatabaseId,
+          title: 'Αγορές',
+          icon: '🛒',
+          isActive: true,
+          sortOrder: 3
+        });
+
+        console.log(`[Auto Discovery] Created Αγορές view for user: ${userEmail}`);
+      }
+    } catch (error) {
+      console.log(`[Auto Discovery] Αγορές database not accessible for user: ${userEmail}`);
+    }
+  };
 
   // Quick search for Αγορές database only
   app.get('/api/notion-workspace/find-agores', async (req, res) => {
@@ -1769,6 +1771,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const notion = createNotionClient(config.notionSecret);
       const pageId = extractPageIdFromUrl(config.notionPageUrl);
+
+      // Auto-check for Αγορές database and create view if accessible
+      const agoresDatabaseId = '22868d53a05c802fb41df44b941c31a0';
+      try {
+        const agoresDatabase = await notion.databases.retrieve({ 
+          database_id: agoresDatabaseId 
+        });
+
+        // Check if Αγορές view already exists
+        const existingAgoresView = await storage.getNotionViewByType(userEmail, 'αγορές');
+        if (!existingAgoresView) {
+          await storage.createNotionView({
+            userEmail: userEmail,
+            viewType: 'αγορές',
+            pageId: pageId,
+            databaseId: agoresDatabaseId,
+            title: 'Αγορές',
+            icon: '🛒',
+            isActive: true,
+            sortOrder: 3
+          });
+
+          console.log(`[Discovery] Auto-created Αγορές view for user: ${userEmail}`);
+          viewsCreated++;
+        }
+      } catch (error) {
+        console.log(`[Discovery] Αγορές database not accessible for user: ${userEmail}`);
+      }
 
       try {
         // First, try to determine if the provided URL is a database or page

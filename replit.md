@@ -148,17 +148,17 @@ interface NotionView {
 
 ### 🔄 Recent Changes (Last Updated: July 6, 2025)
 
-#### Enhanced Deep Database Discovery System for Αγορές Detection
-- **Problem Solved**: Need to detect inline "Αγορές" database and add as third tab
-- **Solution**: Complete recursive database discovery system with 3-level depth scanning
+#### Direct Αγορές Database Integration with Known ID
+- **Problem Solved**: User provided specific database ID for Αγορές: `22868d53a05c802fb41df44b941c31a0`
+- **Solution**: Direct integration using the exact database ID instead of complex search
 - **Implementation**: 
-  - Enhanced `getNotionDatabases` function with recursive child page scanning up to 3 levels deep
-  - Added detection for both child_database and table (inline) database types
-  - Implemented depth control to prevent infinite loops and performance issues
-  - Created auto-detection and auto-creation logic for Αγορές tab with 🛒 icon
-  - Added comprehensive logging for database discovery process
-- **Results**: Successfully discovered 14+ databases across workspace including material databases ("Ελλάδα", "Tiles", "Wood", "Textile", "Payments") and task databases ("Software", "VA Tasks")
-- **Status**: Infrastructure ready for Αγορές database - system will automatically create tab when database is detected
+  - Removed complex deep search infrastructure per user request
+  - Added direct database access using provided ID: `22868d53a05c802fb41df44b941c31a0`
+  - Integrated auto-creation of Αγορές view into workspace discovery process
+  - Created endpoint `/api/notion-views/create-agores-direct` for manual creation
+  - Added automatic Αγορές view creation during normal workspace discovery
+- **Results**: Clean, efficient solution that directly accesses the known Αγορές database
+- **Status**: Ready for testing - Αγορές tab should auto-appear during workspace discovery
 
 ### 🔄 Recent Changes (Last Updated: July 6, 2025)
 
