@@ -3,6 +3,7 @@ import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminDashboard } from "@/components/admin/dashboard";
 import { AdminSettings } from "@/components/admin/settings";
 import { CRMUsers } from "@/components/admin/crm-users";
+import { NotificationTemplates } from "@/components/admin/notification-templates";
 
 interface Project {
   id: string;
@@ -13,7 +14,7 @@ interface Project {
 }
 
 export default function AdminSetup() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'settings' | 'crm'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'settings' | 'crm' | 'notifications'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
 
   const handleProjectSelect = (project: Project) => {
@@ -29,6 +30,8 @@ export default function AdminSetup() {
         return <CRMUsers />;
       case 'settings':
         return <AdminSettings />;
+      case 'notifications':
+        return <NotificationTemplates />;
       default:
         return <AdminDashboard selectedProject={selectedProject} />;
     }

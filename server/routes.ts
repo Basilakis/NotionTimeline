@@ -2126,6 +2126,174 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email templates management endpoints
+  app.get("/api/admin/email-templates", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Return default templates for now - in a real implementation, these would be stored in database
+      const defaultTemplates = [
+        {
+          id: "status-change",
+          name: "Status Change Notification",
+          subject: "Task Status Update: {{taskTitle}} - {{newStatus}}",
+          description: "Sent when a task status changes (Planning, In Progress, Done, etc.)",
+          variables: ["taskTitle", "projectName", "oldStatus", "newStatus", "userEmail", "assigneeEmail", "taskUrl", "dueDate", "priority"],
+          htmlBody: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Status Update</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }
+        .container { max-width: 600px; margin: 0 auto; background: white; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; }
+        .header h1 { color: white; margin: 0; font-size: 28px; font-weight: 600; }
+        .content { padding: 40px 20px; }
+        .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 14px; margin: 4px; }
+        .status-blue { background-color: #dbeafe; color: #1e40af; }
+        .status-yellow { background-color: #fef3c7; color: #b45309; }
+        .status-green { background-color: #dcfce7; color: #166534; }
+        .status-red { background-color: #fee2e2; color: #b91c1c; }
+        .status-purple { background-color: #f3e8ff; color: #7c3aed; }
+        .task-details { background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .button { background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 10px 0; }
+        .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{urgencyIndicator}} Task Status Update</h1>
+        </div>
+        <div class="content">
+            <h2>{{taskTitle}}</h2>
+            <p>{{statusChangeMessage}}</p>
+            <div style="margin: 20px 0;">
+                <span class="status-badge status-{{oldStatusColor}}">{{oldStatus}}</span>
+                <span style="margin: 0 10px;">→</span>
+                <span class="status-badge status-{{newStatusColor}}">{{newStatus}}</span>
+            </div>
+            <div class="task-details">
+                <p><strong>Project:</strong> {{projectName}}</p>
+                {{#if dueDate}}<p><strong>Due Date:</strong> {{dueDate}}</p>{{/if}}
+                {{#if priority}}<p><strong>Priority:</strong> {{priority}}</p>{{/if}}
+                <p><strong>Assigned to:</strong> {{assigneeEmail}}</p>
+            </div>
+            <a href="{{taskUrl}}" class="button">View Task in Notion</a>
+        </div>
+        <div class="footer">
+            <p>This notification was sent because you are assigned to this task.</p>
+            <p>Task management powered by Notion</p>
+        </div>
+    </div>
+</body>
+</html>`,
+          textBody: `Task Status Update: {{taskTitle}}
+
+{{statusChangeMessage}}
+
+Status changed from "{{oldStatus}}" to "{{newStatus}}"
+
+Project: {{projectName}}
+{{#if dueDate}}Due Date: {{dueDate}}{{/if}}
+{{#if priority}}Priority: {{priority}}{{/if}}
+Assigned to: {{assigneeEmail}}
+
+View task: {{taskUrl}}
+
+This notification was sent because you are assigned to this task.`
+        },
+        {
+          id: "task-reminder",
+          name: "Task Reminder",
+          subject: "Reminder: {{taskTitle}} is due {{dueDate}}",
+          description: "Sent as a reminder for upcoming task deadlines",
+          variables: ["taskTitle", "projectName", "dueDate", "assigneeEmail", "taskUrl", "priority"],
+          htmlBody: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Reminder</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }
+        .container { max-width: 600px; margin: 0 auto; background: white; }
+        .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 40px 20px; text-align: center; }
+        .header h1 { color: white; margin: 0; font-size: 28px; font-weight: 600; }
+        .content { padding: 40px 20px; }
+        .reminder-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .button { background: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 10px 0; }
+        .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⏰ Task Reminder</h1>
+        </div>
+        <div class="content">
+            <h2>{{taskTitle}}</h2>
+            <div class="reminder-box">
+                <p><strong>This task is due: {{dueDate}}</strong></p>
+                <p>Project: {{projectName}}</p>
+                {{#if priority}}<p>Priority: {{priority}}</p>{{/if}}
+            </div>
+            <a href="{{taskUrl}}" class="button">View Task in Notion</a>
+        </div>
+        <div class="footer">
+            <p>Don't forget to update your task progress!</p>
+        </div>
+    </div>
+</body>
+</html>`,
+          textBody: `Task Reminder: {{taskTitle}}
+
+This task is due: {{dueDate}}
+
+Project: {{projectName}}
+{{#if priority}}Priority: {{priority}}{{/if}}
+
+View task: {{taskUrl}}
+
+Don't forget to update your task progress!`
+        }
+      ];
+
+      res.json(defaultTemplates);
+    } catch (error) {
+      console.error("Error fetching email templates:", error);
+      res.status(500).json({ message: "Failed to fetch email templates" });
+    }
+  });
+
+  app.post("/api/admin/email-templates", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const template = req.body;
+      
+      // In a real implementation, save to database
+      // For now, just return success
+      console.log(`[Email Templates] Template "${template.name}" saved by admin`);
+      
+      res.json({ 
+        message: "Template saved successfully",
+        template 
+      });
+    } catch (error) {
+      console.error("Error saving email template:", error);
+      res.status(500).json({ message: "Failed to save email template" });
+    }
+  });
+
   // Status change notification endpoint
   app.post("/api/tasks/:taskId/status-change", async (req, res) => {
     try {

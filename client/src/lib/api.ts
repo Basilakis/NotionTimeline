@@ -28,13 +28,7 @@ export const api = {
       priority?: string;
     }
   ): Promise<{ message: string; notificationSent: boolean }> {
-    const response = await apiRequest(`/api/tasks/${taskId}/status-change`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(statusChange),
-    });
+    const response = await apiRequest('POST', `/api/tasks/${taskId}/status-change`, statusChange);
     
     if (!response.ok) {
       throw new Error(`Failed to send status change notification: ${response.statusText}`);

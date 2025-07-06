@@ -11,7 +11,8 @@ import {
   FolderOpen, 
   ChevronRight,
   LogOut,
-  Users
+  Users,
+  Mail
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -24,8 +25,8 @@ interface Project {
 }
 
 interface SidebarProps {
-  activeView: 'dashboard' | 'settings' | 'crm';
-  onViewChange: (view: 'dashboard' | 'settings' | 'crm') => void;
+  activeView: 'dashboard' | 'settings' | 'crm' | 'notifications';
+  onViewChange: (view: 'dashboard' | 'settings' | 'crm' | 'notifications') => void;
   onProjectSelect: (project: Project) => void;
   selectedProject?: Project;
 }
@@ -91,6 +92,14 @@ export function AdminSidebar({ activeView, onViewChange, onProjectSelect, select
           >
             <Settings className="h-4 w-4 mr-2" />
             Settings
+          </Button>
+          <Button
+            variant={activeView === 'notifications' ? 'default' : 'ghost'}
+            className="w-full justify-start"
+            onClick={() => onViewChange('notifications')}
+          >
+            <Mail className="h-4 w-4 mr-2" />
+            Notifications
           </Button>
         </div>
       </div>
