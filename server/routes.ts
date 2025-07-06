@@ -162,10 +162,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                           Object.values(childProperties).find((prop: any) => prop.type === 'title');
                 const childTitle = extractTextFromProperty(childTitleProperty) || childBlock.child_page?.title || 'Untitled Subtask';
                 
+                const { statusName: childStatusName } = extractNotionStatus(childProperties);
+                
                 subtasks.push({
                   id: childBlock.id,
                   title: childTitle,
-                  status: childProperties.Status?.select?.name || childProperties.Status?.status?.name || 'No Status',
+                  status: childStatusName,
                   type: 'child_page',
                   lastEditedTime: (childPage as any).last_edited_time
                 });
@@ -185,10 +187,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                             Object.values(relatedProperties).find((prop: any) => prop.type === 'title');
                 const relatedTitle = extractTextFromProperty(relatedTitleProperty) || 'Untitled Related Task';
                 
+                const { statusName: relatedStatusName } = extractNotionStatus(relatedProperties);
+                
                 subtasks.push({
                   id: relatedTask.id,
                   title: relatedTitle,
-                  status: relatedProperties.Status?.select?.name || relatedProperties.Status?.status?.name || 'No Status',
+                  status: relatedStatusName,
                   type: 'relation',
                   lastEditedTime: (relatedPage as any).last_edited_time
                 });
@@ -200,37 +204,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`[Subtask] Could not fetch subtasks for task ${taskId}:`, subtaskError.message);
           }
 
-          // Extract status properly from Notion Status field 
-          // The actual status field key from Notion API is URL-encoded
-          const statusFieldKey = Object.keys(properties).find(key => 
-            key.includes('status') || 
-            key.includes('Status') || 
-            key === 'notion%3A%2F%2Ftasks%2Fstatus_property'
-          );
-          
-          const statusField = statusFieldKey ? properties[statusFieldKey] : null;
-          
-          let statusName = 'Not Started';
-          let statusColor = 'default';
-          
-          if (statusField) {
-            if (statusField.type === 'rollup' && statusField.rollup?.array?.[0]?.status) {
-              // Handle rollup status field
-              statusName = statusField.rollup.array[0].status.name;
-              statusColor = statusField.rollup.array[0].status.color;
-            } else if (statusField.status) {
-              // Handle direct status field
-              statusName = statusField.status.name;
-              statusColor = statusField.status.color;
-            } else if (statusField.select) {
-              // Handle select field
-              statusName = statusField.select.name;
-              statusColor = statusField.select.color;
-            }
-          }
+          // Extract status using the robust extraction function
+          const { statusName, statusColor } = extractNotionStatus(properties, title);
           
           // Debug log for status extraction
-          console.log(`[Task ${title}] Status: ${statusName}, Color: ${statusColor}, Field Type: ${statusField?.type}, Has Rollup: ${!!statusField?.rollup}`);
+          console.log(`[Task ${title}] Status: ${statusName}, Color: ${statusColor}`);
 
           const task = {
             id: taskId,
@@ -412,14 +390,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const childTitle = extractTextFromProperty(childTitleProperty) || block.child_page?.title || 'Untitled Purchase Item';
                 
                 // Create purchase item from child page
+                const { statusName: childStatusName, statusColor: childStatusColor } = extractNotionStatus(childProperties);
+                
                 const purchaseItem = {
                   id: block.id,
                   notionId: block.id,
                   title: childTitle,
-                  status: childProperties.Status?.select?.name || childProperties.Status?.status?.name || 'Planning',
-                  mainStatus: 'Planning',
-                  subStatus: childProperties.Status?.select?.name || 'Planning',
-                  statusColor: childProperties.Status?.select?.color || 'blue',
+                  status: childStatusName,
+                  mainStatus: mapNotionStatusToLocal(childStatusName, childProperties.Completed?.checkbox || false),
+                  subStatus: childStatusName,
+                  statusColor: childStatusColor,
                   priority: childProperties.Priority?.select?.name || null,
                   dueDate: childProperties.DueDate?.date?.start || null,
                   description: extractTextFromProperty(childProperties.Description) || '',
@@ -457,14 +437,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const recordTitle = extractTextFromProperty(recordTitleProperty) || 'Untitled Purchase Item';
                   
                   // Create purchase item from database record
+                  const { statusName: recordStatusName, statusColor: recordStatusColor } = extractNotionStatus(recordProperties);
+                  
                   const purchaseItem = {
                     id: record.id,
                     notionId: record.id,
                     title: recordTitle,
-                    status: recordProperties.Status?.select?.name || recordProperties.Status?.status?.name || 'Planning',
-                    mainStatus: 'Planning',
-                    subStatus: recordProperties.Status?.select?.name || 'Planning',
-                    statusColor: recordProperties.Status?.select?.color || 'blue',
+                    status: recordStatusName,
+                    mainStatus: mapNotionStatusToLocal(recordStatusName, recordProperties.Completed?.checkbox || false),
+                    subStatus: recordStatusName,
+                    statusColor: recordStatusColor,
                     priority: recordProperties.Priority?.select?.name || null,
                     dueDate: recordProperties.DueDate?.date?.start || recordProperties.Date?.date?.start || null,
                     description: extractTextFromProperty(recordProperties.Description) || '',
@@ -3116,6 +3098,52 @@ function extractProjectName(task: any): string {
   }
   
   return 'Development Tasks';
+}
+
+function extractNotionStatus(properties: any, taskTitle?: string): { statusName: string; statusColor: string } {
+  // Find the status field - it could be named differently
+  const statusFieldKey = Object.keys(properties).find(key => 
+    key.includes('status') || 
+    key.includes('Status') || 
+    key === 'notion%3A%2F%2Ftasks%2Fstatus_property'
+  );
+  
+  const statusField = statusFieldKey ? properties[statusFieldKey] : null;
+  
+  let statusName = 'Planning';
+  let statusColor = 'blue';
+  
+  if (statusField) {
+    if (statusField.type === 'rollup' && statusField.rollup?.array?.[0]?.status) {
+      // Handle rollup status field
+      statusName = statusField.rollup.array[0].status.name;
+      statusColor = statusField.rollup.array[0].status.color;
+      
+      // Debug log for rollup fields
+      if (taskTitle) {
+        console.log(`[Status Debug ${taskTitle}] Rollup status - Name: ${statusName}, Color: ${statusColor}, Array Length: ${statusField.rollup.array.length}`);
+        if (statusField.rollup.array.length > 1) {
+          console.log(`[Status Debug ${taskTitle}] Additional rollup values:`, statusField.rollup.array.slice(1).map((item: any) => item.status?.name || 'No status'));
+        }
+      }
+    } else if (statusField.status) {
+      // Handle direct status field
+      statusName = statusField.status.name;
+      statusColor = statusField.status.color;
+      if (taskTitle) {
+        console.log(`[Status Debug ${taskTitle}] Direct status - Name: ${statusName}, Color: ${statusColor}`);
+      }
+    } else if (statusField.select) {
+      // Handle select field
+      statusName = statusField.select.name;
+      statusColor = statusField.select.color;
+      if (taskTitle) {
+        console.log(`[Status Debug ${taskTitle}] Select status - Name: ${statusName}, Color: ${statusColor}`);
+      }
+    }
+  }
+  
+  return { statusName, statusColor };
 }
 
 function mapNotionStatusToLocal(notionStatus: string | null, isCompleted: boolean): string {
