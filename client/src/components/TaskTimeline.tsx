@@ -51,9 +51,7 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
     }
 
     const today = new Date();
-    const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const oneMonthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-
+    
     // Get date range for timeline
     const validDates = tasks.map(task => 
       new Date(task.dueDate || task.createdTime).getTime()
@@ -62,8 +60,8 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
     if (validDates.length === 0) {
       return {
         tracks: [],
-        start: oneWeekAgo,
-        end: oneMonthFromNow,
+        start: new Date(),
+        end: new Date(),
         now: today,
         timebar: []
       };
@@ -72,50 +70,125 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
     const minDate = new Date(Math.min(...validDates));
     const maxDate = new Date(Math.max(...validDates));
 
-    // Extend range if needed
-    const timelineStart = new Date(Math.min(minDate.getTime(), oneWeekAgo.getTime()));
-    const timelineEnd = new Date(Math.max(maxDate.getTime(), oneMonthFromNow.getTime()));
+    // Extend range by a few months for better visualization
+    const timelineStart = new Date(minDate.getFullYear(), minDate.getMonth() - 1, 1);
+    const timelineEnd = new Date(maxDate.getFullYear(), maxDate.getMonth() + 2, 0);
 
-    // Create tracks (sections/projects)
-    const sections = [...new Set(tasks.map(task => task.section))];
-    const tracks = sections.map((section, index) => {
-      const sectionTasks = tasks.filter(task => task.section === section);
+    // Group tasks by project first, then create individual tracks for each task
+    const projectGroups = tasks.reduce((groups, task) => {
+      // Extract project name from task properties or use section
+      let projectName = 'General Tasks';
       
-      return {
-        id: `track-${index}`,
-        title: section || 'Uncategorized',
-        elements: sectionTasks.map(task => {
+      if (task.properties) {
+        // Try to find project name in various property formats
+        if (task.properties.Project && typeof task.properties.Project === 'string') {
+          projectName = task.properties.Project;
+        } else if (task.properties.project && typeof task.properties.project === 'string') {
+          projectName = task.properties.project;
+        } else if (task.properties.Project && task.properties.Project.select) {
+          projectName = task.properties.Project.select.name;
+        } else if (task.properties.project && task.properties.project.select) {
+          projectName = task.properties.project.select.name;
+        } else if (task.properties.Project && Array.isArray(task.properties.Project) && task.properties.Project.length > 0) {
+          projectName = task.properties.Project[0].name || task.properties.Project[0];
+        }
+      }
+      
+      // Fallback to section if no project found
+      if (projectName === 'General Tasks' && task.section) {
+        projectName = task.section;
+      }
+      
+      if (!groups[projectName]) {
+        groups[projectName] = [];
+      }
+      groups[projectName].push(task);
+      return groups;
+    }, {} as Record<string, typeof tasks>);
+
+    // Create tracks - each task gets its own track, grouped by project
+    const tracks: any[] = [];
+    let trackIndex = 0;
+
+    Object.entries(projectGroups).forEach(([projectName, projectTasks]) => {
+      // Add project header track
+      tracks.push({
+        id: `project-${trackIndex}`,
+        title: projectName,
+        isOpen: true,
+        hasButton: true,
+        elements: [],
+        tracks: projectTasks.map((task, taskIndex) => {
           const startTime = new Date(task.createdTime);
           const endTime = new Date(task.dueDate || task.lastEditedTime);
           
           // Ensure end time is after start time
           if (endTime <= startTime) {
-            endTime.setTime(startTime.getTime() + 24 * 60 * 60 * 1000); // Add 1 day
+            endTime.setTime(startTime.getTime() + 7 * 24 * 60 * 60 * 1000); // Add 1 week
           }
 
-          return {
-            id: task.id,
+          const taskTrack = {
+            id: `task-${trackIndex}-${taskIndex}`,
             title: task.title,
-            start: startTime,
-            end: endTime,
-            style: {
-              backgroundColor: getStatusColor(task.status, task.isCompleted),
-              color: 'white',
-              borderRadius: '4px',
-              border: task.priority === 'High' ? '2px solid #dc2626' : 'none'
-            },
-            tooltip: `${task.title} - ${task.status} (${task.progress}%)`,
-            task: task
+            hasButton: task.subtasks && task.subtasks.length > 0,
+            isOpen: false,
+            elements: [{
+              id: task.id,
+              title: task.title,
+              start: startTime,
+              end: endTime,
+              style: {
+                backgroundColor: getStatusColor(task.status, task.isCompleted),
+                color: 'white',
+                borderRadius: '4px',
+                border: task.priority === 'High' ? '2px solid #dc2626' : 'none',
+                fontSize: '12px',
+                padding: '2px 6px'
+              },
+              tooltip: `${task.title} - ${task.status} (${task.progress}%)`,
+              task: task
+            }]
           };
+
+          // Add subtask tracks if they exist
+          if (task.subtasks && task.subtasks.length > 0) {
+            taskTrack.tracks = task.subtasks.map((subtask: any, subIndex: number) => ({
+              id: `subtask-${trackIndex}-${taskIndex}-${subIndex}`,
+              title: `  → ${subtask.title || subtask.name || 'Subtask'}`,
+              elements: [{
+                id: `${task.id}-sub-${subIndex}`,
+                title: subtask.title || subtask.name || 'Subtask',
+                start: startTime,
+                end: new Date(startTime.getTime() + 3 * 24 * 60 * 60 * 1000), // 3 days duration
+                style: {
+                  backgroundColor: '#94a3b8', // gray for subtasks
+                  color: 'white',
+                  borderRadius: '2px',
+                  fontSize: '11px',
+                  padding: '1px 4px'
+                },
+                tooltip: `Subtask: ${subtask.title || subtask.name}`,
+                task: subtask
+              }]
+            }));
+          }
+
+          return taskTrack;
         })
-      };
+      });
+      trackIndex++;
     });
 
-    // Create timebar for header
+    // Create timebar with months and days
     const timebar = [
       {
-        id: 'days',
-        title: 'Days',
+        id: 'months',
+        title: 'Months',
+        cells: []
+      },
+      {
+        id: 'weeks',
+        title: 'Weeks', 
         cells: []
       }
     ];
