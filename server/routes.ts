@@ -241,10 +241,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             priority: properties.Priority?.select?.name || null,
             dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
             description: '', // Will be populated if needed
-            section: properties.Section?.select?.name || 'Uncategorized',
+            section: null,
             isCompleted: properties.Completed?.checkbox || false,
-            progress: statusName === 'Done' ? 100 : 
-                     statusName === 'In Progress' ? 50 : 0,
+            progress: calculateProgress(properties, statusName, properties.Completed?.checkbox || false),
             createdTime: (page as any).created_time,
             lastEditedTime: (page as any).last_edited_time,
             url: (page as any).url,
@@ -252,7 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userEmail: extractEmailFromProperty(properties.Assign),
             projectName: extractProjectName({ 
               title: properties.Title?.title?.[0]?.plain_text || "Untitled Task",
-              section: properties.Section?.select?.name || "Uncategorized",
+              section: null,
               url: (page as any).url,
               properties: properties 
             }),
@@ -423,10 +422,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   priority: childProperties.Priority?.select?.name || null,
                   dueDate: childProperties.DueDate?.date?.start || null,
                   description: extractTextFromProperty(childProperties.Description) || '',
-                  section: 'Purchases',
+                  section: null,
                   isCompleted: childProperties.Status?.select?.name === 'Done',
-                  progress: childProperties.Status?.select?.name === 'Done' ? 100 : 
-                           childProperties.Status?.select?.name === 'In Progress' ? 50 : 0,
+                  progress: calculateProgress(childProperties, childProperties.Status?.select?.name, childProperties.Status?.select?.name === 'Done'),
                   createdTime: (childPage as any).created_time || new Date().toISOString(),
                   lastEditedTime: (childPage as any).last_edited_time || new Date().toISOString(),
                   url: `https://notion.so/${block.id.replace(/-/g, "")}`,
@@ -470,10 +468,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     priority: recordProperties.Priority?.select?.name || null,
                     dueDate: recordProperties.DueDate?.date?.start || recordProperties.Date?.date?.start || null,
                     description: extractTextFromProperty(recordProperties.Description) || '',
-                    section: 'Purchases',
+                    section: null,
                     isCompleted: recordProperties.Status?.select?.name === 'Done',
-                    progress: recordProperties.Status?.select?.name === 'Done' ? 100 : 
-                             recordProperties.Status?.select?.name === 'In Progress' ? 50 : 0,
+                    progress: calculateProgress(recordProperties, recordProperties.Status?.select?.name, recordProperties.Status?.select?.name === 'Done'),
                     createdTime: (record as any).created_time || new Date().toISOString(),
                     lastEditedTime: (record as any).last_edited_time || new Date().toISOString(),
                     url: `https://notion.so/${record.id.replace(/-/g, "")}`,
@@ -576,7 +573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           completedAt: notionTask.completedAt || null,
           priority: notionTask.priority?.toLowerCase() || null,
           section: notionTask.section || null,
-          progress: calculateProgress(notionTask.status, notionTask.isCompleted),
+          progress: calculateProgress(notionTask.properties || {}, notionTask.status, notionTask.isCompleted),
           estimatedHours: null,
           notionUrl: `https://notion.so/${notionTask.notionId.replace(/-/g, '')}`
         };
@@ -3208,13 +3205,32 @@ function mapNotionStatusToLocal(notionStatus: string | null, isCompleted: boolea
   return 'not_started';
 }
 
-function calculateProgress(status: string | null, isCompleted: boolean): number {
+function calculateProgress(properties: any, status: string | null, isCompleted: boolean): number {
   if (isCompleted || status?.toLowerCase() === 'done') {
     return 100;
   }
   
+  // Check for Notion's Task Progress rollup field first (this is the most accurate)
+  if (properties?.['Task Progress']?.rollup?.number !== undefined) {
+    return Math.round(properties['Task Progress'].rollup.number * 100); // Convert 0.2 to 20%
+  }
+  
+  // Check if there's a specific progress property in Notion
+  if (properties?.Progress?.number !== undefined) {
+    return properties.Progress.number;
+  }
+  
+  if (properties?.['% Complete']?.number !== undefined) {
+    return properties['% Complete'].number;
+  }
+  
+  if (properties?.Percentage?.number !== undefined) {
+    return properties.Percentage.number;
+  }
+  
+  // Fallback to status-based calculation
   if (status?.toLowerCase() === 'in progress') {
-    return 50;
+    return 20; // Use 20% as default for in-progress instead of 50%
   }
   
   return 0;

@@ -18,27 +18,30 @@ interface TaskDetailModalProps {
 export function TaskDetailModal({ task, isOpen, onClose }: TaskDetailModalProps) {
   if (!task) return null;
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return (
-          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-            Completed
-          </Badge>
-        );
-      case 'pending':
-        return (
-          <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">
-            Pending
-          </Badge>
-        );
-      default:
-        return (
-          <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
-            Not Started
-          </Badge>
-        );
-    }
+  // Notion color mapping to Tailwind classes
+  const getNotionColorClasses = (notionColor: string): string => {
+    const colorMap: { [key: string]: string } = {
+      'default': 'bg-gray-100 text-gray-800 border-gray-200',
+      'gray': 'bg-gray-100 text-gray-800 border-gray-200',
+      'brown': 'bg-amber-100 text-amber-800 border-amber-200',
+      'orange': 'bg-orange-100 text-orange-800 border-orange-200',
+      'yellow': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'green': 'bg-green-100 text-green-800 border-green-200',
+      'blue': 'bg-blue-100 text-blue-800 border-blue-200',
+      'purple': 'bg-purple-100 text-purple-800 border-purple-200',
+      'pink': 'bg-pink-100 text-pink-800 border-pink-200',
+      'red': 'bg-red-100 text-red-800 border-red-200',
+    };
+    return colorMap[notionColor] || colorMap['default'];
+  };
+
+  const getStatusBadge = (status: string, statusColor?: string) => {
+    const colorClasses = getNotionColorClasses(statusColor || 'default');
+    return (
+      <Badge className={`${colorClasses} hover:${colorClasses}`}>
+        {status}
+      </Badge>
+    );
   };
 
   const formatDate = (date: Date | null) => {
@@ -77,7 +80,7 @@ export function TaskDetailModal({ task, isOpen, onClose }: TaskDetailModalProps)
               <label className="block text-sm font-medium text-gray-900 mb-2">
                 Status
               </label>
-              {getStatusBadge(task.status)}
+              {getStatusBadge(task.status, (task as any).statusColor)}
             </div>
             
             {task.assignee && (
@@ -105,14 +108,7 @@ export function TaskDetailModal({ task, isOpen, onClose }: TaskDetailModalProps)
               </div>
             )}
             
-            {task.section && (
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Section
-                </label>
-                <p className="text-sm text-gray-500">{task.section}</p>
-              </div>
-            )}
+
             
             {task.completedAt && (
               <div>
