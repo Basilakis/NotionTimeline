@@ -172,7 +172,7 @@ interface NotionView {
   - All API calls now return status 200 (fresh data) instead of 304 (cached)
   - Purchases tab now shows correct project names instead of "Unknown Project"
 - **User Experience**: Real-time data updates from Notion with proper project identification
-- **Status**: ✅ COMPLETELY RESOLVED - All purchases now show "Vertex Developments" project name
+- **Status**: ✅ COMPLETELY RESOLVED - All purchases now show "Project TemplateProject tasks" project name (correct Notion mapping)
 
 #### Automatic Status Change Monitoring & Notifications
 - **Problem Solved**: Need for automatic email notifications when task statuses change in Notion, not manual buttons

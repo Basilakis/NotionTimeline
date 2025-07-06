@@ -388,16 +388,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get the project name for this Αγορές task
           let currentProjectName = taskToProjectMap.get(taskId);
           
-          // Fallback: If mapping fails, determine project from task title (Αγορές in Greek = Vertex Developments)
-          console.log(`[Notion Purchases] Checking fallback - currentProjectName: "${currentProjectName}", title: "${title}"`);
-          if (!currentProjectName || currentProjectName === 'Unknown Project') {
-            if (title && (title.includes('Αγορές') || title.includes('αγορές'))) {
-              currentProjectName = 'Vertex Developments';
-              console.log(`[Notion Purchases] Used fallback mapping: Αγορές task belongs to Vertex Developments`);
-            } else {
-              currentProjectName = 'Unknown Project';
-              console.log(`[Notion Purchases] No fallback mapping - keeping as Unknown Project`);
-            }
+          console.log(`[Notion Purchases] Project name for Αγορές task: "${currentProjectName}"`);
+          
+          // Use the actual mapped project name without fallback override
+          if (!currentProjectName) {
+            currentProjectName = 'Unknown Project';
+            console.log(`[Notion Purchases] No project mapping found - keeping as Unknown Project`);
           }
           
           console.log(`[Notion Purchases] Project name for Αγορές task: "${currentProjectName}"`);
@@ -436,7 +432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   url: `https://notion.so/${block.id.replace(/-/g, "")}`,
                   userEmail: userEmail,
                   assignee: extractTextFromProperty(childProperties.Assignee) || null,
-                  projectName: 'Vertex Developments', // Hardcoded for Αγορές purchases
+                  projectName: currentProjectName,
                   properties: childProperties || {},
                   subtasks: [],
                   type: 'child_page'
@@ -481,7 +477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     url: `https://notion.so/${record.id.replace(/-/g, "")}`,
                     userEmail: userEmail,
                     assignee: extractTextFromProperty(recordProperties.Assignee) || null,
-                    projectName: 'Vertex Developments', // Hardcoded for Αγορές purchases
+                    projectName: currentProjectName,
                     properties: recordProperties || {},
                     subtasks: [],
                     type: 'database_record'
