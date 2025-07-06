@@ -164,6 +164,46 @@ export default function Workspace() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('tasks'); // Start with tasks tab
 
+  // Handle tab change with cache invalidation to refresh data
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    
+    // Invalidate relevant caches based on the tab being switched to
+    if (newTab === 'tasks') {
+      console.log("[Workspace] Refreshing tasks data on tab switch");
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks-from-notion'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notion-statuses'] });
+    } else if (newTab === 'purchases') {
+      console.log("[Workspace] Refreshing purchases data on tab switch");
+      queryClient.invalidateQueries({ queryKey: ['/api/purchases-from-notion'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notion-statuses'] });
+    } else if (newTab === 'projects') {
+      console.log("[Workspace] Refreshing projects data on tab switch");
+      queryClient.invalidateQueries({ queryKey: ['/api/notion-database/07ede7dbc952491784e9c5022523e2e0'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notion-project-summary'] });
+    }
+  };
+
+  // Manual refresh function for current tab
+  const handleManualRefresh = () => {
+    console.log(`[Workspace] Manual refresh triggered for ${activeTab} tab`);
+    if (activeTab === 'tasks') {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks-from-notion'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notion-statuses'] });
+    } else if (activeTab === 'purchases') {
+      queryClient.invalidateQueries({ queryKey: ['/api/purchases-from-notion'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notion-statuses'] });
+    } else if (activeTab === 'projects') {
+      queryClient.invalidateQueries({ queryKey: ['/api/notion-database/07ede7dbc952491784e9c5022523e2e0'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notion-project-summary'] });
+    }
+    
+    toast({
+      title: "Data Refreshed",
+      description: `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data has been refreshed from Notion`,
+    });
+  };
+
   // Status color helper function
   const getStatusColorFromOptions = (statusName: string, statusOptions: StatusOption[]): string => {
     const option = statusOptions.find(opt => opt.name === statusName);
@@ -547,7 +587,7 @@ export default function Workspace() {
       </div>
 
       {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="projects">
             <Database className="h-4 w-4 mr-2" />
