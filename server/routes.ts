@@ -301,14 +301,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const notion = createNotionClient(config.notionSecret);
       
-      // First, get all user's projects to extract task IDs
+      // First, get all user's projects to extract task IDs and create task-to-project mapping
       const databaseRecords = await getFilteredDatabaseRecords(notion, '07ede7dbc952491784e9c5022523e2e0', userEmail);
       
       const allTaskIds = new Set<string>();
+      const taskToProjectMap = new Map<string, string>(); // taskId -> projectName
+      
       for (const record of databaseRecords) {
+        const projectName = extractTextFromProperty(record.properties?.title || record.properties?.Title || record.properties?.Name) || 'Unknown Project';
         const taskRelations = record.properties?.Tasks?.relation || [];
+        
         for (const taskRef of taskRelations) {
           allTaskIds.add(taskRef.id);
+          taskToProjectMap.set(taskRef.id, projectName);
         }
       }
 
@@ -386,7 +391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   url: `https://notion.so/${block.id.replace(/-/g, "")}`,
                   userEmail: userEmail,
                   assignee: extractTextFromProperty(childProperties.Assignee) || null,
-                  projectName: 'Vertex Developments',
+                  projectName: taskToProjectMap.get(taskId) || 'Unknown Project',
                   properties: childProperties || {},
                   subtasks: [],
                   type: 'child_page'
@@ -431,7 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     url: `https://notion.so/${record.id.replace(/-/g, "")}`,
                     userEmail: userEmail,
                     assignee: extractTextFromProperty(recordProperties.Assignee) || null,
-                    projectName: 'Vertex Developments',
+                    projectName: taskToProjectMap.get(taskId) || 'Unknown Project',
                     properties: recordProperties || {},
                     subtasks: [],
                     type: 'database_record'
