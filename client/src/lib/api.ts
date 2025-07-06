@@ -14,6 +14,34 @@ function getUserEmail(): string {
 }
 
 export const api = {
+  async sendStatusChangeNotification(
+    taskId: string,
+    statusChange: {
+      oldStatus: string;
+      newStatus: string;
+      userEmail: string;
+      taskTitle: string;
+      projectName?: string;
+      assigneeEmail?: string;
+      taskUrl?: string;
+      dueDate?: string;
+      priority?: string;
+    }
+  ): Promise<{ message: string; notificationSent: boolean }> {
+    const response = await apiRequest(`/api/tasks/${taskId}/status-change`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(statusChange),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to send status change notification: ${response.statusText}`);
+    }
+    
+    return response.json();
+  },
   // Task operations
   async getTasks(status?: string): Promise<Task[]> {
     const url = status ? `/api/tasks?status=${status}` : '/api/tasks';

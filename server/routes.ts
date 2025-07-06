@@ -8,6 +8,7 @@ import { z } from "zod";
 import { userDB, type CRMUser } from "./userDatabase";
 import { reminderDB, type Reminder } from "./reminderDatabase";
 import { emailService, smsService } from "./communications";
+import { statusNotificationService } from "./statusNotifications";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -2122,6 +2123,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching project summary:", error);
       res.status(500).json({ message: "Failed to fetch project summary" });
+    }
+  });
+
+  // Status change notification endpoint
+  app.post("/api/tasks/:taskId/status-change", async (req, res) => {
+    try {
+      const { taskId } = req.params;
+      const { oldStatus, newStatus, userEmail, taskTitle, projectName, assigneeEmail, taskUrl, dueDate, priority } = req.body;
+
+      // Validate required fields
+      if (!oldStatus || !newStatus || !userEmail || !taskTitle) {
+        return res.status(400).json({
+          message: "Missing required fields: oldStatus, newStatus, userEmail, taskTitle"
+        });
+      }
+
+      // Skip notification if status hasn't actually changed
+      if (oldStatus === newStatus) {
+        return res.status(200).json({
+          message: "Status unchanged, no notification sent"
+        });
+      }
+
+      console.log(`[Status Change] Task "${taskTitle}" changed from "${oldStatus}" to "${newStatus}"`);
+
+      // Send status change notification
+      const notificationSent = await statusNotificationService.sendStatusChangeEmail({
+        taskTitle,
+        projectName: projectName || 'Unknown Project',
+        oldStatus,
+        newStatus,
+        assigneeEmail,
+        userEmail,
+        taskUrl: taskUrl || `https://notion.so/${taskId}`,
+        dueDate,
+        priority
+      });
+
+      res.status(200).json({
+        message: notificationSent ? "Status change notification sent" : "Notification failed to send",
+        notificationSent,
+        statusChange: {
+          from: oldStatus,
+          to: newStatus,
+          task: taskTitle,
+          recipient: assigneeEmail || userEmail
+        }
+      });
+
+    } catch (error) {
+      console.error("Status change notification error:", error);
+      res.status(500).json({
+        message: "Failed to send status change notification",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

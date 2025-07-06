@@ -554,10 +554,7 @@ export async function getTasks(notion: Client, tasksDatabaseId: string, userEmai
                 }
             }
 
-            // Debug log to verify status color extraction
-            if (statusColor) {
-                console.log(`[Status Debug] Task "${properties.Title?.title?.[0]?.plain_text}" has status "${statusDisplay}" with color "${statusColor}"`);
-            }
+
 
             return {
                 notionId: page.id,

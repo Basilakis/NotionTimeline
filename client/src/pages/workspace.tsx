@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useStatusNotification, createStatusChangeData } from "@/hooks/useStatusNotification";
 import { useAuth } from "@/hooks/useAuth";
 import TaskTimeline from "@/components/TaskTimeline";
 import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, RefreshCw, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard } from "lucide-react";
@@ -105,6 +106,7 @@ function getUserEmail(): string {
 export default function Workspace() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
+  const { triggerStatusChange } = useStatusNotification();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('projects');
   const [taskViewMode, setTaskViewMode] = useState<string>('list');
@@ -266,6 +268,29 @@ export default function Workspace() {
     setIsTaskModalOpen(true);
   };
 
+  // Handle status change with email notification
+  const handleStatusChange = async (task: Task, newStatus: string) => {
+    const oldStatus = task.status;
+    
+    if (oldStatus === newStatus) {
+      return; // No change needed
+    }
+
+    try {
+      // Send status change notification
+      await triggerStatusChange(createStatusChangeData(
+        task,
+        oldStatus,
+        newStatus,
+        userEmail || 'basiliskan@gmail.com'
+      ));
+      
+      console.log(`[Status Change] Successfully triggered notification for task "${task.title}"`);
+    } catch (error) {
+      console.error('[Status Change] Failed to send notification:', error);
+    }
+  };
+
   const openAllSubtasks = (subtasks: SubTask[]) => {
     subtasks.forEach(subtask => {
       window.open(`https://www.notion.so/${subtask.id.replace(/-/g, '')}`, '_blank');
@@ -296,9 +321,6 @@ export default function Workspace() {
 
   // Helper function to get badge variant and color classes based on Notion status color
   const getStatusBadgeStyle = (statusColor: string, isMainStatus: boolean = false) => {
-    // Debug log to verify color mapping
-    console.log('[Color Debug] Getting style for status color:', statusColor, 'isMainStatus:', isMainStatus);
-    
     const colorMap = {
       blue: isMainStatus ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-blue-50 text-blue-700 border-blue-200',
       yellow: isMainStatus ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -1020,6 +1042,48 @@ export default function Workspace() {
                   </div>
                 </div>
               )}
+
+              {/* Status Change Demo */}
+              <div className="pt-4 border-t">
+                <h4 className="font-medium text-gray-900 mb-3">Status Change & Notifications</h4>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleStatusChange(taskDetails, 'Planning')}
+                    className="bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  >
+                    Set to Planning
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleStatusChange(taskDetails, 'In Progress')}
+                    className="bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
+                  >
+                    Set to In Progress
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleStatusChange(taskDetails, 'Done')}
+                    className="bg-green-50 text-green-700 hover:bg-green-100"
+                  >
+                    Mark as Done
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleStatusChange(taskDetails, 'Paused')}
+                    className="bg-purple-50 text-purple-700 hover:bg-purple-100"
+                  >
+                    Pause Task
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  These buttons will trigger email notifications when status changes
+                </p>
+              </div>
 
               {/* Actions */}
               <div className="flex gap-2 pt-4 border-t">
