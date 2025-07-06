@@ -2050,6 +2050,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get project summary data with financial information
+  app.get("/api/notion-project-summary", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        return res.status(404).json({ message: "Configuration not found" });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+      
+      // Get filtered database records for the user
+      const projects = await getFilteredDatabaseRecords(notion, pageId, userEmail);
+      
+      const projectSummary = projects.map(project => {
+        const props = project.properties;
+        
+        // Extract completion percentage
+        const completion = props.Completion?.number || 0;
+        
+        // Extract proposal status
+        const proposal = props.Proposal?.select?.name || props.Proposal?.status?.name || 'Not Set';
+        
+        // Extract materials proposal
+        const materialsProposal = props['Materials Proposal']?.select?.name || 
+                                 props['Materials Proposal']?.status?.name || 'Not Set';
+        
+        // Extract project price
+        const projectPrice = props['Project Price']?.number || 0;
+        
+        // Extract total payments (comma-separated text)
+        const totalPayments = props['Total Payments']?.rich_text?.[0]?.plain_text || 
+                             props['Total Payments']?.title?.[0]?.plain_text || '';
+        
+        return {
+          id: project.notionId,
+          title: project.title,
+          completion,
+          proposal,
+          materialsProposal,
+          projectPrice,
+          totalPayments,
+          url: project.url
+        };
+      });
+      
+      res.json(projectSummary);
+    } catch (error) {
+      console.error("Error fetching project summary:", error);
+      res.status(500).json({ message: "Failed to fetch project summary" });
+    }
+  });
+
+  // Get all available statuses from Notion database
+  app.get("/api/notion-statuses", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        return res.status(404).json({ message: "Configuration not found" });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+      
+      // Get all tasks and extract unique statuses
+      const allTasks = await getTasks(notion, pageId, userEmail);
+      const statuses = new Set<string>();
+      
+      allTasks.forEach(task => {
+        if (task.status && task.status !== 'No Status') {
+          statuses.add(task.status);
+        }
+      });
+      
+      const statusList = Array.from(statuses).sort();
+      
+      res.json(statusList);
+    } catch (error) {
+      console.error("Error fetching statuses:", error);
+      res.status(500).json({ message: "Failed to fetch statuses" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

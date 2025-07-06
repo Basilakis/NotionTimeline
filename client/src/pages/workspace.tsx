@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import TaskTimeline from "@/components/TaskTimeline";
-import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, RefreshCw, Settings, LogOut } from "lucide-react";
+import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, RefreshCw, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard } from "lucide-react";
 
 interface NotionView {
   id: number;
@@ -35,6 +35,17 @@ interface DatabaseRecord {
   lastEditedTime: string;
   url: string;
   properties: any;
+}
+
+interface ProjectSummary {
+  id: string;
+  title: string;
+  completion: number;
+  proposal: string;
+  materialsProposal: string;
+  projectPrice: number;
+  totalPayments: string;
+  url: string;
 }
 
 interface ProjectHierarchy {
@@ -137,6 +148,30 @@ export default function Workspace() {
   // Fetch project hierarchy
   const { data: projectHierarchy, isLoading: hierarchyLoading } = useQuery<ProjectHierarchy>({
     queryKey: ['/api/notion-project-hierarchy'],
+    enabled: !!userEmail,
+    retry: false,
+    meta: {
+      headers: {
+        'x-user-email': userEmail
+      }
+    }
+  });
+
+  // Fetch project summary data
+  const { data: projectSummary, isLoading: summaryLoading } = useQuery<ProjectSummary[]>({
+    queryKey: ['/api/notion-project-summary'],
+    enabled: !!userEmail,
+    retry: false,
+    meta: {
+      headers: {
+        'x-user-email': userEmail
+      }
+    }
+  });
+
+  // Fetch available statuses
+  const { data: availableStatuses = [] } = useQuery<string[]>({
+    queryKey: ['/api/notion-statuses'],
     enabled: !!userEmail,
     retry: false,
     meta: {
@@ -250,12 +285,24 @@ export default function Workspace() {
 
   // Helper function to group tasks by status for Kanban view
   const groupTasksByStatus = (projectTasks: Task[]) => {
-    const groups: { [key: string]: Task[] } = {
-      'To Do': [],
-      'In Progress': [],
-      'Done': [],
-      'Other': []
-    };
+    // Initialize groups with available statuses from API
+    const groups: { [key: string]: Task[] } = {};
+    
+    // Add all available statuses as empty groups
+    availableStatuses.forEach(status => {
+      groups[status] = [];
+    });
+    
+    // Add fallback groups if no statuses are available
+    if (availableStatuses.length === 0) {
+      groups['To Do'] = [];
+      groups['In Progress'] = [];
+      groups['Done'] = [];
+      groups['Other'] = [];
+    } else {
+      // Always add 'Other' for any tasks with unrecognized statuses
+      groups['Other'] = [];
+    }
     
     projectTasks.forEach(task => {
       const status = task.status || 'Other';
@@ -332,6 +379,110 @@ export default function Workspace() {
           </Button>
         </div>
       </div>
+
+      {/* Project Summary Table */}
+      {projectSummary && projectSummary.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Project Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              {projectSummary.map((project) => (
+                <div key={project.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-lg">{project.title}</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(project.url, '_blank')}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {/* Completion */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <Percent className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-medium text-gray-600">Completion</span>
+                      </div>
+                      <div className="text-lg font-bold text-green-600">
+                        {project.completion}%
+                      </div>
+                    </div>
+                    
+                    {/* Proposal */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm font-medium text-gray-600">Proposal</span>
+                      </div>
+                      <Badge 
+                        variant={project.proposal === 'Approved' ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {project.proposal}
+                      </Badge>
+                    </div>
+                    
+                    {/* Materials Proposal */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <Package className="h-4 w-4 text-orange-600" />
+                        <span className="text-sm font-medium text-gray-600">Materials</span>
+                      </div>
+                      <Badge 
+                        variant={project.materialsProposal === 'Approved' ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {project.materialsProposal}
+                      </Badge>
+                    </div>
+                    
+                    {/* Project Price */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <DollarSign className="h-4 w-4 text-purple-600" />
+                        <span className="text-sm font-medium text-gray-600">Price</span>
+                      </div>
+                      <div className="text-lg font-bold text-purple-600">
+                        €{project.projectPrice.toLocaleString()}
+                      </div>
+                    </div>
+                    
+                    {/* Total Payments */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <CreditCard className="h-4 w-4 text-indigo-600" />
+                        <span className="text-sm font-medium text-gray-600">Payments</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {project.totalPayments ? (
+                          project.totalPayments.split(',').map((payment, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+                            >
+                              {payment.trim()}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 text-sm">No payments</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search */}
       <div className="flex items-center gap-4 mb-6">

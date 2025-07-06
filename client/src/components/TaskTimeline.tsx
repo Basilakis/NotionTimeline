@@ -53,22 +53,22 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
 
   const getStatusColor = useCallback((status: string | null, isCompleted: boolean) => {
     if (isCompleted) return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Light green bg, darker border and progress
-    switch (status?.toLowerCase()) {
-      case 'in progress':
-      case 'doing':
-        return { bg: '#dbeafe', border: '#2563eb', progress: '#1d4ed8' }; // Light blue bg, darker border and progress
-      case 'done':
-      case 'completed':
-        return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Light green bg, darker border and progress
-      case 'blocked':
-      case 'stuck':
-        return { bg: '#fee2e2', border: '#dc2626', progress: '#b91c1c' }; // Light red bg, darker border and progress
-      case 'to do':
-      case 'todo':
-      case 'not started':
-        return { bg: '#f3f4f6', border: '#6b7280', progress: '#4b5563' }; // Light gray bg, darker border and progress
-      default:
-        return { bg: '#f3e8ff', border: '#7c3aed', progress: '#6d28d9' }; // Light purple bg, darker border and progress
+    
+    // Handle dynamic statuses more flexibly
+    const statusLower = status?.toLowerCase() || '';
+    
+    if (statusLower.includes('progress') || statusLower.includes('doing') || statusLower.includes('working')) {
+      return { bg: '#dbeafe', border: '#2563eb', progress: '#1d4ed8' }; // Light blue bg, darker border and progress
+    } else if (statusLower.includes('done') || statusLower.includes('completed') || statusLower.includes('finished')) {
+      return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Light green bg, darker border and progress
+    } else if (statusLower.includes('blocked') || statusLower.includes('stuck') || statusLower.includes('stopped')) {
+      return { bg: '#fee2e2', border: '#dc2626', progress: '#b91c1c' }; // Light red bg, darker border and progress
+    } else if (statusLower.includes('todo') || statusLower.includes('to do') || statusLower.includes('not started') || statusLower.includes('pending')) {
+      return { bg: '#f3f4f6', border: '#6b7280', progress: '#4b5563' }; // Light gray bg, darker border and progress
+    } else if (statusLower.includes('review') || statusLower.includes('testing')) {
+      return { bg: '#fef3c7', border: '#d97706', progress: '#b45309' }; // Light yellow bg, darker border and progress
+    } else {
+      return { bg: '#f3e8ff', border: '#7c3aed', progress: '#6d28d9' }; // Light purple bg, darker border and progress
     }
   }, []);
 
