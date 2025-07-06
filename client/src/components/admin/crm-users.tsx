@@ -45,6 +45,7 @@ import {
 import { ReminderModal } from "./reminder-modal";
 import { SMSModal } from "./sms-modal";
 import { EmailModal } from "./email-modal";
+import { UserModal } from "./user-modal";
 
 interface CRMUser {
   id: string;
@@ -72,6 +73,8 @@ export function CRMUsers() {
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
   const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [selectedUserForModal, setSelectedUserForModal] = useState<CRMUser | null>(null);
   const [newUser, setNewUser] = useState({
     userName: "",
     userEmail: "",
@@ -333,6 +336,11 @@ export function CRMUsers() {
     setIsEmailModalOpen(true);
   };
 
+  const openUserModal = (user: CRMUser) => {
+    setSelectedUserForModal(user);
+    setIsUserModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -506,7 +514,13 @@ export function CRMUsers() {
                 {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
-                      <div className="font-medium">{user.userName}</div>
+                      <Button
+                        variant="ghost"
+                        className="h-auto p-0 font-medium text-left justify-start hover:text-blue-600"
+                        onClick={() => openUserModal(user)}
+                      >
+                        {user.userName}
+                      </Button>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -649,6 +663,12 @@ export function CRMUsers() {
           />
         </>
       )}
+
+      <UserModal
+        user={selectedUserForModal}
+        isOpen={isUserModalOpen}
+        onClose={() => setIsUserModalOpen(false)}
+      />
     </div>
   );
 }

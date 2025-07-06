@@ -7,6 +7,7 @@ import { insertNotionViewSchema } from "@shared/schema";
 import { z } from "zod";
 import { userDB, type CRMUser } from "./userDatabase";
 import { reminderDB, type Reminder } from "./reminderDatabase";
+import { requestDB } from "./requestDatabase";
 import { emailService, smsService } from "./communications";
 import { statusNotificationService } from "./statusNotifications";
 
@@ -3211,6 +3212,186 @@ Don't forget to update your task progress!`
         message: "Failed to process request",
         error: (error as Error).message 
       });
+    }
+  });
+
+  // Request System API Routes (Admin Panel)
+  
+  // Get all requests for admin dashboard
+  app.get("/api/admin/requests", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!isAdminUser(userEmail)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const requests = await requestDB.getRequestsWithReplies();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching requests:", error);
+      res.status(500).json({ message: "Failed to fetch requests" });
+    }
+  });
+
+  // Get requests for a specific user (for user modal)
+  app.get("/api/admin/users/:userEmail/requests", async (req, res) => {
+    try {
+      const adminEmail = req.headers['x-user-email'] as string;
+      if (!isAdminUser(adminEmail)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userEmail } = req.params;
+      const requests = await requestDB.getRequestsWithReplies(userEmail);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching user requests:", error);
+      res.status(500).json({ message: "Failed to fetch user requests" });
+    }
+  });
+
+  // Create a new request (user-facing)
+  app.post("/api/requests", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(401).json({ message: "User email is required" });
+      }
+
+      const { message } = req.body;
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const request = await requestDB.createRequest({
+        userEmail,
+        message
+      });
+
+      res.status(201).json(request);
+    } catch (error) {
+      console.error("Error creating request:", error);
+      res.status(500).json({ message: "Failed to create request" });
+    }
+  });
+
+  // Reply to a request (admin)
+  app.post("/api/admin/requests/:requestId/reply", async (req, res) => {
+    try {
+      const adminEmail = req.headers['x-user-email'] as string;
+      if (!isAdminUser(adminEmail)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { requestId } = req.params;
+      const { message } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const reply = await requestDB.createReply({
+        requestId,
+        message,
+        isAdmin: true,
+        senderEmail: adminEmail
+      });
+
+      res.status(201).json(reply);
+    } catch (error) {
+      console.error("Error creating reply:", error);
+      res.status(500).json({ message: "Failed to create reply" });
+    }
+  });
+
+  // Update request status (admin)
+  app.patch("/api/admin/requests/:requestId/status", async (req, res) => {
+    try {
+      const adminEmail = req.headers['x-user-email'] as string;
+      if (!isAdminUser(adminEmail)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { requestId } = req.params;
+      const { status } = req.body;
+
+      if (!status || !['open', 'resolved'].includes(status)) {
+        return res.status(400).json({ message: "Valid status is required (open or resolved)" });
+      }
+
+      const request = await requestDB.updateRequestStatus(requestId, status);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      res.json(request);
+    } catch (error) {
+      console.error("Error updating request status:", error);
+      res.status(500).json({ message: "Failed to update request status" });
+    }
+  });
+
+  // Get user activity logs (admin)
+  app.get("/api/admin/users/:userEmail/logs", async (req, res) => {
+    try {
+      const adminEmail = req.headers['x-user-email'] as string;
+      if (!isAdminUser(adminEmail)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userEmail } = req.params;
+      const logs = await requestDB.getUserLogs(userEmail);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching user logs:", error);
+      res.status(500).json({ message: "Failed to fetch user logs" });
+    }
+  });
+
+  // Send notification to user (admin)
+  app.post("/api/admin/users/:userEmail/notify", async (req, res) => {
+    try {
+      const adminEmail = req.headers['x-user-email'] as string;
+      if (!isAdminUser(adminEmail)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userEmail } = req.params;
+      const { message, type } = req.body;
+
+      if (!message || !type || !['email', 'sms'].includes(type)) {
+        return res.status(400).json({ message: "Message and valid type (email or sms) are required" });
+      }
+
+      // Get the user to send notification to
+      const user = await userDB.getUserByEmail(userEmail);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      let success = false;
+
+      if (type === 'email') {
+        success = await emailService.sendEmail(
+          userEmail,
+          "Notification from Admin",
+          message,
+          message
+        );
+      } else if (type === 'sms' && user.userPhone) {
+        success = await smsService.sendSMS(user.userPhone, message);
+      }
+
+      if (success) {
+        // Log the notification
+        await requestDB.logNotificationSent(userEmail, type, message);
+        res.json({ message: `${type.toUpperCase()} notification sent successfully` });
+      } else {
+        res.status(500).json({ message: `Failed to send ${type} notification` });
+      }
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      res.status(500).json({ message: "Failed to send notification" });
     }
   });
 
