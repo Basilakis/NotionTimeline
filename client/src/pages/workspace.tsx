@@ -285,6 +285,11 @@ export default function Workspace() {
     return tasks?.filter(task => projectTaskIds.includes(task.id)) || [];
   };
 
+  // Helper function to get project summary data for a specific project
+  const getProjectSummary = (projectId: string) => {
+    return projectSummary?.find(summary => summary.id === projectId);
+  };
+
   // Helper function to group tasks by status for Kanban view
   const groupTasksByStatus = (projectTasks: Task[]) => {
     // Initialize groups with available statuses from API
@@ -382,133 +387,7 @@ export default function Workspace() {
         </div>
       </div>
 
-      {/* Projects Overview Table */}
-      {projectSummary && projectSummary.length > 0 && (
-        <div className="mb-6">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse bg-white rounded-lg shadow-sm">
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="text-left p-4 font-semibold text-gray-900">Project</th>
-                  <th className="text-center p-4 font-semibold text-gray-900">
-                    <div className="flex items-center justify-center gap-1">
-                      <Percent className="h-4 w-4 text-green-600" />
-                      Completion
-                    </div>
-                  </th>
-                  <th className="text-center p-4 font-semibold text-gray-900">
-                    <div className="flex items-center justify-center gap-1">
-                      <FileText className="h-4 w-4 text-blue-600" />
-                      Proposal
-                    </div>
-                  </th>
-                  <th className="text-center p-4 font-semibold text-gray-900">
-                    <div className="flex items-center justify-center gap-1">
-                      <Package className="h-4 w-4 text-orange-600" />
-                      Materials Proposal
-                    </div>
-                  </th>
-                  <th className="text-center p-4 font-semibold text-gray-900">
-                    <div className="flex items-center justify-center gap-1">
-                      <DollarSign className="h-4 w-4 text-purple-600" />
-                      Project Price
-                    </div>
-                  </th>
-                  <th className="text-center p-4 font-semibold text-gray-900">
-                    <div className="flex items-center justify-center gap-1">
-                      <CreditCard className="h-4 w-4 text-indigo-600" />
-                      Total Payments
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {projectSummary.map((project, index) => (
-                  <tr key={project.id} className={`border-b hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <div className="font-medium text-gray-900">{project.title}</div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-auto p-0 text-xs text-blue-600 hover:text-blue-800"
-                            onClick={() => window.open(project.url, '_blank')}
-                          >
-                            View in Notion <ExternalLink className="h-3 w-3 ml-1" />
-                          </Button>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4 text-center">
-                      <div className="flex items-center justify-center">
-                        <div className="text-lg font-bold text-green-600">
-                          {project.completion}%
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4 text-center">
-                      {project.proposalUrl ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(project.proposalUrl, '_blank')}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          <FileText className="h-4 w-4 mr-1" />
-                          {project.proposal}
-                        </Button>
-                      ) : (
-                        <Badge variant="secondary" className="text-xs">
-                          {project.proposal}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="p-4 text-center">
-                      {project.materialsProposalUrl ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(project.materialsProposalUrl, '_blank')}
-                          className="text-orange-600 hover:text-orange-800"
-                        >
-                          <Package className="h-4 w-4 mr-1" />
-                          {project.materialsProposal}
-                        </Button>
-                      ) : (
-                        <Badge variant="secondary" className="text-xs">
-                          {project.materialsProposal}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="p-4 text-center">
-                      <div className="text-lg font-bold text-purple-600">
-                        €{project.projectPrice.toLocaleString()}
-                      </div>
-                    </td>
-                    <td className="p-4 text-center">
-                      <div className="flex flex-wrap gap-1 justify-center">
-                        {project.totalPayments ? (
-                          project.totalPayments.split(',').map((payment, index) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
-                            >
-                              {payment.trim()}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-gray-400 text-sm">No payments</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+
 
       {/* Search */}
       <div className="flex items-center gap-4 mb-6">
@@ -595,7 +474,7 @@ export default function Workspace() {
                       <CardContent className="pt-0">
                         <div className="space-y-6">
                           {/* Project Details */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div>
                               <h4 className="font-medium text-gray-900 mb-2">Project Information</h4>
                               <div className="space-y-2 text-sm">
@@ -607,8 +486,18 @@ export default function Workspace() {
                                   <Clock className="h-4 w-4 text-gray-500" />
                                   <span>Last Updated: {new Date(project.lastEditedTime).toLocaleDateString()}</span>
                                 </div>
+                                {(() => {
+                                  const summary = getProjectSummary(project.notionId);
+                                  return summary && (
+                                    <div className="flex items-center gap-2">
+                                      <Percent className="h-4 w-4 text-green-600" />
+                                      <span>Completion: <span className="font-medium text-green-600">{summary.completion}%</span></span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
+                            
                             <div>
                               <h4 className="font-medium text-gray-900 mb-2">Team & Access</h4>
                               <div className="space-y-2 text-sm">
@@ -624,6 +513,84 @@ export default function Workspace() {
                                     <span>{project.properties['User Email'].email}</span>
                                   </div>
                                 )}
+                              </div>
+                            </div>
+
+                            <div>
+                              <h4 className="font-medium text-gray-900 mb-2">Financial & Documents</h4>
+                              <div className="space-y-2 text-sm">
+                                {(() => {
+                                  const summary = getProjectSummary(project.notionId);
+                                  if (!summary) return null;
+                                  
+                                  return (
+                                    <>
+                                      {summary.projectPrice > 0 && (
+                                        <div className="flex items-center gap-2">
+                                          <DollarSign className="h-4 w-4 text-purple-600" />
+                                          <span>Price: <span className="font-medium text-purple-600">€{summary.projectPrice.toLocaleString()}</span></span>
+                                        </div>
+                                      )}
+                                      
+                                      {summary.proposalUrl ? (
+                                        <div className="flex items-center gap-2">
+                                          <FileText className="h-4 w-4 text-blue-600" />
+                                          <Button
+                                            variant="link"
+                                            size="sm"
+                                            onClick={() => window.open(summary.proposalUrl, '_blank')}
+                                            className="h-auto p-0 text-sm text-blue-600 hover:text-blue-800"
+                                          >
+                                            {summary.proposal}
+                                          </Button>
+                                        </div>
+                                      ) : summary.proposal !== 'Not Set' && (
+                                        <div className="flex items-center gap-2">
+                                          <FileText className="h-4 w-4 text-gray-500" />
+                                          <span>Proposal: {summary.proposal}</span>
+                                        </div>
+                                      )}
+                                      
+                                      {summary.materialsProposalUrl ? (
+                                        <div className="flex items-center gap-2">
+                                          <Package className="h-4 w-4 text-orange-600" />
+                                          <Button
+                                            variant="link"
+                                            size="sm"
+                                            onClick={() => window.open(summary.materialsProposalUrl, '_blank')}
+                                            className="h-auto p-0 text-sm text-orange-600 hover:text-orange-800"
+                                          >
+                                            {summary.materialsProposal}
+                                          </Button>
+                                        </div>
+                                      ) : summary.materialsProposal !== 'Not Set' && (
+                                        <div className="flex items-center gap-2">
+                                          <Package className="h-4 w-4 text-gray-500" />
+                                          <span>Materials: {summary.materialsProposal}</span>
+                                        </div>
+                                      )}
+                                      
+                                      {summary.totalPayments && (
+                                        <div className="flex items-start gap-2">
+                                          <CreditCard className="h-4 w-4 text-indigo-600 mt-0.5" />
+                                          <div>
+                                            <span className="text-gray-500">Payments:</span>
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                              {summary.totalPayments.split(',').map((payment, index) => (
+                                                <span
+                                                  key={index}
+                                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+                                                >
+                                                  {payment.trim()}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
