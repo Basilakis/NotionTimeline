@@ -111,7 +111,7 @@ export default function Workspace() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('tasks'); // Start with tasks tab
   const [selectedViewId, setSelectedViewId] = useState<number | null>(null);
-  const [taskViewMode, setTaskViewMode] = useState<string>('table');
+  const [taskViewMode, setTaskViewMode] = useState<string>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
@@ -262,7 +262,7 @@ export default function Workspace() {
       
       if (tasksView) {
         setSelectedViewId(tasksView.id);
-        setTaskViewMode('table'); // Default to table view
+        setTaskViewMode('list'); // Default to list view
         setActiveTab('tasks'); // Switch to tasks tab
         console.log('[Workspace] Auto-loading tasks from view:', tasksView.title);
       }
