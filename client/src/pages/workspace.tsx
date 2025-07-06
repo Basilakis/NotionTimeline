@@ -93,6 +93,33 @@ const filterSubtasksByStatus = (subtasks: SubTask[], filter: string) => {
   return subtasks.filter(subtask => subtask.status === filter);
 };
 
+// Helper function to format status display with proper capitalization
+const formatStatusDisplay = (status: string): string => {
+  if (!status) return '';
+  
+  // Handle common status patterns
+  const statusMap: { [key: string]: string } = {
+    'in progress': 'In Progress',
+    'not started': 'Not Started',
+    'done': 'Done',
+    'to do': 'To Do',
+    'in_progress': 'In Progress',
+    'not_started': 'Not Started',
+    'todo': 'To Do'
+  };
+  
+  // Check if we have a direct mapping
+  const lowerStatus = status.toLowerCase();
+  if (statusMap[lowerStatus]) {
+    return statusMap[lowerStatus];
+  }
+  
+  // For other cases, capitalize each word
+  return status.split(/[\s_-]+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 interface NotionView {
   id: number;
   userEmail: string;
@@ -972,7 +999,7 @@ export default function Workspace() {
                                 variant="outline" 
                                 className={`text-xs ${getStatusColorFromOptions(task.status, statusOptions)}`}
                               >
-                                {task.status}
+                                {formatStatusDisplay(task.status)}
                               </Badge>
                               {task.priority && (
                                 <Badge variant={
@@ -1083,7 +1110,7 @@ export default function Workspace() {
                             variant="outline" 
                             className={`${getNotionColorClasses(task.statusColor || 'default').badge} px-2 py-1 text-xs`}
                           >
-                            {task.status}
+                            {formatStatusDisplay(task.status)}
                           </Badge>
                           <Button
                             variant="ghost"
@@ -1276,7 +1303,7 @@ export default function Workspace() {
                             variant="outline" 
                             className={`text-xs ${getNotionColorClasses(subtask.statusColor || 'default').badge}`}
                           >
-                            {subtask.status}
+                            {formatStatusDisplay(subtask.status)}
                           </Badge>
                           <ExternalLink className="h-4 w-4 text-gray-400" />
                         </div>
