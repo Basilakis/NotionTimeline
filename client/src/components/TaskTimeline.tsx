@@ -7,6 +7,10 @@ interface Task {
   id: string;
   title: string;
   status: string;
+  mainStatus?: string;
+  subStatus?: string;
+  statusColor?: string;
+  statusGroup?: string;
   priority: string | null;
   dueDate: string | null;
   description: string;
@@ -51,24 +55,28 @@ interface TimelineItem extends TimelineItemBase {
 export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  const getStatusColor = useCallback((status: string | null, isCompleted: boolean) => {
-    if (isCompleted) return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Light green bg, darker border and progress
+  const getStatusColor = useCallback((task: Task) => {
+    if (task.isCompleted) return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Completed - green
     
-    // Handle dynamic statuses more flexibly
-    const statusLower = status?.toLowerCase() || '';
+    // Use Notion's actual status colors
+    const statusColor = task.statusColor || 'default';
     
-    if (statusLower.includes('progress') || statusLower.includes('doing') || statusLower.includes('working')) {
-      return { bg: '#dbeafe', border: '#2563eb', progress: '#1d4ed8' }; // Light blue bg, darker border and progress
-    } else if (statusLower.includes('done') || statusLower.includes('completed') || statusLower.includes('finished')) {
-      return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Light green bg, darker border and progress
-    } else if (statusLower.includes('blocked') || statusLower.includes('stuck') || statusLower.includes('stopped')) {
-      return { bg: '#fee2e2', border: '#dc2626', progress: '#b91c1c' }; // Light red bg, darker border and progress
-    } else if (statusLower.includes('todo') || statusLower.includes('to do') || statusLower.includes('not started') || statusLower.includes('pending')) {
-      return { bg: '#f3f4f6', border: '#6b7280', progress: '#4b5563' }; // Light gray bg, darker border and progress
-    } else if (statusLower.includes('review') || statusLower.includes('testing')) {
-      return { bg: '#fef3c7', border: '#d97706', progress: '#b45309' }; // Light yellow bg, darker border and progress
-    } else {
-      return { bg: '#f3e8ff', border: '#7c3aed', progress: '#6d28d9' }; // Light purple bg, darker border and progress
+    switch (statusColor) {
+      case 'blue':
+        return { bg: '#dbeafe', border: '#2563eb', progress: '#1d4ed8' }; // Planning - blue
+      case 'yellow':
+        return { bg: '#fef3c7', border: '#d97706', progress: '#b45309' }; // In Progress - yellow
+      case 'green':
+        return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Done - green
+      case 'red':
+        return { bg: '#fee2e2', border: '#dc2626', progress: '#b91c1c' }; // Canceled - red
+      case 'purple':
+        return { bg: '#f3e8ff', border: '#9333ea', progress: '#7c3aed' }; // Paused - purple
+      case 'gray':
+      case 'default':
+        return { bg: '#f3f4f6', border: '#6b7280', progress: '#4b5563' }; // Backlog - gray
+      default:
+        return { bg: '#f3f4f6', border: '#6b7280', progress: '#4b5563' }; // Default - gray
     }
   }, []);
 
@@ -205,7 +213,7 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
           stackItems: false
         });
 
-        const colors = getStatusColor(task.status, task.isCompleted);
+        const colors = getStatusColor(task);
         
         // Add task item with progress bar styling
         timelineItems.push({
@@ -317,19 +325,27 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
             <div className="flex items-center space-x-2 text-xs text-gray-600">
               <div className="flex items-center space-x-1">
                 <div className="w-3 h-3 bg-green-500 rounded"></div>
-                <span>Completed</span>
+                <span>Done</span>
               </div>
               <div className="flex items-center space-x-1">
                 <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                <span>Planning</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-yellow-500 rounded"></div>
                 <span>In Progress</span>
               </div>
               <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-purple-500 rounded"></div>
+                <span>Paused</span>
+              </div>
+              <div className="flex items-center space-x-1">
                 <div className="w-3 h-3 bg-gray-500 rounded"></div>
-                <span>To Do</span>
+                <span>Backlog</span>
               </div>
               <div className="flex items-center space-x-1">
                 <div className="w-3 h-3 bg-red-500 rounded"></div>
-                <span>Blocked</span>
+                <span>Canceled</span>
               </div>
             </div>
           </div>

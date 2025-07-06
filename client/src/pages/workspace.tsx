@@ -803,7 +803,19 @@ export default function Workspace() {
                             >
                               <CardContent className="p-3">
                                 <div className="space-y-2">
-                                  <h5 className="font-medium text-sm text-gray-900">{task.title}</h5>
+                                  <div className="flex items-center gap-2">
+                                    <h5 className="font-medium text-sm text-gray-900 flex-1">{task.title}</h5>
+                                    {task.mainStatus && (
+                                      <Badge className={`text-xs ${getStatusBadgeStyle(task.statusColor || 'default', true)}`}>
+                                        {task.mainStatus}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {task.subStatus && (
+                                    <Badge className={`text-xs ${getStatusBadgeStyle(task.statusColor || 'default', false)}`}>
+                                      {task.subStatus}
+                                    </Badge>
+                                  )}
                                   {task.priority && (
                                     <Badge variant={
                                       task.priority === 'High' ? 'destructive' :
