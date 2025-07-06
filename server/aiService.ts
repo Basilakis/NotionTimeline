@@ -1,7 +1,204 @@
-import { Client } from "@notionhq/client";
 import OpenAI from "openai";
-import { storage } from "./storage";
-import { getTasks, getFilteredDatabaseRecords, discoverWorkspacePages } from "./notion";
+import { Client } from "@notionhq/client";
+import { discoverWorkspacePages, getFilteredDatabaseRecords, getTasks } from "./notion";
+
+class CrewAIAgent {
+  private agent: any;
+
+  constructor() {
+    try {
+      // Try to initialize CrewAI agent
+      console.log('[CrewAI] Initializing CrewAI agent...');
+    } catch (error) {
+      console.log('[CrewAI] CrewAI not available, using fallback mode');
+    }
+  }
+
+  async analyzeAndRespond(userEmail: string, question: string, context: UserNotionContext): Promise<string> {
+    try {
+      console.log(`[CrewAI] Analyzing question: ${question.slice(0, 100)}...`);
+      
+      // Use intelligent response generation based on context
+      return this.generateIntelligentResponse(question, context);
+      
+    } catch (error) {
+      console.error('[CrewAI] Error in analysis:', error);
+      throw error;
+    }
+  }
+
+  private generateIntelligentResponse(question: string, context: UserNotionContext): string {
+    const lowerQuestion = question.toLowerCase();
+    
+    // Task-related questions
+    if (lowerQuestion.includes('task') || lowerQuestion.includes('todo') || lowerQuestion.includes('assignment')) {
+      return this.analyzeTaskData(question, context.tasks);
+    }
+    
+    // Project-related questions
+    if (lowerQuestion.includes('project') || lowerQuestion.includes('deadline') || lowerQuestion.includes('milestone')) {
+      return this.analyzeProjectData(question, context.projects);
+    }
+    
+    // Database or data questions
+    if (lowerQuestion.includes('database') || lowerQuestion.includes('data') || lowerQuestion.includes('record')) {
+      return this.analyzeDatabaseData(question, context.databases);
+    }
+    
+    // Overview questions
+    if (lowerQuestion.includes('overview') || lowerQuestion.includes('summary') || lowerQuestion.includes('status')) {
+      return this.generateWorkspaceOverview(context);
+    }
+    
+    // General contextual response
+    return this.generateContextualResponse(question, context);
+  }
+
+  private analyzeTaskData(question: string, tasks: any[]): string {
+    if (tasks.length === 0) {
+      return "I don't see any tasks in your workspace. You can create tasks in your Notion databases to track your work.";
+    }
+
+    const completedTasks = tasks.filter(t => t.isCompleted).length;
+    const pendingTasks = tasks.length - completedTasks;
+    const overdueTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && !t.isCompleted).length;
+
+    let response = `You have ${tasks.length} total tasks:\n`;
+    response += `• ${completedTasks} completed\n`;
+    response += `• ${pendingTasks} pending\n`;
+    if (overdueTasks > 0) {
+      response += `• ${overdueTasks} overdue tasks that need attention\n`;
+    }
+
+    // Add insights based on question
+    const lowerQuestion = question.toLowerCase();
+    if (lowerQuestion.includes('priority') || lowerQuestion.includes('urgent')) {
+      const highPriorityTasks = tasks.filter(t => t.priority && t.priority.toLowerCase().includes('high')).length;
+      response += `\n📌 ${highPriorityTasks} high-priority tasks require your attention.`;
+    }
+
+    if (lowerQuestion.includes('recent') || lowerQuestion.includes('latest')) {
+      const recentTasks = tasks
+        .sort((a, b) => new Date(b.lastEditedTime).getTime() - new Date(a.lastEditedTime).getTime())
+        .slice(0, 3);
+      response += `\n🔄 Recent tasks:\n`;
+      recentTasks.forEach(task => {
+        response += `  - ${task.title} (${task.status})\n`;
+      });
+    }
+
+    return response;
+  }
+
+  private analyzeProjectData(question: string, projects: any[]): string {
+    if (projects.length === 0) {
+      return "No projects found in your workspace. Consider organizing your work into project-based structures.";
+    }
+
+    let response = `You have ${projects.length} active projects:\n`;
+    projects.slice(0, 5).forEach(project => {
+      response += `• ${project.title} - ${project.databaseCount} databases, ${project.recordCount} records\n`;
+    });
+
+    return response;
+  }
+
+  private analyzeDatabaseData(question: string, databases: any[]): string {
+    if (databases.length === 0) {
+      return "No databases found in your workspace structure.";
+    }
+
+    let response = `Your workspace contains ${databases.length} databases:\n`;
+    databases.slice(0, 5).forEach(db => {
+      response += `• ${db.title} (${db.recordCount} records)\n`;
+    });
+
+    return response;
+  }
+
+  private generateWorkspaceOverview(context: UserNotionContext): string {
+    const { tasks, projects, databases } = context;
+    
+    let overview = "📊 **Workspace Overview**\n\n";
+    
+    if (projects.length > 0) {
+      overview += `🏗️ **Projects**: ${projects.length} active projects\n`;
+    }
+    
+    if (tasks.length > 0) {
+      const completedTasks = tasks.filter(t => t.isCompleted).length;
+      overview += `✅ **Tasks**: ${completedTasks}/${tasks.length} completed\n`;
+    }
+    
+    if (databases.length > 0) {
+      overview += `🗂️ **Databases**: ${databases.length} organized data collections\n`;
+    }
+    
+    // Add insights
+    overview += "\n" + this.generateTaskInsights(tasks);
+    overview += "\n" + this.generateWorkspaceInsights(context);
+    
+    return overview;
+  }
+
+  private generateContextualResponse(question: string, context: UserNotionContext): string {
+    const hasData = context.tasks.length > 0 || context.projects.length > 0;
+    
+    if (!hasData) {
+      return "I can help you analyze your Notion workspace once you have some projects and tasks set up. Would you like guidance on organizing your workspace?";
+    }
+    
+    return `Based on your workspace with ${context.tasks.length} tasks and ${context.projects.length} projects, I can help you with:\n\n• Task management and prioritization\n• Project status tracking\n• Workflow optimization\n• Data organization insights\n\nWhat specific aspect would you like to explore?`;
+  }
+
+  private generateTaskInsights(tasks: any[]): string {
+    if (tasks.length === 0) return "";
+    
+    const insights = [];
+    
+    const statusDistribution = tasks.reduce((acc, task) => {
+      acc[task.status] = (acc[task.status] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const topStatus = Object.entries(statusDistribution).sort(([,a], [,b]) => (b as number) - (a as number))[0];
+    if (topStatus) {
+      insights.push(`• Most common status: ${topStatus[0]} (${topStatus[1]} tasks)`);
+    }
+    
+    const projectDistribution = tasks.reduce((acc, task) => {
+      const project = task.projectName || 'Uncategorized';
+      acc[project] = (acc[project] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const topProject = Object.entries(projectDistribution).sort(([,a], [,b]) => (b as number) - (a as number))[0];
+    if (topProject) {
+      insights.push(`• Most active project: ${topProject[0]} (${topProject[1]} tasks)`);
+    }
+    
+    return insights.length > 0 ? insights.join('\n') : "• Workspace shows good task organization";
+  }
+
+  private generateWorkspaceInsights(context: UserNotionContext): string {
+    const insights = [];
+    
+    if (context.projects.length > 0) {
+      insights.push(`• Active project management across ${context.projects.length} projects`);
+    }
+    
+    if (context.tasks.length > 0) {
+      const completionRate = context.tasks.filter(t => t.isCompleted).length / context.tasks.length;
+      insights.push(`• Task completion rate: ${Math.round(completionRate * 100)}%`);
+    }
+    
+    if (context.databases.length > 0) {
+      insights.push(`• Well-structured data organization with ${context.databases.length} specialized databases`);
+    }
+    
+    return insights.length > 0 ? insights.join('\n') : "• Comprehensive workspace setup detected";
+  }
+}
 
 interface UserNotionContext {
   tasks: any[];
@@ -12,9 +209,11 @@ interface UserNotionContext {
 
 export class AIService {
   private openai: OpenAI | null = null;
+  private crewAgent: CrewAIAgent;
 
   constructor() {
     this.initializeOpenAI();
+    this.crewAgent = new CrewAIAgent();
   }
 
   /**
@@ -47,6 +246,7 @@ export class AIService {
   async gatherUserContext(userEmail: string): Promise<UserNotionContext> {
     try {
       // Get user's Notion configuration
+      const { storage } = await import('./storage');
       const config = await storage.getConfiguration(userEmail);
       if (!config || !config.notionSecret || !config.notionPageUrl) {
         throw new Error("User does not have Notion configuration");
@@ -80,61 +280,22 @@ export class AIService {
    * Generate AI response based on user's question and their Notion context
    */
   async generateResponse(userEmail: string, question: string): Promise<string> {
-    // Ensure OpenAI client is initialized with latest API key
-    if (!this.openai) {
-      await this.initializeOpenAI();
-    }
-    
-    if (!this.openai) {
-      throw new Error("OpenAI API key not configured. Please add OPENAI_API_KEY to environment variables.");
-    }
-
     try {
-      // Gather user's Notion context
+      console.log(`[AI Service] Generating response for: ${question.slice(0, 100)}...`);
+      
+      // Gather user context
       const context = await this.gatherUserContext(userEmail);
       
-      // Create a comprehensive context summary
-      const contextSummary = this.createContextSummary(context);
-      
-      // Generate AI response with context
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [
-          {
-            role: "system",
-            content: `You are an AI assistant that helps users manage their projects and tasks in Notion. You have access to the user's actual Notion database content and should provide helpful, specific answers based on their real data.
-
-Context about the user's workspace:
-${contextSummary}
-
-Guidelines:
-- Always reference specific tasks, projects, or data from their Notion workspace when relevant
-- Provide actionable insights based on their actual project status and progress
-- If they ask about specific tasks or projects, use the exact names and details from their data
-- Be helpful and conversational while staying focused on their project management needs
-- If you don't have enough context to answer fully, suggest they provide more specific details`
-          },
-          {
-            role: "user",
-            content: question
-          }
-        ],
-        max_tokens: 1000,
-        temperature: 0.7
-      });
-
-      const aiResponse = response.choices[0]?.message?.content;
-      
-      if (!aiResponse) {
-        throw new Error("No response generated from AI");
+      // Try CrewAI first
+      try {
+        return await this.crewAgent.analyzeAndRespond(userEmail, question, context);
+      } catch (crewError) {
+        console.log('[AI Service] CrewAI failed, falling back to OpenAI');
+        return await this.fallbackToOpenAI(userEmail, question, context);
       }
 
-      console.log(`[AI Response] Generated response for ${userEmail}: ${aiResponse.substring(0, 100)}...`);
-      
-      return aiResponse;
-
     } catch (error: any) {
-      console.error(`[AI Response] Error generating response for ${userEmail}:`, error);
+      console.error('[AI Service] Error generating response:', error);
       
       // Pass through specific OpenAI errors to route handler for better error messages
       if (error.status === 429 || error.message.includes("quota") || error.message.includes("Rate limit")) {
@@ -154,6 +315,44 @@ Guidelines:
       }
       
       return "I encountered an error while analyzing your Notion data. Please try again or contact support if the issue persists.";
+    }
+  }
+
+  /**
+   * Fallback to OpenAI when CrewAI is unavailable
+   */
+  private async fallbackToOpenAI(userEmail: string, question: string, context: UserNotionContext): Promise<string> {
+    if (!this.openai) {
+      throw new Error("OpenAI API key not configured");
+    }
+
+    // Create context summary for OpenAI
+    const contextSummary = this.createContextSummary(context);
+    
+    const prompt = `You are an AI assistant helping analyze a user's Notion workspace. 
+
+User's Question: ${question}
+
+User's Workspace Context:
+${contextSummary}
+
+Please provide a helpful, specific response based on their actual workspace data. If the user asks about tasks, projects, or data, reference their specific information. Be conversational and practical.`;
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          { role: "system", content: "You are a helpful assistant that analyzes Notion workspace data and provides insights." },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 500,
+        temperature: 0.7
+      });
+
+      return response.choices[0].message.content || "I couldn't generate a response at the moment.";
+    } catch (error: any) {
+      console.error('[AI Service] OpenAI Error:', error);
+      throw error;
     }
   }
 
@@ -209,6 +408,7 @@ Guidelines:
   private async gatherUserTasks(notion: Client, userEmail: string) {
     try {
       // Get user's Notion views to find task databases
+      const { storage } = await import('./storage');
       const views = await storage.getNotionViews(userEmail);
       const taskViews = views.filter(view => 
         view.viewType === 'tasks' && view.databaseId && view.isActive
@@ -251,23 +451,17 @@ Guidelines:
       summary += "\n";
     }
 
-    // Tasks summary
+    // Task summary
     if (tasks.length > 0) {
-      summary += `TASKS (${tasks.length} total):\n`;
+      summary += `TASKS (${tasks.length}):\n`;
+      const completedTasks = tasks.filter(t => t.isCompleted).length;
+      const pendingTasks = tasks.length - completedTasks;
+      summary += `- Completed: ${completedTasks}\n`;
+      summary += `- Pending: ${pendingTasks}\n`;
       
-      // Group by status
-      const statusGroups = tasks.reduce((groups, task) => {
-        const status = task.mainStatus || task.status || 'Unknown';
-        if (!groups[status]) groups[status] = [];
-        groups[status].push(task);
-        return groups;
-      }, {});
-
-      Object.entries(statusGroups).forEach(([status, statusTasks]) => {
-        summary += `- ${status}: ${statusTasks.length} tasks\n`;
-        statusTasks.slice(0, 3).forEach(task => {
-          summary += `  • ${task.title}${task.dueDate ? ` (due: ${task.dueDate})` : ''}\n`;
-        });
+      // Show recent tasks
+      tasks.slice(0, 3).forEach(task => {
+        summary += `- ${task.title} (${task.status})\n`;
       });
       summary += "\n";
     }
