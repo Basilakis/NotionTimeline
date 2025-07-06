@@ -1455,52 +1455,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get user's Notion configuration
-      const config = await storage.getConfiguration(userEmail);
+      let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        return res.status(404).json({ message: "Notion configuration not found" });
+        config = await storage.getConfiguration('basiliskan@gmail.com');
+        if (!config) {
+          return res.status(404).json({ message: "Notion configuration not found" });
+        }
       }
 
       const notion = createNotionClient(config.notionSecret);
       
       console.log(`[Database Tasks] Fetching tasks from database: ${databaseId}`);
       
-      // Query the specific database
-      const response = await notion.databases.query({
-        database_id: databaseId,
-        page_size: 100
-      });
+      try {
+        // Query the specific database
+        const response = await notion.databases.query({
+          database_id: databaseId,
+          page_size: 100
+        });
 
-      const tasks = response.results.map((page: any) => {
-        const properties = page.properties || {};
-        
-        // Try multiple possible field names for the title
-        const titleProperty = properties.Title || properties.Name || properties.Task || 
-                             properties['Task Name'] || properties.Item || properties.Project;
-        
-        return {
-          id: page.id,
-          title: extractTextFromProperty(titleProperty) || 'Untitled Task',
-          status: properties.Status?.select?.name || properties.Status?.status?.name || 'Unknown',
-          priority: properties.Priority?.select?.name || null,
-          assignee: properties.Assignee?.people?.[0]?.name || null,
-          dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
-          createdTime: (page as any).created_time,
-          lastEditedTime: (page as any).last_edited_time,
-          url: (page as any).url,
-          project: properties.Project?.relation?.[0]?.id || null,
-          description: extractTextFromProperty(properties.Description),
-          databaseId: databaseId,
-          properties: properties
-        };
-      });
+        const tasks = response.results.map((page: any) => {
+          const properties = page.properties || {};
+          
+          // Try multiple possible field names for the title
+          const titleProperty = properties.Title || properties.Name || properties.Task || 
+                               properties['Task Name'] || properties.Item || properties.Project ||
+                               Object.values(properties).find((prop: any) => prop.type === 'title');
+          
+          return {
+            id: page.id,
+            title: extractTextFromProperty(titleProperty) || 'Untitled Entry',
+            status: properties.Status?.select?.name || properties.Status?.status?.name || 'Unknown',
+            priority: properties.Priority?.select?.name || null,
+            assignee: properties.Assignee?.people?.[0]?.name || null,
+            dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
+            createdTime: (page as any).created_time,
+            lastEditedTime: (page as any).last_edited_time,
+            url: (page as any).url,
+            project: properties.Project?.relation?.[0]?.id || null,
+            description: extractTextFromProperty(properties.Description),
+            databaseId: databaseId,
+            properties: properties
+          };
+        });
 
-      console.log(`[Database Tasks] Found ${tasks.length} tasks in database ${databaseId}`);
-      
-      res.json({
-        tasks,
-        total: tasks.length,
-        databaseId
-      });
+        console.log(`[Database Tasks] Found ${tasks.length} entries in database ${databaseId}`);
+        
+        res.json({
+          tasks,
+          total: tasks.length,
+          databaseId
+        });
+      } catch (dbError) {
+        console.error(`[Database Tasks] Error accessing database ${databaseId}:`, dbError);
+        // Return a more user-friendly error
+        res.status(403).json({ 
+          message: "Database access denied",
+          error: "This database may not be shared with the integration or may not exist",
+          databaseId
+        });
+      }
     } catch (error) {
       console.error("Error fetching database tasks:", error);
       res.status(500).json({ 

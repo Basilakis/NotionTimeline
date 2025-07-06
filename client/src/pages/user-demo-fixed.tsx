@@ -216,15 +216,89 @@ export default function UserDemo() {
     setTaskModalOpen(true);
   };
 
+  // Component to render individual task card
+  const TaskCard = ({ taskId }: { taskId: string }) => {
+    const { data: task, isLoading, error } = useQuery<any>({
+      queryKey: [`/api/tasks/${taskId}`],
+      enabled: !!taskId && simulateUser,
+      retry: false
+    });
+    
+    if (isLoading) {
+      return (
+        <div className="bg-gray-50 p-3 rounded border animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+          <div className="h-3 bg-gray-200 rounded w-1/2 mt-1"></div>
+        </div>
+      );
+    }
+    
+    if (error) {
+      return (
+        <div className="bg-red-50 p-3 rounded border border-red-200">
+          <div className="font-medium text-sm text-red-800">Task not accessible</div>
+          <div className="text-xs text-red-600">ID: {taskId}</div>
+        </div>
+      );
+    }
+    
+    if (!task) {
+      return (
+        <div className="bg-gray-50 p-3 rounded border">
+          <div className="font-medium text-sm text-gray-800">Task not found</div>
+          <div className="text-xs text-gray-600">ID: {taskId}</div>
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className="bg-gray-50 p-3 rounded border hover:bg-gray-100 cursor-pointer transition-colors"
+        onClick={() => openTaskModal(task)}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <div className="font-medium text-sm">
+              {task.title || 'Untitled Task'}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              {task.status && renderTaskStatus(task.status)}
+              {task.priority && (
+                <span className="text-xs text-gray-600">
+                  Priority: {task.priority}
+                </span>
+              )}
+              {task.dueDate && (
+                <span className="text-xs text-gray-600">
+                  Due: {new Date(task.dueDate).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+          </div>
+          <Eye className="h-4 w-4 text-gray-400" />
+        </div>
+      </div>
+    );
+  };
+
   // Component to render tasks from a specific database
   const TasksFromDatabase = ({ databaseId, title }: { databaseId: string; title: string }) => {
-    const { data: databaseTasks, isLoading } = useTasksFromDatabase(databaseId);
+    const { data: databaseTasks, isLoading, error } = useTasksFromDatabase(databaseId);
     
     if (isLoading) {
       return (
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <Loader2 className="h-3 w-3 animate-spin" />
-          <span>Loading tasks...</span>
+          <span>Loading {title}...</span>
+        </div>
+      );
+    }
+    
+    if (error) {
+      console.error(`Error loading tasks from ${title}:`, error);
+      return (
+        <div className="text-sm text-red-500">
+          Error loading {title}: {error.message || 'Access denied'}
         </div>
       );
     }
@@ -253,7 +327,7 @@ export default function UserDemo() {
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="font-medium text-sm">
-                    {task.title}
+                    {task.title || 'Untitled Task'}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     {task.status && renderTaskStatus(task.status)}
@@ -327,12 +401,12 @@ export default function UserDemo() {
           ))
         )}
         
-        {/* Legacy task relations (fallback) */}
+        {/* Task relations from project properties */}
         {taskRelations.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
-              <BarChart3 className="h-4 w-4 text-orange-600" />
-              <span>Task Relations ({taskRelations.length})</span>
+              <BarChart3 className="h-4 w-4 text-blue-600" />
+              <span>Project Tasks ({taskRelations.length})</span>
             </div>
             <div className="space-y-2">
               {taskRelations.slice(0, 6).map((taskRef: any, index: number) => {
@@ -341,25 +415,21 @@ export default function UserDemo() {
                   <div 
                     key={index} 
                     className="bg-gray-50 p-3 rounded border hover:bg-gray-100 cursor-pointer transition-colors"
-                    onClick={() => task && openTaskModal(task)}
+                    onClick={() => {
+                      setSelectedTask({ id: taskRef.id, title: task?.title || 'Loading...' });
+                      setTaskModalOpen(true);
+                    }}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="font-medium text-sm">
-                          {task?.title || `Loading task...`}
+                          {task?.title || 'Task ' + (index + 1)}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           {task?.status && renderTaskStatus(task.status)}
-                          {task?.priority && (
-                            <span className="text-xs text-gray-600">
-                              Priority: {task.priority}
-                            </span>
-                          )}
-                          {task?.dueDate && (
-                            <span className="text-xs text-gray-600">
-                              Due: {new Date(task.dueDate).toLocaleDateString()}
-                            </span>
-                          )}
+                          <span className="text-xs text-gray-600">
+                            Task ID: {taskRef.id.slice(0, 8)}...
+                          </span>
                         </div>
                       </div>
                       <Eye className="h-4 w-4 text-gray-400" />
