@@ -1,5 +1,4 @@
-/* React Timelines CSS */
-@import 'react-timelines/lib/css/style.css';
+/* React Calendar Timeline CSS - included in component */
 
 @tailwind base;
 @tailwind components;

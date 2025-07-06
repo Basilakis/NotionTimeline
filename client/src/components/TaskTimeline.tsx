@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
-import Timeline from 'react-timelines';
-import 'react-timelines/lib/css/style.css';
+import Timeline, { TimelineGroupBase, TimelineItemBase } from 'react-calendar-timeline';
+import moment from 'moment';
+import 'react-calendar-timeline/dist/style.css';
 
 interface Task {
   id: string;
@@ -24,15 +25,31 @@ interface TaskTimelineProps {
   onTaskClick: (task: Task) => void;
 }
 
+interface TimelineGroup extends TimelineGroupBase {
+  id: string | number;
+  title: string;
+  rightTitle?: string;
+  height?: number;
+  parent?: string | number;
+  stackItems?: boolean;
+}
+
+interface TimelineItem extends TimelineItemBase {
+  id: string | number;
+  group: string | number;
+  title: string;
+  start_time: moment.Moment;
+  end_time: moment.Moment;
+  itemProps?: {
+    style?: React.CSSProperties;
+    className?: string;
+    'data-custom-attribute'?: string;
+  };
+  task?: Task;
+}
+
 export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) {
-  const [openTracks, setOpenTracks] = useState<Record<string, boolean>>({});
-  const [scale, setScale] = useState({
-    start: new Date(),
-    end: new Date(),
-    zoom: 1,
-    zoomMin: 1,
-    zoomMax: 20
-  });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const getStatusColor = useCallback((status: string | null, isCompleted: boolean) => {
     if (isCompleted) return '#10b981'; // Green
@@ -55,75 +72,43 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
     }
   }, []);
 
-  const toggleOpen = useCallback((trackId: string) => {
-    setOpenTracks(prev => ({
-      ...prev,
-      [trackId]: !prev[trackId]
-    }));
-  }, []);
-
-  const zoomIn = useCallback(() => {
-    setScale(prev => ({
-      ...prev,
-      zoom: Math.min(prev.zoom * 1.2, prev.zoomMax)
-    }));
-  }, []);
-
-  const zoomOut = useCallback(() => {
-    setScale(prev => ({
-      ...prev,
-      zoom: Math.max(prev.zoom / 1.2, prev.zoomMin)
-    }));
-  }, []);
-
-  const clickTrackButton = useCallback((trackId: string) => {
-    toggleOpen(trackId);
-  }, [toggleOpen]);
-
-  const isOpen = true;
-
-  const timelineData = useMemo(() => {
+  const { groups, items, defaultTimeStart, defaultTimeEnd } = useMemo(() => {
     if (!tasks || tasks.length === 0) {
       return {
-        tracks: [],
-        start: new Date(),
-        end: new Date(),
-        now: new Date(),
-        timebar: []
+        groups: [],
+        items: [],
+        defaultTimeStart: moment().startOf('day'),
+        defaultTimeEnd: moment().endOf('day')
       };
     }
 
-    const today = new Date();
-    
     // Get all valid dates from tasks
     const validDates = tasks.flatMap(task => {
       const dates = [];
-      if (task.createdTime) dates.push(new Date(task.createdTime).getTime());
-      if (task.dueDate) dates.push(new Date(task.dueDate).getTime());
-      if (task.lastEditedTime) dates.push(new Date(task.lastEditedTime).getTime());
-      return dates;
-    }).filter(date => !isNaN(date));
+      if (task.createdTime) dates.push(moment(task.createdTime));
+      if (task.dueDate) dates.push(moment(task.dueDate));
+      if (task.lastEditedTime) dates.push(moment(task.lastEditedTime));
+      return dates.filter(date => date.isValid());
+    });
 
     if (validDates.length === 0) {
       return {
-        tracks: [],
-        start: new Date(),
-        end: new Date(),
-        now: today,
-        timebar: []
+        groups: [],
+        items: [],
+        defaultTimeStart: moment().startOf('day'),
+        defaultTimeEnd: moment().endOf('day')
       };
     }
 
-    const minDate = new Date(Math.min(...validDates));
-    const maxDate = new Date(Math.max(...validDates));
+    const minDate = moment.min(validDates);
+    const maxDate = moment.max(validDates);
 
-    // Extend range by a few months for better visualization
-    const timelineStart = new Date(minDate.getFullYear(), minDate.getMonth() - 1, 1);
-    const timelineEnd = new Date(maxDate.getFullYear(), maxDate.getMonth() + 2, 0);
+    // Extend range for better visualization
+    const timeStart = minDate.clone().subtract(1, 'month').startOf('month');
+    const timeEnd = maxDate.clone().add(2, 'months').endOf('month');
 
-    // Group tasks by project name first
+    // Group tasks by project name
     const projectGroups = tasks.reduce((groups, task) => {
-      // Extract project name from task properties 
       let projectName = 'General Tasks';
       
       if (task.properties) {
@@ -153,148 +138,123 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
       return groups;
     }, {} as Record<string, typeof tasks>);
 
-    // Create hierarchical tracks structure
-    const tracks: any[] = [];
-    let trackIndex = 0;
+    // Create hierarchical groups and items
+    const timelineGroups: TimelineGroup[] = [];
+    const timelineItems: TimelineItem[] = [];
+    let groupIndex = 0;
+    let itemIndex = 0;
 
     Object.entries(projectGroups).forEach(([projectName, projectTasks]) => {
-      // Create project header track
-      const projectTrackId = `project-${trackIndex}`;
+      const projectGroupId = `project-${groupIndex}`;
       
-      // Create task tracks for this project
-      const taskTracks = projectTasks.map((task, taskIndex) => {
-        const startTime = new Date(task.createdTime);
-        const endTime = new Date(task.dueDate || task.lastEditedTime);
+      // Add project header group
+      timelineGroups.push({
+        id: projectGroupId,
+        title: `📁 ${projectName}`,
+        rightTitle: `${projectTasks.length} tasks`,
+        height: 40,
+        stackItems: false
+      });
+
+      // Add task groups and items for this project
+      projectTasks.forEach((task, taskIndex) => {
+        const taskGroupId = `task-${groupIndex}-${taskIndex}`;
+        const startTime = moment(task.createdTime);
+        let endTime = moment(task.dueDate || task.lastEditedTime);
         
         // Ensure end time is after start time
-        if (endTime <= startTime) {
-          endTime.setTime(startTime.getTime() + 7 * 24 * 60 * 60 * 1000); // Add 1 week
+        if (!endTime.isValid() || endTime.isSameOrBefore(startTime)) {
+          endTime = startTime.clone().add(7, 'days'); // Default 1 week duration
         }
 
-        const taskTrackId = `task-${trackIndex}-${taskIndex}`;
-        
-        // Create subtask tracks if they exist
-        const subtaskTracks = task.subtasks && task.subtasks.length > 0 
-          ? task.subtasks.map((subtask: any, subIndex: number) => ({
-              id: `subtask-${trackIndex}-${taskIndex}-${subIndex}`,
-              title: `    → ${subtask.title || subtask.name || 'Subtask'}`,
-              elements: [{
-                id: `${task.id}-sub-${subIndex}`,
-                title: subtask.title || subtask.name || 'Subtask',
-                start: startTime,
-                end: new Date(startTime.getTime() + 3 * 24 * 60 * 60 * 1000), // 3 days duration
-                style: {
-                  backgroundColor: '#94a3b8', // gray for subtasks
-                  color: 'white',
-                  borderRadius: '2px',
-                  fontSize: '11px',
-                  padding: '1px 4px'
-                },
-                tooltip: `Subtask: ${subtask.title || subtask.name}`,
-                task: subtask
-              }]
-            }))
-          : [];
-
-        return {
-          id: taskTrackId,
+        // Add task group
+        timelineGroups.push({
+          id: taskGroupId,
           title: `  ${task.title}`,
-          hasButton: task.subtasks && task.subtasks.length > 0,
-          isOpen: openTracks[taskTrackId] || false,
-          elements: [{
-            id: task.id,
-            title: task.title,
-            start: startTime,
-            end: endTime,
+          rightTitle: `${task.status} (${task.progress}%)`,
+          height: 30,
+          parent: projectGroupId,
+          stackItems: false
+        });
+
+        // Add task item
+        timelineItems.push({
+          id: `item-${itemIndex}`,
+          group: taskGroupId,
+          title: task.title,
+          start_time: startTime,
+          end_time: endTime,
+          itemProps: {
             style: {
               backgroundColor: getStatusColor(task.status, task.isCompleted),
-              color: 'white',
+              border: task.priority === 'High' ? '2px solid #dc2626' : '1px solid rgba(255,255,255,0.5)',
               borderRadius: '4px',
-              border: task.priority === 'High' ? '2px solid #dc2626' : 'none',
-              fontSize: '12px',
-              padding: '2px 6px'
-            },
-            tooltip: `${task.title} - ${task.status} (${task.progress}%)`,
-            task: task
-          }],
-          tracks: subtaskTracks
-        };
+              color: 'white',
+              fontSize: '12px'
+            }
+          },
+          task: task
+        });
+
+        // Add subtask items if they exist
+        if (task.subtasks && task.subtasks.length > 0) {
+          task.subtasks.forEach((subtask: any, subIndex: number) => {
+            const subtaskGroupId = `subtask-${groupIndex}-${taskIndex}-${subIndex}`;
+            
+            // Add subtask group
+            timelineGroups.push({
+              id: subtaskGroupId,
+              title: `    → ${subtask.title || subtask.name || 'Subtask'}`,
+              height: 25,
+              parent: taskGroupId,
+              stackItems: false
+            });
+
+            // Add subtask item
+            timelineItems.push({
+              id: `subitem-${itemIndex}-${subIndex}`,
+              group: subtaskGroupId,
+              title: subtask.title || subtask.name || 'Subtask',
+              start_time: startTime.clone(),
+              end_time: startTime.clone().add(3, 'days'), // 3 days duration for subtasks
+              itemProps: {
+                style: {
+                  backgroundColor: '#94a3b8',
+                  border: '1px solid rgba(255,255,255,0.5)',
+                  borderRadius: '2px',
+                  color: 'white',
+                  fontSize: '11px'
+                }
+              },
+              task: subtask
+            });
+          });
+        }
+
+        itemIndex++;
       });
 
-      // Add project track with child task tracks
-      tracks.push({
-        id: projectTrackId,
-        title: `📁 ${projectName}`,
-        hasButton: true,
-        isOpen: openTracks[projectTrackId] !== false, // default to open
-        elements: [], // Project header has no elements
-        tracks: taskTracks
-      });
-      
-      trackIndex++;
+      groupIndex++;
     });
 
-    // Create timebar with proper month and week labels
-    const timebar = [];
-    const currentDate = new Date(timelineStart);
-    
-    while (currentDate <= timelineEnd) {
-      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      
-      // Add month header
-      timebar.push({
-        id: `month-${currentDate.getFullYear()}-${currentDate.getMonth()}`,
-        title: currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-        start: monthStart,
-        end: monthEnd,
-        style: {
-          backgroundColor: '#f3f4f6',
-          borderBottom: '1px solid #e5e7eb',
-          fontWeight: 'bold'
-        }
-      });
-      
-      // Add week headers within the month
-      const weekStart = new Date(monthStart);
-      while (weekStart <= monthEnd) {
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        
-        const weekNumber = Math.ceil((weekStart.getDate() + monthStart.getDay()) / 7);
-        
-        timebar.push({
-          id: `week-${weekStart.getFullYear()}-${weekStart.getMonth()}-${weekNumber}`,
-          title: `W${weekNumber}`,
-          start: new Date(weekStart),
-          end: weekEnd > monthEnd ? monthEnd : weekEnd,
-          style: {
-            backgroundColor: '#f9fafb',
-            borderRight: '1px solid #e5e7eb',
-            fontSize: '11px'
-          }
-        });
-        
-        weekStart.setDate(weekStart.getDate() + 7);
-      }
-      
-      currentDate.setMonth(currentDate.getMonth() + 1);
-    }
-
     return {
-      tracks,
-      start: timelineStart,
-      end: timelineEnd,
-      now: today,
-      timebar
+      groups: timelineGroups,
+      items: timelineItems,
+      defaultTimeStart: timeStart,
+      defaultTimeEnd: timeEnd
     };
-  }, [tasks, getStatusColor, openTracks]);
+  }, [tasks, getStatusColor]);
 
-  const handleElementClick = (element: any) => {
-    if (element && element.task) {
-      onTaskClick(element.task);
+  const handleItemClick = useCallback((itemId: string | number, e: React.SyntheticEvent, time: number) => {
+    const item = items.find(item => item.id === itemId);
+    if (item && item.task) {
+      onTaskClick(item.task);
     }
-  };
+  }, [items, onTaskClick]);
+
+  const handleItemSelect = useCallback((itemId: string | number, e: React.SyntheticEvent, time: number) => {
+    // Optional: Handle item selection
+  }, []);
 
   if (!tasks || tasks.length === 0) {
     return (
@@ -311,44 +271,60 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Project Timeline</h3>
             <p className="text-sm text-gray-500">
-              {tasks.length} tasks across {Object.keys(timelineData.tracks).length} projects
+              {tasks.length} tasks across {Object.keys(groups.reduce((acc, group) => {
+                if (!group.parent) acc[group.id] = true;
+                return acc;
+              }, {} as Record<string, boolean>)).length} projects
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <button
-              onClick={zoomOut}
-              className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-            >
-              Zoom Out
-            </button>
-            <button
-              onClick={zoomIn}
-              className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-            >
-              Zoom In
-            </button>
+            <div className="flex items-center space-x-2 text-xs text-gray-600">
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-green-500 rounded"></div>
+                <span>Completed</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                <span>In Progress</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-gray-500 rounded"></div>
+                <span>To Do</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-red-500 rounded"></div>
+                <span>Blocked</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       
-      <div style={{ height: '600px', overflow: 'auto' }}>
+      <div style={{ height: '600px' }}>
         <Timeline
-          scale={{
-            start: timelineData.start,
-            end: timelineData.end,
-            zoom: scale.zoom,
-            zoomMin: scale.zoomMin,
-            zoomMax: scale.zoomMax
+          groups={groups}
+          items={items}
+          defaultTimeStart={defaultTimeStart}
+          defaultTimeEnd={defaultTimeEnd}
+          onItemClick={handleItemClick}
+          onItemSelect={handleItemSelect}
+          canMove={false}
+          canResize={false}
+          canChangeGroup={false}
+          lineHeight={30}
+          itemHeightRatio={0.8}
+          sidebarWidth={300}
+          rightSidebarWidth={150}
+          timeSteps={{
+            second: 1,
+            minute: 1,
+            hour: 1,
+            day: 1,
+            month: 1,
+            year: 1
           }}
-          isOpen={isOpen}
-          toggleOpen={toggleOpen}
-          zoomIn={zoomIn}
-          zoomOut={zoomOut}
-          tracks={timelineData.tracks}
-          now={timelineData.now}
-          timebar={timelineData.timebar}
-          clickElement={handleElementClick}
-          clickTrackButton={clickTrackButton}
+          minZoom={24 * 60 * 60 * 1000} // 1 day
+          maxZoom={365.24 * 86400 * 1000 * 5} // 5 years
         />
       </div>
     </div>
