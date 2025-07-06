@@ -1345,6 +1345,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Find all databases in the workspace including child databases
+  app.get('/api/notion-workspace/all-databases', async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      let config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        config = await storage.getConfiguration('basiliskan@gmail.com');
+        if (!config) {
+          return res.status(404).json({ message: "Notion configuration not found" });
+        }
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+
+      console.log(`[All Databases] Searching for all databases from page: ${pageId}`);
+
+      // First try to get the database info to find its parent
+      let parentPageId = pageId;
+      try {
+        const currentDb = await notion.databases.retrieve({ database_id: pageId });
+        if ('parent' in currentDb && currentDb.parent.type === 'page_id') {
+          parentPageId = currentDb.parent.page_id;
+          console.log(`[All Databases] Found parent page: ${parentPageId}`);
+        }
+      } catch (err) {
+        console.log(`[All Databases] Current ID is a page, not a database`);
+        parentPageId = pageId;
+      }
+
+      // Get all databases from the parent page
+      const allDatabases = await getNotionDatabases(notion, parentPageId);
+      
+      console.log(`[All Databases] Found ${allDatabases.length} total databases`);
+      
+      const databaseList = allDatabases.map(db => ({
+        id: db.id,
+        title: 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
+          ? db.title[0]?.plain_text 
+          : 'Untitled Database',
+        parent: parentPageId
+      }));
+
+      // Look for the "Αγορές" database specifically
+      const agoresDb = allDatabases.find(db => 
+        'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 && 
+        db.title[0]?.plain_text === 'Αγορές'
+      );
+
+      res.json({
+        databases: databaseList,
+        parentPageId: parentPageId,
+        totalFound: allDatabases.length,
+        agoresFound: !!agoresDb,
+        agoresId: agoresDb?.id
+      });
+
+    } catch (error) {
+      console.error("Error finding all databases:", error);
+      res.status(500).json({ 
+        message: "Failed to find databases",
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Create new view for Αγορές database
+  app.post('/api/notion-views/create-agores', async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      let config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        config = await storage.getConfiguration('basiliskan@gmail.com');
+        if (!config) {
+          return res.status(404).json({ message: "Notion configuration not found" });
+        }
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+
+      // Get parent page
+      let parentPageId = pageId;
+      try {
+        const currentDb = await notion.databases.retrieve({ database_id: pageId });
+        if ('parent' in currentDb && currentDb.parent.type === 'page_id') {
+          parentPageId = currentDb.parent.page_id;
+        }
+      } catch (err) {
+        parentPageId = pageId;
+      }
+
+      // Find the Αγορές database
+      const allDatabases = await getNotionDatabases(notion, parentPageId);
+      const agoresDb = allDatabases.find(db => 
+        'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 && 
+        db.title[0]?.plain_text === 'Αγορές'
+      );
+
+      if (!agoresDb) {
+        return res.status(404).json({ 
+          message: "Αγορές database not found",
+          availableDatabases: allDatabases.map(db => ({
+            id: db.id,
+            title: 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
+              ? db.title[0]?.plain_text 
+              : 'Untitled Database'
+          }))
+        });
+      }
+
+      // Create new view for Αγορές
+      const newView = await storage.createNotionView({
+        userEmail: userEmail,
+        viewType: 'agores',
+        pageId: 'direct',
+        databaseId: agoresDb.id,
+        title: 'Αγορές',
+        icon: '🛒',
+        isActive: true,
+        sortOrder: 3
+      });
+
+      console.log(`[Αγορές View] Created new view for Αγορές database: ${agoresDb.id}`);
+
+      res.json({
+        success: true,
+        view: newView,
+        databaseId: agoresDb.id
+      });
+
+    } catch (error) {
+      console.error("Error creating Αγορές view:", error);
+      res.status(500).json({ 
+        message: "Failed to create Αγορές view",
+        error: (error as Error).message 
+      });
+    }
+  });
+
   // Notion workspace discovery route
   app.post("/api/notion-workspace/discover", async (req, res) => {
     try {
