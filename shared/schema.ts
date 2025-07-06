@@ -18,6 +18,8 @@ export const tasks = pgTable("tasks", {
   status: text("status").notNull(), // Full status display
   mainStatus: text("main_status"), // Main status category (To-do, In Progress, Complete)
   subStatus: text("sub_status"), // Sub-status within main category
+  statusColor: text("status_color"), // Notion color for status
+  statusGroup: text("status_group"), // Status group ID
   assignee: text("assignee"),
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),

@@ -70,6 +70,8 @@ interface Task {
   status: string;
   mainStatus?: string;
   subStatus?: string;
+  statusColor?: string;
+  statusGroup?: string;
   priority: string;
   dueDate: string | null;
   description: string;
@@ -290,6 +292,20 @@ export default function Workspace() {
   // Helper function to get project summary data for a specific project
   const getProjectSummary = (projectId: string) => {
     return projectSummary?.find(summary => summary.id === projectId);
+  };
+
+  // Helper function to get badge variant and color classes based on Notion status color
+  const getStatusBadgeStyle = (statusColor: string, isMainStatus: boolean = false) => {
+    const colorMap = {
+      blue: isMainStatus ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-blue-50 text-blue-700 border-blue-200',
+      yellow: isMainStatus ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200',
+      green: isMainStatus ? 'bg-green-100 text-green-800 border-green-200' : 'bg-green-50 text-green-700 border-green-200',
+      red: isMainStatus ? 'bg-red-100 text-red-800 border-red-200' : 'bg-red-50 text-red-700 border-red-200',
+      purple: isMainStatus ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-purple-50 text-purple-700 border-purple-200',
+      gray: isMainStatus ? 'bg-gray-100 text-gray-800 border-gray-200' : 'bg-gray-50 text-gray-700 border-gray-200',
+      default: isMainStatus ? 'bg-gray-100 text-gray-800 border-gray-200' : 'bg-gray-50 text-gray-700 border-gray-200'
+    };
+    return colorMap[statusColor as keyof typeof colorMap] || colorMap.default;
   };
 
   // Helper function to group tasks by status for Kanban view
@@ -548,8 +564,8 @@ export default function Workspace() {
                                     )}
                                   </div>
 
-                                  {/* Third row: Materials and Proposal on same line */}
-                                  <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                                  {/* Third row: Materials and Proposal on separate lines */}
+                                  <div className="grid grid-cols-1 gap-3">
                                     {summary.materialsProposalUrl ? (
                                       <div className="flex items-center gap-2 text-sm">
                                         <Package className="h-4 w-4 text-orange-600 flex-shrink-0" />
@@ -614,15 +630,12 @@ export default function Workspace() {
                                             <h5 className="font-medium text-gray-800">{task.title}</h5>
                                             <div className="flex items-center gap-1">
                                               {task.mainStatus && (
-                                                <Badge variant={
-                                                  task.mainStatus === 'Complete' ? 'default' :
-                                                  task.mainStatus === 'In Progress' ? 'secondary' : 'outline'
-                                                } className="text-xs">
+                                                <Badge className={`text-xs ${getStatusBadgeStyle(task.statusColor || 'default', true)}`}>
                                                   {task.mainStatus}
                                                 </Badge>
                                               )}
                                               {task.subStatus && (
-                                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                                <Badge className={`text-xs ${getStatusBadgeStyle(task.statusColor || 'blue', false)}`}>
                                                   {task.subStatus}
                                                 </Badge>
                                               )}

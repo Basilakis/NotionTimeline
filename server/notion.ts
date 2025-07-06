@@ -489,20 +489,48 @@ export async function getTasks(notion: Client, tasksDatabaseId: string, userEmai
                 ? new Date(properties.CompletedAt.date.start)
                 : null;
 
-            // Enhanced status handling - get both main status and sub-status
+            // Enhanced status handling with colors and groups
             let mainStatus = null;
             let subStatus = null;
             let statusDisplay = null;
+            let statusColor = null;
+            let statusGroup = null;
             
             if (properties.Status) {
-                // Check for status property (newer format)
+                // Check for status property (newer format with groups and colors)
                 if (properties.Status.status) {
-                    mainStatus = properties.Status.status.name;
-                    statusDisplay = mainStatus;
+                    statusDisplay = properties.Status.status.name;
+                    statusColor = properties.Status.status.color;
+                    
+                    // Map status to groups based on Notion's structure
+                    switch (properties.Status.status.name) {
+                        case 'Backlog':
+                            mainStatus = 'To-do';
+                            subStatus = 'Backlog';
+                            statusGroup = 'todo-status-group';
+                            break;
+                        case 'Planning':
+                        case 'In Progress':
+                        case 'Paused':
+                            mainStatus = 'In Progress';
+                            subStatus = properties.Status.status.name;
+                            statusGroup = 'in-progress-status-group';
+                            break;
+                        case 'Done':
+                        case 'Canceled':
+                            mainStatus = 'Complete';
+                            subStatus = properties.Status.status.name;
+                            statusGroup = 'complete-status-group';
+                            break;
+                        default:
+                            mainStatus = properties.Status.status.name;
+                            subStatus = null;
+                    }
                 }
                 // Check for select property (older format)
                 else if (properties.Status.select) {
                     statusDisplay = properties.Status.select.name;
+                    statusColor = properties.Status.select.color;
                     
                     // Try to parse main status and sub-status
                     if (statusDisplay && statusDisplay.includes(' - ')) {
@@ -520,6 +548,9 @@ export async function getTasks(notion: Client, tasksDatabaseId: string, userEmai
                 const subStatusProp = properties.SubStatus || properties['Sub Status'] || properties['Sub-Status'];
                 if (subStatusProp.select?.name) {
                     subStatus = subStatusProp.select.name;
+                    if (subStatusProp.select.color) {
+                        statusColor = subStatusProp.select.color;
+                    }
                 }
             }
 
@@ -535,6 +566,8 @@ export async function getTasks(notion: Client, tasksDatabaseId: string, userEmai
                 status: statusDisplay || "Not Started",
                 mainStatus: mainStatus || "Not Started",
                 subStatus: subStatus,
+                statusColor: statusColor || "default",
+                statusGroup: statusGroup,
                 userEmail: properties.UserEmail?.email || properties["User Email"]?.email || null,
                 assignee: properties.Assignee?.people?.[0]?.name || null,
             };
