@@ -64,7 +64,18 @@ async function initializePersistentSettings() {
     if (persistentSettings.AWS_REGION) process.env.AWS_REGION = persistentSettings.AWS_REGION;
     
     // Also check for saved Notion configurations for the admin user
-    const adminConfig = await storage.getConfiguration("basiliskan@gmail.com");
+    // Try to find any admin configuration dynamically
+    const possibleAdminEmails = ['basiliskan@gmail.com', 'admin@example.com', 'admin@domain.com'];
+    let adminConfig = null;
+    
+    for (const adminEmail of possibleAdminEmails) {
+      try {
+        adminConfig = await storage.getConfiguration(adminEmail);
+        if (adminConfig) break;
+      } catch (error) {
+        continue;
+      }
+    }
     if (adminConfig) {
       log(`Notion configuration found for admin: ${adminConfig.workspaceName} (Page: ${adminConfig.notionPageUrl})`);
     } else {

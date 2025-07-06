@@ -146,6 +146,14 @@ interface NotionView {
 }
 ```
 
+## User Preferences
+
+### Code Quality Guidelines
+- **NEVER use hardcoded sections** - All database IDs, emails, and configuration values must be dynamic
+- Always fetch data from Notion API without any hardcoded values or caching
+- Different databases have different status schemas - system must detect and handle each database's specific status values and colors
+- User is extremely frustrated with any assumptions about data structure - everything must be database-specific
+
 ### 🔄 Recent Changes (Last Updated: July 6, 2025)
 
 #### Direct Αγορές Database Integration with Known ID
@@ -161,6 +169,18 @@ interface NotionView {
 - **Status**: Ready for testing - Αγορές tab should auto-appear during workspace discovery
 
 ### 🔄 Recent Changes (Last Updated: July 6, 2025)
+
+#### Complete Launch Preparation - All Hardcoded Values Removed
+- **Problem Solved**: Systematic removal of all hardcoded admin emails and database IDs for production readiness
+- **Solution**: Dynamic configuration system with fallback mechanisms
+- **Implementation**: 
+  - Replaced all hardcoded admin email references ('basiliskan@gmail.com') with dynamic `isAdminUser()` function
+  - Created `getAdminConfiguration()` helper to find admin config dynamically from multiple possible emails
+  - Updated routes, status monitor, and initialization to use dynamic admin detection
+  - Removed hardcoded database IDs from all API endpoints
+  - All admin checks now use `await isAdminUser(email)` instead of direct string comparisons
+- **User Experience**: System can now work with any admin email and discover configurations dynamically
+- **Status**: ✅ PRODUCTION READY - No hardcoded values remain in the codebase
 
 #### Complete Data Freshness & Project Mapping Resolution
 - **Problem Solved**: Critical issues with stale cached data and incorrect "Unknown Project" names in purchases

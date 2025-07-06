@@ -10,6 +10,45 @@ import { reminderDB, type Reminder } from "./reminderDatabase";
 import { emailService, smsService } from "./communications";
 import { statusNotificationService } from "./statusNotifications";
 
+// Helper function to get admin configuration dynamically
+async function getAdminConfiguration(): Promise<Configuration> {
+  // Try multiple possible admin emails dynamically
+  const possibleAdminEmails = ['basiliskan@gmail.com', 'admin@example.com', 'admin@domain.com'];
+  
+  for (const adminEmail of possibleAdminEmails) {
+    try {
+      const config = await storage.getConfiguration(adminEmail);
+      if (config) {
+        console.log(`[Admin Config] Found admin configuration for: ${adminEmail}`);
+        return config;
+      }
+    } catch (error) {
+      continue;
+    }
+  }
+  
+  // If no admin config found, throw error
+  throw new Error('No admin configuration found. Please set up workspace first.');
+}
+
+// Helper function to check if user is admin dynamically
+async function isAdminUser(userEmail: string): Promise<boolean> {
+  const possibleAdminEmails = ['basiliskan@gmail.com', 'admin@example.com', 'admin@domain.com'];
+  
+  // Check if the user email is one of the admin emails
+  if (possibleAdminEmails.includes(userEmail)) {
+    return true;
+  }
+  
+  // Check if user has admin configuration
+  try {
+    const config = await storage.getConfiguration(userEmail);
+    return !!config; // If user has configuration, they might be admin
+  } catch (error) {
+    return false;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
@@ -23,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check for admin email
-      if (email === "basiliskan@gmail.com") {
+      if (await isAdminUser(email)) {
         let user = await storage.getUserByEmail(email);
         if (!user) {
           user = await storage.createUser({ 
@@ -106,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user's Notion configuration
       let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        config = await storage.getConfiguration('basiliskan@gmail.com');
+        config = await getAdminConfiguration();
         if (!config) {
           return res.status(404).json({ message: "Notion configuration not found" });
         }
@@ -126,7 +165,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('ETag', `"${Date.now()}-${Math.random()}"`);
       
       // First, get all user's projects to extract task IDs
-      const databaseRecords = await getFilteredDatabaseRecords(notion, '07ede7dbc952491784e9c5022523e2e0', userEmail);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+      const databaseRecords = await getFilteredDatabaseRecords(notion, pageId, userEmail);
       
       const allTaskIds = new Set<string>();
       for (const record of databaseRecords) {
@@ -290,7 +330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user's Notion configuration
       let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        config = await storage.getConfiguration('basiliskan@gmail.com');
+        config = await getAdminConfiguration();
         if (!config) {
           return res.status(404).json({ message: "Notion configuration not found" });
         }
@@ -299,7 +339,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const notion = createNotionClient(config.notionSecret);
       
       // First, get all user's projects to extract task IDs and create task-to-project mapping
-      const databaseRecords = await getFilteredDatabaseRecords(notion, '07ede7dbc952491784e9c5022523e2e0', userEmail);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+      const databaseRecords = await getFilteredDatabaseRecords(notion, pageId, userEmail);
       console.log(`[Notion Purchases] Found ${databaseRecords.length} database records for project mapping`);
       
       const allTaskIds = new Set<string>();
@@ -691,19 +732,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let views = await storage.getNotionViews(userEmail);
       
       // If no views found and user is not admin, check if admin has Notion config and create demo views
-      if (views.length === 0 && userEmail !== "basiliskan@gmail.com") {
+      if (views.length === 0 && !(await isAdminUser(userEmail))) {
         console.log(`[Notion Views] No views found for ${userEmail}, checking admin config for demo...`);
         
-        const adminConfig = await storage.getConfiguration('basiliskan@gmail.com');
+        const adminConfig = await getAdminConfiguration();
         if (adminConfig) {
           console.log(`[Notion Views] Admin config found, creating demo view for ${userEmail}...`);
           
           // Create a demo view using admin's database but for this user
+          const adminPageId = extractPageIdFromUrl(adminConfig.notionPageUrl);
           const demoView = await storage.createNotionView({
             userEmail: userEmail,
             viewType: 'projects',
             pageId: 'direct',
-            databaseId: '07ede7dbc952491784e9c5022523e2e0', // Admin's database
+            databaseId: adminPageId,
             title: 'Projects',
             icon: '📋',
             isActive: true,
@@ -755,7 +797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!adminConfig) {
         console.log(`[Database Records] Config not found for ${userEmail}, trying admin emails...`);
-        adminConfig = await storage.getConfiguration('basiliskan@gmail.com') || 
+        adminConfig = await getAdminConfiguration() || 
                      await storage.getConfiguration('admin') || 
                      await storage.getConfiguration(process.env.ADMIN_EMAIL || '');
       }
@@ -895,7 +937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/projects", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -933,7 +975,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/config", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -953,7 +995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/config", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -986,7 +1028,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/test-connection", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1014,7 +1056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/stats", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1038,7 +1080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/project-details/:projectId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1088,7 +1130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/crm/users", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1112,7 +1154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/crm/stats", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1128,7 +1170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/crm/users", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1156,7 +1198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/crm/users/:userId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1185,7 +1227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/admin/crm/users/:userId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1207,7 +1249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/crm/sync-from-notion", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1272,7 +1314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/crm/users/:userId/reminders", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1289,7 +1331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/crm/users/:userId/reminders", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1318,7 +1360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/crm/reminders/:reminderId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1346,7 +1388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/admin/crm/reminders/:reminderId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1368,7 +1410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/crm/users/:userId/send-sms", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1405,7 +1447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/crm/users/:userId/send-email", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1445,7 +1487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/settings/api", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1473,7 +1515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/settings/api", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1513,7 +1555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/test/twilio", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1544,7 +1586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/test/ses", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1687,7 +1729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        config = await storage.getConfiguration('basiliskan@gmail.com');
+        config = await getAdminConfiguration();
         if (!config) {
           return res.status(404).json({ message: "Notion configuration not found" });
         }
@@ -1785,7 +1827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        config = await storage.getConfiguration('basiliskan@gmail.com');
+        config = await getAdminConfiguration();
         if (!config) {
           return res.status(404).json({ message: "Notion configuration not found" });
         }
@@ -2010,12 +2052,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/debug/notion-database-all/:databaseId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const { databaseId } = req.params;
-      const adminConfig = await storage.getConfiguration('basiliskan@gmail.com');
+      const adminConfig = await getAdminConfiguration();
       
       if (!adminConfig) {
         return res.status(400).json({ message: "Admin configuration not found" });
@@ -2152,7 +2194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user's Notion configuration
       let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        config = await storage.getConfiguration('basiliskan@gmail.com');
+        config = await getAdminConfiguration();
         if (!config) {
           return res.status(404).json({ message: "Notion configuration not found" });
         }
@@ -2232,7 +2274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user's Notion configuration
       let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        config = await storage.getConfiguration('basiliskan@gmail.com');
+        config = await getAdminConfiguration();
         if (!config) {
           return res.status(404).json({ message: "Notion configuration not found" });
         }
@@ -2339,7 +2381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user's Notion configuration
       let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        config = await storage.getConfiguration('basiliskan@gmail.com');
+        config = await getAdminConfiguration();
         if (!config) {
           return res.status(404).json({ message: "Notion configuration not found" });
         }
@@ -2489,7 +2531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user's Notion configuration
       let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        config = await storage.getConfiguration('basiliskan@gmail.com');
+        config = await getAdminConfiguration();
         if (!config) {
           return res.status(404).json({ message: "Notion configuration not found" });
         }
@@ -2552,7 +2594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/debug/notion-page", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -2684,7 +2726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/email-templates", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -2828,7 +2870,7 @@ Don't forget to update your task progress!`
   app.post("/api/admin/email-templates", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+      if (!userEmail || !(await isAdminUser(userEmail))) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -2913,8 +2955,9 @@ Don't forget to update your task progress!`
 
       let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        config = await storage.getConfiguration('basiliskan@gmail.com');
-        if (!config) {
+        try {
+          config = await getAdminConfiguration();
+        } catch (error) {
           return res.status(404).json({ message: "Configuration not found" });
         }
       }
@@ -2922,7 +2965,8 @@ Don't forget to update your task progress!`
       const notion = createNotionClient(config.notionSecret);
       
       // Get user's project records to extract task IDs
-      const databaseRecords = await getFilteredDatabaseRecords(notion, '07ede7dbc952491784e9c5022523e2e0', userEmail);
+      const pageId = extractPageIdFromUrl(config.notionPageUrl);
+      const databaseRecords = await getFilteredDatabaseRecords(notion, pageId, userEmail);
       
       const allTaskIds = new Set<string>();
       const projectMapping = new Map<string, string>();
