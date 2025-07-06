@@ -4,16 +4,45 @@ import { useAuth } from "@/hooks/useAuth";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw } from "lucide-react";
-import UnifiedWorkspaceView from "@/components/shared/UnifiedWorkspaceView";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, RefreshCw, Settings } from "lucide-react";
 import proposalBg from "@assets/proposal-background.png";
 
 export default function Workspace() {
   const { toast } = useToast();
   const { user, logout } = useAuth();
+  const [activeView, setActiveView] = useState<string>('tasks');
   const [autoDiscovering, setAutoDiscovering] = useState(false);
   const userEmail = user?.email || '';
   const isAdmin = userEmail === 'basiliskan@gmail.com';
+
+  // Fetch user's Notion views
+  const { data: views, isLoading: viewsLoading } = useQuery({
+    queryKey: ['/api/notion-views'],
+    enabled: !!userEmail,
+    retry: false,
+    meta: {
+      headers: {
+        'x-user-email': userEmail
+      }
+    }
+  });
+
+  // Fetch filtered database data for the active view
+  const activeViewData = views?.find((v: any) => v.viewType === activeView);
+  
+  const { data: databaseData, isLoading: pageLoading } = useQuery({
+    queryKey: ['/api/notion-database', activeViewData?.databaseId],
+    enabled: !!activeViewData?.databaseId,
+    retry: false,
+    meta: {
+      headers: {
+        'x-user-email': userEmail
+      }
+    }
+  });
 
   // Workspace discovery mutation
   const discoverWorkspace = useMutation({
@@ -50,8 +79,19 @@ export default function Workspace() {
     }
   });
 
-  // Check for proposal background (you can add this logic back if needed)
-  const hasProposalRecords = false; // Simplify for now, can be enhanced later
+  // Auto-discover workspace when user first arrives and has no views
+  useEffect(() => {
+    if (userEmail && !viewsLoading && views && views.length === 0 && !autoDiscovering) {
+      console.log('[Workspace] Auto-discovering workspace for user:', userEmail);
+      setAutoDiscovering(true);
+      discoverWorkspace.mutate();
+    }
+  }, [userEmail, views, viewsLoading, autoDiscovering]);
+
+  // Check for proposal background
+  const hasProposalRecords = databaseData?.records?.some((record: any) => 
+    record.properties.Proposal?.checkbox === true
+  );
 
   return (
     <>
@@ -116,7 +156,179 @@ export default function Workspace() {
           </div>
         </div>
 
-        <UnifiedWorkspaceView userEmail={userEmail} />
+        {viewsLoading || autoDiscovering ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span>{autoDiscovering ? 'Discovering your workspace...' : 'Loading workspace...'}</span>
+            </div>
+          </div>
+        ) : !views || views.length === 0 ? (
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Welcome to Your Workspace!
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center space-y-2">
+                <p className="text-muted-foreground">
+                  Hi <strong>{userEmail}</strong>! We're setting up your personalized workspace.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  We'll automatically discover your Notion databases and create views for data assigned to your email.
+                </p>
+              </div>
+              <Button 
+                onClick={() => discoverWorkspace.mutate()}
+                disabled={discoverWorkspace.isPending}
+                className="w-full"
+              >
+                {discoverWorkspace.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Discovering Your Workspace...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Discover My Notion Workspace
+                  </>
+                )}
+              </Button>
+              <div className="text-xs text-muted-foreground text-center">
+                <p>This process scans your Notion databases for records containing your email address.</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Tabs value={activeView} onValueChange={setActiveView} className="space-y-4">
+            <TabsList className="grid w-full grid-cols-4">
+              {views.filter((v: any) => v.isActive).map((view: any) => (
+                <TabsTrigger key={view.id} value={view.viewType}>
+                  <span className="mr-2">{view.icon}</span>
+                  {view.title}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {views.filter((v: any) => v.isActive).map((view: any) => (
+              <TabsContent key={view.id} value={view.viewType}>
+                <Card className={hasProposalRecords ? 'bg-white/90 backdrop-blur-sm dark:bg-gray-900/90' : ''}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <span>{view.icon}</span>
+                      {view.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {pageLoading && activeView === view.viewType ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                          <span>Loading {view.title.toLowerCase()}...</span>
+                        </div>
+                      </div>
+                    ) : databaseData && activeView === view.viewType && databaseData.records ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-muted-foreground">
+                            {databaseData.total_count} records found
+                          </p>
+                        </div>
+                        
+                        {databaseData.records.length > 0 ? (
+                          <div className="grid gap-4">
+                            {databaseData.records.map((record: any) => {
+                              const isProposal = record.properties.Proposal?.checkbox === true;
+                              
+                              return (
+                                <Card 
+                                  key={record.notionId} 
+                                  className={`p-4 ${
+                                    isProposal 
+                                      ? 'bg-white/95 backdrop-blur-sm border-blue-200 dark:bg-gray-900/95 dark:border-blue-800' 
+                                      : hasProposalRecords 
+                                        ? 'bg-white/90 backdrop-blur-sm dark:bg-gray-900/90' 
+                                        : ''
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <h3 className="font-medium">{record.title}</h3>
+                                        {isProposal && (
+                                          <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700">
+                                            📋 Proposal
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    
+                                      <div className="space-y-2 text-sm">
+                                        {record.properties.Status?.select?.name && (
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-muted-foreground">Status:</span>
+                                            <Badge variant="secondary">
+                                              {record.properties.Status.select.name}
+                                            </Badge>
+                                          </div>
+                                        )}
+                                        
+                                        {record.properties.Priority?.select?.name && (
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-muted-foreground">Priority:</span>
+                                            <Badge variant={
+                                              record.properties.Priority.select.name === 'High' ? 'destructive' :
+                                              record.properties.Priority.select.name === 'Medium' ? 'default' : 'secondary'
+                                            }>
+                                              {record.properties.Priority.select.name}
+                                            </Badge>
+                                          </div>
+                                        )}
+                                        
+                                        {record.properties.Description?.rich_text?.[0]?.plain_text && (
+                                          <div>
+                                            <span className="text-muted-foreground">Description:</span>
+                                            <p className="mt-1">{record.properties.Description.rich_text[0].plain_text}</p>
+                                          </div>
+                                        )}
+                                        
+                                        {record.properties.DueDate?.date?.start && (
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-muted-foreground">Due:</span>
+                                            <span>{new Date(record.properties.DueDate.date.start).toLocaleDateString()}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="text-xs text-muted-foreground">
+                                    Updated: {new Date(record.lastEditedTime).toLocaleDateString()}
+                                  </div>
+                                </Card>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <p>No records found for your account in this database.</p>
+                            <p className="text-xs mt-2">Make sure your email is added to the "User Email" field in the Notion database.</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p>Unable to load {view.title.toLowerCase()}. Please check your configuration.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
       </div>
     </>
   );
