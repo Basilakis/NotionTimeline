@@ -2486,12 +2486,25 @@ Don't forget to update your task progress!`
         color
       }));
 
-      // If no task colors found, add defaults
+      // Add any missing default statuses to ensure complete coverage
+      const existingStatuses = statusOptionsArray.map(s => s.name);
+      if (!existingStatuses.includes('Done')) {
+        statusOptionsArray.push({ name: 'Done', color: 'green' });
+      }
+      if (!existingStatuses.includes('Cancelled')) {
+        statusOptionsArray.push({ name: 'Cancelled', color: 'red' });
+      }
+      if (!existingStatuses.includes('Archived')) {
+        statusOptionsArray.push({ name: 'Archived', color: 'gray' });
+      }
+
+      // If no task colors found at all, add complete defaults
       if (statusOptionsArray.length === 0) {
         statusOptionsArray.push(
           { name: 'Planning', color: 'blue' },
           { name: 'In Progress', color: 'yellow' },
           { name: 'Done', color: 'green' },
+          { name: 'Cancelled', color: 'red' },
           { name: 'Archived', color: 'gray' }
         );
       }

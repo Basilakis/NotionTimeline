@@ -837,7 +837,7 @@ export default function Workspace() {
               {taskViewMode === 'list' && (
                 <div className="grid gap-4">
                   {filteredTasks.map((task: Task) => (
-                    <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                    <Card key={task.id} className={`cursor-pointer hover:shadow-md transition-shadow ${getNotionColorClasses(statusOptions.find(opt => opt.name === task.status)?.color || 'default').column}`}>
                       <CardContent className="p-4" onClick={() => handleTaskClick(task)}>
                         <div className="flex items-start justify-between">
                           <div className="flex-1">

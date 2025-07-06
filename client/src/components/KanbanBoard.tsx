@@ -252,7 +252,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
             {(tasksByStatus[column] || []).map((task) => (
               <Card 
                 key={task.id} 
-                className={`cursor-pointer hover:shadow-md transition-shadow ${getPriorityColor(task.priority)} ${isOverdue(task.dueDate) ? 'ring-2 ring-red-400' : ''}`}
+                className={`cursor-pointer hover:shadow-md transition-shadow ${getPriorityColor(task.priority)} ${isOverdue(task.dueDate) ? 'ring-2 ring-red-400' : ''} ${getStatusColorFromOptions(task.status, statusOptions).column}`}
                 onClick={() => onTaskClick(task)}
               >
                 <CardContent className="p-4">

@@ -303,9 +303,10 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
               fontWeight: '500',
               position: 'relative',
               overflow: 'hidden',
-              // Add a subtle gradient for depth
+              // Add a subtle gradient for depth using API colors
               background: `linear-gradient(to right, ${colors.progress} 0%, ${colors.progress} ${task.progress}%, ${colors.bg} ${task.progress}%, ${colors.bg} 100%)`
-            }
+            },
+            className: `${getStatusColorFromOptions(task.status, statusOptions).badge}`
           },
           task: task
         });
