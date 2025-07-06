@@ -94,6 +94,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get tasks directly from Notion databases
+  app.get("/api/tasks-from-notion", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      // Get user's Notion configuration
+      let config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        config = await storage.getConfiguration('basiliskan@gmail.com');
+        if (!config) {
+          return res.status(404).json({ message: "Notion configuration not found" });
+        }
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      
+      // First, get all user's projects to extract task IDs
+      const databaseRecords = await getFilteredDatabaseRecords(notion, '07ede7dbc952491784e9c5022523e2e0', userEmail);
+      
+      const allTaskIds = new Set<string>();
+      for (const record of databaseRecords) {
+        const taskRelations = record.properties?.Tasks?.relation || [];
+        for (const taskRef of taskRelations) {
+          allTaskIds.add(taskRef.id);
+        }
+      }
+
+      console.log(`[Notion Tasks] Found ${allTaskIds.size} task IDs from user projects`);
+
+      // Fetch each task from Notion
+      const tasks = [];
+      for (const taskId of allTaskIds) {
+        try {
+          const page = await notion.pages.retrieve({ page_id: taskId });
+          const properties = (page as any).properties || {};
+          
+          // Extract task details
+          const titleProperty = properties.Title || properties.Name || properties.Task || 
+                               properties['Task Name'] || properties.Item || 
+                               Object.values(properties).find((prop: any) => prop.type === 'title');
+          
+          const title = extractTextFromProperty(titleProperty) || 'Untitled Task';
+          
+          const task = {
+            id: taskId,
+            title: title,
+            status: properties.Status?.select?.name || properties.Status?.status?.name || 'No Status',
+            priority: properties.Priority?.select?.name || null,
+            dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
+            description: '', // Will be populated if needed
+            section: properties.Section?.select?.name || 'Uncategorized',
+            isCompleted: properties.Completed?.checkbox || false,
+            progress: properties.Status?.select?.name === 'Done' ? 100 : 
+                     properties.Status?.select?.name === 'In Progress' ? 50 : 0,
+            createdTime: (page as any).created_time,
+            lastEditedTime: (page as any).last_edited_time,
+            url: (page as any).url,
+            properties: properties
+          };
+
+          tasks.push(task);
+        } catch (taskError) {
+          console.log(`[Notion Tasks] Could not fetch task ${taskId}:`, taskError.message);
+        }
+      }
+
+      console.log(`[Notion Tasks] Successfully fetched ${tasks.length} tasks`);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching tasks from Notion:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch tasks from Notion",
+        error: (error as Error).message 
+      });
+    }
+  });
+
   // Get task by numeric ID (for local storage tasks)
   app.get("/api/tasks/local/:id", async (req, res) => {
     try {

@@ -122,7 +122,7 @@ export default function Workspace() {
 
   // Fetch database records for projects
   const { data: databaseData, isLoading: databaseLoading } = useQuery({
-    queryKey: ['/api/notion-database', '07ede7dbc952491784e9c5022523e2e0'],
+    queryKey: ['/api/notion-database/07ede7dbc952491784e9c5022523e2e0'],
     enabled: !!userEmail,
     retry: false,
     meta: {
@@ -144,9 +144,9 @@ export default function Workspace() {
     }
   });
 
-  // Fetch tasks
+  // Fetch tasks from Notion
   const { data: tasks, isLoading: tasksLoading } = useQuery<Task[]>({
-    queryKey: ['/api/tasks'],
+    queryKey: ['/api/tasks-from-notion'],
     enabled: !!userEmail,
     retry: false,
     meta: {
@@ -236,6 +236,8 @@ export default function Workspace() {
       window.open(`https://www.notion.so/${subtask.id.replace(/-/g, '')}`, '_blank');
     });
   };
+
+
 
   const filteredProjects = databaseData?.records?.filter((project: any) =>
     project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

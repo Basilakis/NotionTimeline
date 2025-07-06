@@ -31,12 +31,8 @@ export default function Login() {
         title: "Login successful",
         description: `Welcome ${user.name || user.email}!`,
       });
-      // Force page refresh to update auth state and redirect
-      if (user.email === "basiliskan@gmail.com") {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = '/';
-      }
+      // Force page refresh to update auth state and redirect to main page
+      window.location.href = '/';
     },
     onError: (error) => {
       toast({
