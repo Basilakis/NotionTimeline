@@ -1,19 +1,16 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { NotionRenderer } from "react-notion-x";
-import { queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, Settings } from "lucide-react";
-import proposalBg from "@assets/proposal-background.png";
-
-// Import notion-x styles
-import "react-notion-x/src/styles.css";
-import "prismjs/themes/prism-tomorrow.css";
-import "katex/dist/katex.min.css";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, RefreshCw, Settings, LogOut } from "lucide-react";
 
 interface NotionView {
   id: number;
@@ -29,31 +26,87 @@ interface NotionView {
   updatedAt: Date;
 }
 
-interface DatabaseData {
-  database_id: string;
-  user_email: string;
-  records: NotionRecord[];
-  total_count: number;
-}
-
-interface NotionRecord {
+interface DatabaseRecord {
   notionId: string;
   title: string;
   userEmail: string | null;
   createdTime: string;
   lastEditedTime: string;
+  url: string;
   properties: any;
 }
 
+interface ProjectHierarchy {
+  projects: {
+    id: string;
+    title: string;
+    url: string;
+    status?: string;
+    completion?: number;
+    people?: any[];
+    subPages?: any[];
+    databases?: any[];
+    properties?: any;
+  }[];
+}
+
+interface Task {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  dueDate: string | null;
+  description: string;
+  section: string;
+  isCompleted: boolean;
+  progress: number;
+  createdTime: string;
+  lastEditedTime: string;
+  url: string;
+  properties: any;
+  subtasks?: SubTask[];
+}
+
+interface SubTask {
+  id: string;
+  title: string;
+  status: string;
+  type: 'child_page' | 'relation';
+  lastEditedTime: string;
+}
+
 function getUserEmail(): string {
-  return localStorage.getItem('userEmail') || '';
+  const userEmail = localStorage.getItem('userEmail');
+  if (!userEmail) {
+    console.log("[Workspace] No user email found, using fallback");
+    return '';
+  }
+  return userEmail;
 }
 
 export default function Workspace() {
+  const { user, logout } = useAuth();
   const { toast } = useToast();
-  const [activeView, setActiveView] = useState<string>('tasks');
-  const [pageData, setPageData] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<string>('projects');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  
   const userEmail = getUserEmail();
+  
+  // Check if user is admin
+  const isAdmin = user?.email === 'basiliskan@gmail.com';
+
+  // Set user email in localStorage on mount
+  useEffect(() => {
+    if (user?.email) {
+      localStorage.setItem('userEmail', user.email);
+      console.log("[Workspace] Set user email in localStorage:", user.email);
+    }
+  }, [user]);
 
   // Fetch user's Notion views
   const { data: views, isLoading: viewsLoading } = useQuery<NotionView[]>({
@@ -67,12 +120,10 @@ export default function Workspace() {
     }
   });
 
-  // Fetch filtered database data for the active view
-  const activeViewData = views?.find(v => v.viewType === activeView);
-  
-  const { data: databaseData, isLoading: pageLoading } = useQuery<DatabaseData>({
-    queryKey: ['/api/notion-database', activeViewData?.databaseId],
-    enabled: !!activeViewData?.databaseId,
+  // Fetch database records for projects
+  const { data: databaseData, isLoading: databaseLoading } = useQuery({
+    queryKey: ['/api/notion-database', '07ede7dbc952491784e9c5022523e2e0'],
+    enabled: !!userEmail,
     retry: false,
     meta: {
       headers: {
@@ -81,14 +132,46 @@ export default function Workspace() {
     }
   });
 
-  // Check if any records in the current view have Proposal field marked as true
-  const hasProposalRecords = databaseData?.records?.some((record: any) => 
-    record.properties.Proposal?.checkbox === true
-  );
+  // Fetch project hierarchy
+  const { data: projectHierarchy, isLoading: hierarchyLoading } = useQuery<ProjectHierarchy>({
+    queryKey: ['/api/notion-project-hierarchy'],
+    enabled: !!userEmail,
+    retry: false,
+    meta: {
+      headers: {
+        'x-user-email': userEmail
+      }
+    }
+  });
+
+  // Fetch tasks
+  const { data: tasks, isLoading: tasksLoading } = useQuery<Task[]>({
+    queryKey: ['/api/tasks'],
+    enabled: !!userEmail,
+    retry: false,
+    meta: {
+      headers: {
+        'x-user-email': userEmail
+      }
+    }
+  });
+
+  // Fetch individual task details
+  const { data: taskDetails, isLoading: taskDetailsLoading } = useQuery<Task>({
+    queryKey: ['/api/tasks', selectedTask?.id],
+    enabled: !!selectedTask?.id,
+    retry: false,
+    meta: {
+      headers: {
+        'x-user-email': userEmail
+      }
+    }
+  });
 
   // Workspace discovery mutation
   const discoverWorkspace = useMutation({
     mutationFn: async () => {
+      console.log("[Workspace] Auto-discovering workspace for user:", userEmail);
       const response = await fetch('/api/notion-workspace/discover', {
         method: 'POST',
         headers: {
@@ -104,6 +187,7 @@ export default function Workspace() {
       return response.json();
     },
     onSuccess: (data) => {
+      console.log("[Workspace] Auto-discovery complete:", data);
       toast({
         title: "Workspace Discovery Complete",
         description: data.message
@@ -111,6 +195,7 @@ export default function Workspace() {
       queryClient.invalidateQueries({ queryKey: ['/api/notion-views'] });
     },
     onError: (error: Error) => {
+      console.error("[Workspace] Auto-discovery failed:", error);
       toast({
         title: "Discovery Failed",
         description: error.message,
@@ -119,7 +204,50 @@ export default function Workspace() {
     }
   });
 
-  if (viewsLoading) {
+  // Auto-discover workspace if no views are found
+  useEffect(() => {
+    if (!viewsLoading && views && views.length === 0 && userEmail) {
+      console.log("[Workspace] Auto-discovering workspace for user:", userEmail);
+      discoverWorkspace.mutate();
+    }
+  }, [views, viewsLoading, userEmail]);
+
+  const handleProjectClick = (project: any) => {
+    setSelectedProject(project);
+  };
+
+  const toggleProjectExpansion = (projectId: string) => {
+    const newExpanded = new Set(expandedProjects);
+    if (newExpanded.has(projectId)) {
+      newExpanded.delete(projectId);
+    } else {
+      newExpanded.add(projectId);
+    }
+    setExpandedProjects(newExpanded);
+  };
+
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setIsTaskModalOpen(true);
+  };
+
+  const openAllSubtasks = (subtasks: SubTask[]) => {
+    subtasks.forEach(subtask => {
+      window.open(`https://www.notion.so/${subtask.id.replace(/-/g, '')}`, '_blank');
+    });
+  };
+
+  const filteredProjects = databaseData?.records?.filter((project: any) =>
+    project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.properties?.['Project name']?.title?.[0]?.plain_text?.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  const filteredTasks = tasks?.filter((task: Task) =>
+    task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    task.description.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  if (viewsLoading || databaseLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex items-center gap-2">
@@ -130,220 +258,463 @@ export default function Workspace() {
     );
   }
 
-  if (!views || views.length === 0) {
-    return (
-      <div className="container mx-auto py-8">
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              No Views Configured
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              No database views have been set up for your account. Click below to discover and configure your Notion workspace automatically.
-            </p>
-            <Button 
-              onClick={() => discoverWorkspace.mutate()}
-              disabled={discoverWorkspace.isPending}
-              className="w-full"
-            >
-              {discoverWorkspace.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Discovering Workspace...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Discover Notion Workspace
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const activeViews = views.filter(v => v.isActive);
-
   return (
-    <>
-      {/* Full-page static background for proposal records */}
-      {hasProposalRecords && (
-        <div 
-          className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat z-[-1]"
-          style={{
-            backgroundImage: `url(${proposalBg})`,
-            backgroundAttachment: 'fixed'
-          }}
-        />
-      )}
-      
-      <div className={`container mx-auto py-6 ${hasProposalRecords ? 'relative z-10' : ''}`}>
-        <div className="flex items-center justify-between mb-6">
+    <div className="container mx-auto py-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold">Workspace</h1>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => window.location.href = '/demo'}
-            >
-              🧪 Test Users
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => window.location.href = '/admin'}
-            >
-              ⚙️ Admin
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => discoverWorkspace.mutate()}
-              disabled={discoverWorkspace.isPending}
-            >
-              {discoverWorkspace.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Refresh Views
-            </Button>
-          </div>
+          <Badge variant="outline" className="text-sm">
+            {user?.email}
+          </Badge>
         </div>
+        <div className="flex gap-2">
+          {isAdmin && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => window.location.href = '/demo'}
+              >
+                🧪 Test Users
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => window.location.href = '/admin'}
+              >
+                ⚙️ Admin
+              </Button>
+            </>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => discoverWorkspace.mutate()}
+            disabled={discoverWorkspace.isPending}
+          >
+            {discoverWorkspace.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Refresh Views
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={logout}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+      </div>
 
-        <Tabs value={activeView} onValueChange={setActiveView} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
-            {activeViews.map((view) => (
-              <TabsTrigger key={view.id} value={view.viewType}>
-                <span className="mr-2">{view.icon}</span>
-                {view.title}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+      {/* Search */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search projects, tasks, or content..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
 
-          {activeViews.map((view) => (
-            <TabsContent key={view.id} value={view.viewType}>
-              <Card className={hasProposalRecords ? 'bg-white/90 backdrop-blur-sm dark:bg-gray-900/90' : ''}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <span>{view.icon}</span>
-                    {view.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {pageLoading && activeView === view.viewType ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                        <span>Loading {view.title.toLowerCase()}...</span>
-                      </div>
-                    </div>
-                  ) : databaseData && activeView === view.viewType && databaseData.records ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-muted-foreground">
-                          {databaseData.total_count} records found
-                        </p>
+      {/* Main Content */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="projects">
+            <Database className="h-4 w-4 mr-2" />
+            Projects ({filteredProjects.length})
+          </TabsTrigger>
+          <TabsTrigger value="tasks">
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Tasks ({filteredTasks.length})
+          </TabsTrigger>
+          <TabsTrigger value="analytics">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Projects Tab */}
+        <TabsContent value="projects" className="space-y-4">
+          {filteredProjects.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-8">
+                <Database className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-lg font-medium text-gray-600">No projects found</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {searchTerm ? "Try adjusting your search terms" : "No projects are available for your account"}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6">
+              {filteredProjects.map((project: any) => (
+                <Collapsible key={project.notionId}>
+                  <Card className="overflow-hidden">
+                    <CollapsibleTrigger asChild>
+                      <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              {expandedProjects.has(project.notionId) ? (
+                                <ChevronDown className="h-5 w-5 text-gray-500" />
+                              ) : (
+                                <ChevronRight className="h-5 w-5 text-gray-500" />
+                              )}
+                              <h3 className="text-lg font-semibold text-gray-900">{project.title}</h3>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {project.properties?.Status?.select?.name || 'Active'}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">
+                              Updated {new Date(project.lastEditedTime).toLocaleDateString()}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(project.url, '_blank');
+                              }}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <CardContent className="pt-0">
+                        <div className="space-y-6">
+                          {/* Project Details */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <h4 className="font-medium text-gray-900 mb-2">Project Information</h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-gray-500" />
+                                  <span>Created: {new Date(project.createdTime).toLocaleDateString()}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-gray-500" />
+                                  <span>Last Updated: {new Date(project.lastEditedTime).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-gray-900 mb-2">Team & Access</h4>
+                              <div className="space-y-2 text-sm">
+                                {project.properties?.People?.people?.length > 0 && (
+                                  <div className="flex items-center gap-2">
+                                    <Users className="h-4 w-4 text-gray-500" />
+                                    <span>{project.properties.People.people.length} team members</span>
+                                  </div>
+                                )}
+                                {project.properties?.['User Email']?.email && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-500">Owner:</span>
+                                    <span>{project.properties['User Email'].email}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(project.url, '_blank')}
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Open in Notion
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleProjectClick(project)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Tasks Tab */}
+        <TabsContent value="tasks" className="space-y-4">
+          {tasksLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading tasks...</span>
+            </div>
+          ) : filteredTasks.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-8">
+                <CheckCircle className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-lg font-medium text-gray-600">No tasks found</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {searchTerm ? "Try adjusting your search terms" : "No tasks are available for your account"}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {filteredTasks.map((task: Task) => (
+                <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4" onClick={() => handleTaskClick(task)}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-medium text-gray-900">{task.title}</h3>
+                          <Badge variant={task.isCompleted ? "default" : "secondary"}>
+                            {task.status}
+                          </Badge>
+                          {task.priority && (
+                            <Badge variant={
+                              task.priority === 'High' ? 'destructive' :
+                              task.priority === 'Medium' ? 'default' : 'secondary'
+                            }>
+                              {task.priority}
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {task.description && (
+                          <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                        )}
+                        
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span>Section: {task.section}</span>
+                          <span>Progress: {task.progress}%</span>
+                          {task.dueDate && (
+                            <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                          )}
+                        </div>
                       </div>
                       
-                      {databaseData.records.length > 0 ? (
-                        <div className="grid gap-4">
-                          {databaseData.records.map((record: any) => {
-                            // Check if this record has Proposal field marked as True
-                            const isProposal = record.properties.Proposal?.checkbox === true;
-                            
-                            return (
-                              <Card 
-                                key={record.notionId} 
-                                className={`p-4 ${
-                                  isProposal 
-                                    ? 'bg-white/95 backdrop-blur-sm border-blue-200 dark:bg-gray-900/95 dark:border-blue-800' 
-                                    : hasProposalRecords 
-                                      ? 'bg-white/90 backdrop-blur-sm dark:bg-gray-900/90' 
-                                      : ''
-                                }`}
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <h3 className="font-medium">{record.title}</h3>
-                                      {isProposal && (
-                                        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700">
-                                          📋 Proposal
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  
-                                    {/* Render common properties */}
-                                    <div className="space-y-2 text-sm">
-                                      {record.properties.Status?.select?.name && (
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-muted-foreground">Status:</span>
-                                          <Badge variant="secondary">
-                                            {record.properties.Status.select.name}
-                                          </Badge>
-                                        </div>
-                                      )}
-                                      
-                                      {record.properties.Priority?.select?.name && (
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-muted-foreground">Priority:</span>
-                                          <Badge variant={
-                                            record.properties.Priority.select.name === 'High' ? 'destructive' :
-                                            record.properties.Priority.select.name === 'Medium' ? 'default' : 'secondary'
-                                          }>
-                                            {record.properties.Priority.select.name}
-                                          </Badge>
-                                        </div>
-                                      )}
-                                      
-                                      {record.properties.Description?.rich_text?.[0]?.plain_text && (
-                                        <div>
-                                          <span className="text-muted-foreground">Description:</span>
-                                          <p className="mt-1">{record.properties.Description.rich_text[0].plain_text}</p>
-                                        </div>
-                                      )}
-                                      
-                                      {record.properties.DueDate?.date?.start && (
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-muted-foreground">Due:</span>
-                                          <span>{new Date(record.properties.DueDate.date.start).toLocaleDateString()}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                <div className="text-xs text-muted-foreground">
-                                  Updated: {new Date(record.lastEditedTime).toLocaleDateString()}
-                                </div>
-                              </Card>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <p>No records found for your account in this database.</p>
-                          <p className="text-xs mt-2">Make sure your email is added to the "User Email" field in the Notion database.</p>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(task.url, '_blank');
+                          }}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Projects</p>
+                    <p className="text-2xl font-bold">{filteredProjects.length}</p>
+                  </div>
+                  <Database className="h-8 w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Tasks</p>
+                    <p className="text-2xl font-bold">{filteredTasks.length}</p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Completed Tasks</p>
+                    <p className="text-2xl font-bold">{filteredTasks.filter(t => t.isCompleted).length}</p>
+                  </div>
+                  <AlertCircle className="h-8 w-8 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Task Details Modal */}
+      <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5" />
+              {selectedTask?.title || 'Task Details'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {taskDetailsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading task details...</span>
+            </div>
+          ) : taskDetails ? (
+            <div className="space-y-6">
+              {/* Task Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Task Information</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={taskDetails.isCompleted ? "default" : "secondary"}>
+                        {taskDetails.status}
+                      </Badge>
+                      <span>Section: {taskDetails.section}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span>Progress: {taskDetails.progress}%</span>
+                      {taskDetails.priority && (
+                        <Badge variant={
+                          taskDetails.priority === 'High' ? 'destructive' :
+                          taskDetails.priority === 'Medium' ? 'default' : 'secondary'
+                        }>
+                          {taskDetails.priority}
+                        </Badge>
                       )}
                     </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p>Unable to load {view.title.toLowerCase()}. Please check your configuration.</p>
+                    {taskDetails.dueDate && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <span>Due: {new Date(taskDetails.dueDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Timeline</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-gray-500" />
+                      <span>Created: {new Date(taskDetails.createdTime).toLocaleDateString()}</span>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          ))}
-        </Tabs>
-      </div>
-    </>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-gray-500" />
+                      <span>Last Updated: {new Date(taskDetails.lastEditedTime).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              {taskDetails.description && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Description</h4>
+                  <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                    {taskDetails.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Subtasks */}
+              {taskDetails.subtasks && taskDetails.subtasks.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <List className="h-4 w-4 text-blue-600" />
+                      <Label className="text-sm font-medium text-gray-700">
+                        Subtasks ({taskDetails.subtasks.length})
+                      </Label>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openAllSubtasks(taskDetails.subtasks!)}
+                    >
+                      Open All Subtasks
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {taskDetails.subtasks.map((subtask: SubTask) => (
+                      <div
+                        key={subtask.id}
+                        className="flex items-center justify-between p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                        onClick={() => window.open(`https://www.notion.so/${subtask.id.replace(/-/g, '')}`, '_blank')}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-2 h-2 bg-blue-500 rounded-full" />
+                          <div>
+                            <p className="font-medium text-gray-900">{subtask.title}</p>
+                            <p className="text-xs text-gray-500">
+                              {subtask.type === 'child_page' ? 'Child Page' : 'Related Task'} • 
+                              Updated {new Date(subtask.lastEditedTime).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {subtask.status}
+                          </Badge>
+                          <ExternalLink className="h-4 w-4 text-gray-400" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(taskDetails.url, '_blank')}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open in Notion
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsTaskModalOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Unable to load task details.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
