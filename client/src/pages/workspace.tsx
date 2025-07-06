@@ -1028,11 +1028,6 @@ export default function Workspace() {
                             'bg-gray-300'
                           }`} />
                           <h4 className="font-medium">{task.title}</h4>
-                          {task.type && (
-                            <Badge variant="secondary" className="text-xs">
-                              {task.type === 'child_page' ? 'Page' : 'Record'}
-                            </Badge>
-                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge 
