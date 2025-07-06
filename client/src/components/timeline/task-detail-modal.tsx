@@ -7,10 +7,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink } from "lucide-react";
-import type { Task } from "@shared/schema";
+// Extended Task interface to include statusColor
+interface ExtendedTask extends Task {
+  statusColor?: string;
+}
 
 interface TaskDetailModalProps {
-  task: Task | null;
+  task: ExtendedTask | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -80,7 +83,7 @@ export function TaskDetailModal({ task, isOpen, onClose }: TaskDetailModalProps)
               <label className="block text-sm font-medium text-gray-900 mb-2">
                 Status
               </label>
-              {getStatusBadge(task.status, (task as any).statusColor)}
+              {getStatusBadge(task.status, task.statusColor)}
             </div>
             
             {task.assignee && (

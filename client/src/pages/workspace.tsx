@@ -939,7 +939,6 @@ export default function Workspace() {
                             )}
                             
                             <div className="flex items-center gap-4 text-xs text-gray-500">
-                              <span>Section: {task.section}</span>
                               <span>Progress: {task.progress}%</span>
                               {task.dueDate && (
                                 <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
@@ -1141,7 +1140,7 @@ export default function Workspace() {
                       <Badge variant={taskDetails.isCompleted ? "default" : "secondary"}>
                         {taskDetails.status}
                       </Badge>
-                      <span>Section: {taskDetails.section}</span>
+
                     </div>
                     <div className="flex items-center gap-2">
                       <span>Progress: {taskDetails.progress}%</span>

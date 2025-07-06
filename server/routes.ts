@@ -10,43 +10,18 @@ import { reminderDB, type Reminder } from "./reminderDatabase";
 import { emailService, smsService } from "./communications";
 import { statusNotificationService } from "./statusNotifications";
 
-// Helper function to get admin configuration dynamically
+// Helper function to get admin configuration
 async function getAdminConfiguration(): Promise<Configuration> {
-  // Try multiple possible admin emails dynamically
-  const possibleAdminEmails = ['basiliskan@gmail.com', 'admin@example.com', 'admin@domain.com'];
-  
-  for (const adminEmail of possibleAdminEmails) {
-    try {
-      const config = await storage.getConfiguration(adminEmail);
-      if (config) {
-        console.log(`[Admin Config] Found admin configuration for: ${adminEmail}`);
-        return config;
-      }
-    } catch (error) {
-      continue;
-    }
+  const config = await storage.getConfiguration('basiliskan@gmail.com');
+  if (!config) {
+    throw new Error('Admin configuration not found. Please set up workspace first.');
   }
-  
-  // If no admin config found, throw error
-  throw new Error('No admin configuration found. Please set up workspace first.');
+  return config;
 }
 
-// Helper function to check if user is admin dynamically
-async function isAdminUser(userEmail: string): Promise<boolean> {
-  const possibleAdminEmails = ['basiliskan@gmail.com', 'admin@example.com', 'admin@domain.com'];
-  
-  // Check if the user email is one of the admin emails
-  if (possibleAdminEmails.includes(userEmail)) {
-    return true;
-  }
-  
-  // Check if user has admin configuration
-  try {
-    const config = await storage.getConfiguration(userEmail);
-    return !!config; // If user has configuration, they might be admin
-  } catch (error) {
-    return false;
-  }
+// Helper function to check if user is admin
+function isAdminUser(userEmail: string): boolean {
+  return userEmail === 'basiliskan@gmail.com';
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -222,12 +197,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                           Object.values(childProperties).find((prop: any) => prop.type === 'title');
                 const childTitle = extractTextFromProperty(childTitleProperty) || childBlock.child_page?.title || 'Untitled Subtask';
                 
-                const { statusName: childStatusName } = extractNotionStatus(childProperties);
+                const { statusName: childStatusName, statusColor: childStatusColor } = extractNotionStatus(childProperties);
                 
                 subtasks.push({
                   id: childBlock.id,
                   title: childTitle,
                   status: childStatusName,
+                  statusColor: childStatusColor,
                   type: 'child_page',
                   lastEditedTime: (childPage as any).last_edited_time
                 });
@@ -247,12 +223,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                             Object.values(relatedProperties).find((prop: any) => prop.type === 'title');
                 const relatedTitle = extractTextFromProperty(relatedTitleProperty) || 'Untitled Related Task';
                 
-                const { statusName: relatedStatusName } = extractNotionStatus(relatedProperties);
+                const { statusName: relatedStatusName, statusColor: relatedStatusColor } = extractNotionStatus(relatedProperties);
                 
                 subtasks.push({
                   id: relatedTask.id,
                   title: relatedTitle,
                   status: relatedStatusName,
+                  statusColor: relatedStatusColor,
                   type: 'relation',
                   lastEditedTime: (relatedPage as any).last_edited_time
                 });
