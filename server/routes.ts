@@ -141,19 +141,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Last-Modified', new Date().toUTCString());
       res.setHeader('ETag', `"${Date.now()}-${Math.random()}"`);
       
-      // First, get all user's projects to extract task IDs
+      // First, get all user's projects to extract task IDs and create task-to-project mapping
       const pageId = extractPageIdFromUrl(config.notionPageUrl);
       const databaseRecords = await getFilteredDatabaseRecords(notion, pageId, userEmail);
       
       const allTaskIds = new Set<string>();
+      const taskToProjectMap = new Map<string, string>(); // taskId -> projectName
+      
       for (const record of databaseRecords) {
+        // Get actual project name from properties
+        let projectName = null;
+        const properties = record.properties || {};
+        
+        // Try different property names for the project title
+        for (const propName of ['Title', 'title', 'Name', 'name', 'Project Name', 'Project']) {
+          if (properties[propName]) {
+            projectName = extractTextFromProperty(properties[propName]);
+            if (projectName) break;
+          }
+        }
+        
+        // Fallback: use the first title-type property
+        if (!projectName) {
+          for (const [propName, prop] of Object.entries(properties)) {
+            if (prop && typeof prop === 'object' && (prop as any).type === 'title') {
+              projectName = extractTextFromProperty(prop);
+              if (projectName) break;
+            }
+          }
+        }
+        
+        projectName = projectName || 'Unknown Project';
         const taskRelations = record.properties?.Tasks?.relation || [];
+        
+        console.log(`[Notion Tasks] Processing project: "${projectName}" with ${taskRelations.length} tasks`);
+        
         for (const taskRef of taskRelations) {
           allTaskIds.add(taskRef.id);
+          taskToProjectMap.set(taskRef.id, projectName);
+          console.log(`[Notion Tasks] Mapping task ${taskRef.id} to project "${projectName}"`);
         }
       }
 
       console.log(`[Notion Tasks] Found ${allTaskIds.size} task IDs from user projects`);
+      console.log(`[Notion Tasks] Project mapping created for ${taskToProjectMap.size} tasks`);
 
       // Fetch each task from Notion
       const tasks = [];
@@ -268,12 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             url: (page as any).url,
             assignee: extractTextFromProperty(properties.Assign),
             userEmail: extractEmailFromProperty(properties.Assign),
-            projectName: extractProjectName({ 
-              title: properties.Title?.title?.[0]?.plain_text || "Untitled Task",
-              section: null,
-              url: (page as any).url,
-              properties: properties 
-            }),
+            projectName: taskToProjectMap.get(taskId) || 'Unknown Project',
             properties: properties,
             subtasks: subtasks
           };

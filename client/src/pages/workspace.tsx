@@ -1045,12 +1045,10 @@ export default function Workspace() {
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Tasks ({filteredTasks.length})</h3>
                 <Tabs value={taskViewMode} onValueChange={setTaskViewMode} className="w-auto">
-                  <TabsList className="grid w-full grid-cols-5">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="list">List</TabsTrigger>
-                    <TabsTrigger value="kanban">Kanban</TabsTrigger>
-                    <TabsTrigger value="kanban-pro">Pro Kanban</TabsTrigger>
-                    <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                    <TabsTrigger value="timeline-pro">Pro Timeline</TabsTrigger>
+                    <TabsTrigger value="kanban-pro">Kanban</TabsTrigger>
+                    <TabsTrigger value="timeline-pro">Timeline</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
@@ -1113,22 +1111,6 @@ export default function Workspace() {
               )}
 
 
-
-              {/* Kanban View */}
-              {taskViewMode === 'kanban' && (
-                <KanbanBoard 
-                  tasks={filteredTasks} 
-                  onTaskClick={handleTaskClick}
-                />
-              )}
-
-              {/* Timeline View */}
-              {taskViewMode === 'timeline' && (
-                <TaskTimeline 
-                  tasks={filteredTasks}
-                  onTaskClick={handleTaskClick}
-                />
-              )}
 
               {/* Professional Kanban View */}
               {taskViewMode === 'kanban-pro' && (
