@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
+import { statusMonitor } from "./statusMonitor";
 
 // Check for required environment variables in production
 if (process.env.NODE_ENV === "production") {
@@ -107,5 +108,10 @@ async function initializePersistentSettings() {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Start status monitoring for automatic email notifications
+    setTimeout(() => {
+      statusMonitor.startMonitoring(60000); // Check every 60 seconds
+    }, 5000); // Wait 5 seconds after server start
   });
 })();

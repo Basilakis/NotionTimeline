@@ -148,16 +148,27 @@ interface NotionView {
 
 ### 🔄 Recent Changes (Last Updated: July 6, 2025)
 
-#### Transactional Email Notifications for Status Changes
-- **Problem Solved**: Need for automatic email notifications when task statuses change
-- **Solution**: Complete transactional email system using AWS SES with beautiful HTML templates
+#### Automatic Status Change Monitoring & Notifications
+- **Problem Solved**: Need for automatic email notifications when task statuses change in Notion, not manual buttons
+- **Solution**: Complete automatic status monitoring system that tracks Notion changes and sends emails
 - **Implementation**: 
-  - Created StatusNotificationService with professional email templates
-  - Added status change API endpoint with validation and notification triggering
-  - Built useStatusNotification React hook for frontend integration
-  - Added status change demo buttons in task modal for testing
-  - Email includes task title, project, status transition, due dates, and direct Notion links
-- **User Experience**: Users receive instant email notifications when tasks move between Planning, In Progress, Done, Paused, or Canceled statuses
+  - Created StatusMonitor service that polls Notion for status changes every 60 seconds
+  - Removed manual status change buttons from task modals
+  - Fixed status mapping to use three main categories: To-do, In Progress, Completed
+  - Added subcategory detection for proper status hierarchy
+  - Automatic email notifications when Notion status changes are detected
+- **User Experience**: System automatically detects when task statuses change in Notion and sends professional email notifications
+
+#### Enhanced Kanban Board with Proper Status Hierarchy
+- **Problem Solved**: Need for proper three-column Kanban board with subcategory tags
+- **Solution**: Complete Kanban board redesign with hierarchical status support
+- **Implementation**: 
+  - Created KanbanBoard component with To-do, In Progress, Completed columns
+  - Added subcategory tags showing specific Notion status before task titles
+  - Color-coded priority borders and overdue indicators
+  - Smart status mapping from Notion's complex status system to three main categories
+  - Removed manual status buttons since changes come from Notion automatically
+- **User Experience**: Clean three-column Kanban view with subcategory tags and automatic Notion synchronization
 
 #### Complete Visual Status System with Notion Colors Implementation
 

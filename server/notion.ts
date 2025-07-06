@@ -502,29 +502,26 @@ export async function getTasks(notion: Client, tasksDatabaseId: string, userEmai
                     statusDisplay = properties.Status.status.name;
                     statusColor = properties.Status.status.color;
                     
-                    // Map status to groups based on Notion's structure
-                    switch (properties.Status.status.name) {
-                        case 'Backlog':
-                            mainStatus = 'To-do';
-                            subStatus = 'Backlog';
-                            statusGroup = 'todo-status-group';
-                            break;
-                        case 'Planning':
-                        case 'In Progress':
-                        case 'Paused':
-                            mainStatus = 'In Progress';
-                            subStatus = properties.Status.status.name;
-                            statusGroup = 'in-progress-status-group';
-                            break;
-                        case 'Done':
-                        case 'Canceled':
-                            mainStatus = 'Complete';
-                            subStatus = properties.Status.status.name;
-                            statusGroup = 'complete-status-group';
-                            break;
-                        default:
-                            mainStatus = properties.Status.status.name;
-                            subStatus = null;
+                    // Map status to three main categories based on Notion's structure
+                    const statusName = properties.Status.status.name.toLowerCase();
+                    
+                    if (statusName.includes('todo') || statusName.includes('to-do') || statusName.includes('backlog') || statusName.includes('planning')) {
+                        mainStatus = 'To-do';
+                        subStatus = properties.Status.status.name;
+                        statusGroup = 'todo-status-group';
+                    } else if (statusName.includes('progress') || statusName.includes('working') || statusName.includes('development') || statusName.includes('review') || statusName.includes('testing')) {
+                        mainStatus = 'In Progress';
+                        subStatus = properties.Status.status.name;
+                        statusGroup = 'in-progress-status-group';
+                    } else if (statusName.includes('done') || statusName.includes('completed') || statusName.includes('finished') || statusName.includes('deployed') || statusName.includes('closed')) {
+                        mainStatus = 'Completed';
+                        subStatus = properties.Status.status.name;
+                        statusGroup = 'completed-status-group';
+                    } else {
+                        // Default to To-do for unknown statuses
+                        mainStatus = 'To-do';
+                        subStatus = properties.Status.status.name;
+                        statusGroup = 'todo-status-group';
                     }
                 }
                 // Check for select property (older format)
