@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +62,35 @@ const getNotionColorClasses = (notionColor: string): { badge: string; column: st
   };
   
   return colorMap[notionColor] || colorMap['default'];
+};
+
+// Helper function to get dot color for status indicators
+const getDotColor = (notionColor: string): string => {
+  const colorMap = {
+    'default': 'bg-gray-500',
+    'gray': 'bg-gray-500',
+    'brown': 'bg-amber-500',
+    'orange': 'bg-orange-500',
+    'yellow': 'bg-yellow-500',
+    'green': 'bg-green-500',
+    'blue': 'bg-blue-500',
+    'purple': 'bg-purple-500',
+    'pink': 'bg-pink-500',
+    'red': 'bg-red-500',
+  };
+  
+  return colorMap[notionColor] || colorMap['default'];
+};
+
+// Filtering helper functions
+const filterTasksByStatus = (tasks: any[], filter: string) => {
+  if (filter === 'all') return tasks;
+  return tasks.filter(task => task.status === filter);
+};
+
+const filterSubtasksByStatus = (subtasks: SubTask[], filter: string) => {
+  if (filter === 'all') return subtasks;
+  return subtasks.filter(subtask => subtask.status === filter);
 };
 
 interface NotionView {
@@ -164,6 +194,7 @@ export default function Workspace() {
   const { triggerStatusChange } = useStatusNotification();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('tasks'); // Start with tasks tab
+  const [statusFilter, setStatusFilter] = useState<string>('all'); // Filter state for tasks and subtasks
 
   // Handle tab change with cache invalidation to refresh data
   const handleTabChange = (newTab: string) => {
@@ -452,19 +483,26 @@ export default function Workspace() {
     project.properties?.['Project name']?.title?.[0]?.plain_text?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
-  const filteredTasks = tasks?.filter((task: Task) =>
-    task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    task.description.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredTasks = filterTasksByStatus(
+    tasks?.filter((task: Task) =>
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [],
+    statusFilter
+  );
 
-  const filteredPurchaseTasks = purchaseTasks?.filter((task: Task) =>
-    task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    task.description.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredPurchaseTasks = filterTasksByStatus(
+    purchaseTasks?.filter((task: Task) =>
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [],
+    statusFilter
+  );
 
   // Helper function to get tasks for a specific project
   const getProjectTasks = (projectTaskIds: string[]) => {
-    return tasks?.filter(task => projectTaskIds.includes(task.id)) || [];
+    const projectTasks = tasks?.filter(task => projectTaskIds.includes(task.id)) || [];
+    return filterTasksByStatus(projectTasks, statusFilter);
   };
 
   // Helper function to get project summary data for a specific project
@@ -586,7 +624,7 @@ export default function Workspace() {
 
 
 
-      {/* Search */}
+      {/* Search and Filter */}
       <div className="flex items-center gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -597,6 +635,17 @@ export default function Workspace() {
             className="pl-10"
           />
         </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="In Progress">In Progress</SelectItem>
+            <SelectItem value="Done">Done</SelectItem>
+            <SelectItem value="Not Started">Not Started</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Main Content */}
@@ -1194,7 +1243,7 @@ export default function Workspace() {
                     <div className="flex items-center gap-2">
                       <List className="h-4 w-4 text-blue-600" />
                       <Label className="text-sm font-medium text-gray-700">
-                        Subtasks ({taskDetails.subtasks.length})
+                        Subtasks ({filterSubtasksByStatus(taskDetails.subtasks, statusFilter).length})
                       </Label>
                     </div>
                     <Button
@@ -1206,14 +1255,14 @@ export default function Workspace() {
                     </Button>
                   </div>
                   <div className="space-y-2">
-                    {taskDetails.subtasks.map((subtask: SubTask) => (
+                    {filterSubtasksByStatus(taskDetails.subtasks, statusFilter).map((subtask: SubTask) => (
                       <div
                         key={subtask.id}
-                        className="flex items-center justify-between p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                        className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors hover:opacity-80 ${getNotionColorClasses(subtask.statusColor || 'default').column}`}
                         onClick={() => window.open(`https://www.notion.so/${subtask.id.replace(/-/g, '')}`, '_blank')}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="flex-shrink-0 w-2 h-2 bg-blue-500 rounded-full" />
+                          <div className={`flex-shrink-0 w-2 h-2 rounded-full ${getDotColor(subtask.statusColor || 'default')}`} />
                           <div>
                             <p className="font-medium text-gray-900">{subtask.title}</p>
                             <p className="text-xs text-gray-500">
