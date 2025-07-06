@@ -120,6 +120,7 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
 
   // Create new chat
   const handleNewChat = () => {
+    console.log('New chat button clicked');
     setSelectedChatId(null);
     setMessage('');
     setCommandType('ai');
@@ -213,7 +214,13 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Chat History</h2>
-            <Button onClick={handleNewChat} size="sm" variant="outline">
+            <Button 
+              onClick={handleNewChat} 
+              size="sm" 
+              variant="outline"
+              className="cursor-pointer"
+              type="button"
+            >
               <Plus className="h-4 w-4 mr-2" />
               New Chat
             </Button>
