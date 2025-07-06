@@ -2451,46 +2451,53 @@ Don't forget to update your task progress!`
         }
       }
 
-      if (!tasksDatabaseId) {
-        return res.status(404).json({ message: "Task database not found" });
-      }
-
-      // Get database schema to extract Status field options with colors
-      const database = await notion.databases.retrieve({
-        database_id: tasksDatabaseId
-      });
-
-      // Find Status field and extract all options with colors
-      const statusProperty = Object.values(database.properties).find(
-        (prop: any) => prop.name === 'Status' || prop.type === 'status'
-      ) as any;
-
-      if (!statusProperty) {
-        return res.status(404).json({ message: "Status field not found" });
-      }
-
-      let statusOptions: Array<{name: string, color: string}> = [];
-
-      if (statusProperty.type === 'status') {
-        // Handle status property type
-        if (statusProperty.status && statusProperty.status.options) {
-          statusOptions = statusProperty.status.options.map((option: any) => ({
-            name: option.name,
-            color: option.color
-          }));
-        }
-      } else if (statusProperty.type === 'select') {
-        // Handle select property type
-        if (statusProperty.select && statusProperty.select.options) {
-          statusOptions = statusProperty.select.options.map((option: any) => ({
-            name: option.name,
-            color: option.color
-          }));
+      // Create status options with colors based on task rollup data
+      const statusOptions = [];
+      const taskColors = new Map<string, string>();
+      
+      // Fetch task data to get rollup colors
+      for (const taskId of taskIds) {
+        try {
+          const page = await notion.pages.retrieve({ page_id: taskId });
+          const properties = (page as any).properties;
+          
+          // Find status field
+          const statusFieldKey = Object.keys(properties).find(key => 
+            key.includes('status') || 
+            key.includes('Status') || 
+            key === 'notion%3A%2F%2Ftasks%2Fstatus_property'
+          );
+          
+          const statusField = statusFieldKey ? properties[statusFieldKey] : null;
+          
+          if (statusField?.type === 'rollup' && statusField.rollup?.array?.[0]?.status) {
+            const statusName = statusField.rollup.array[0].status.name;
+            const statusColor = statusField.rollup.array[0].status.color;
+            taskColors.set(statusName, statusColor);
+          }
+        } catch (taskError) {
+          continue;
         }
       }
 
-      console.log('[Status Options with Colors]', statusOptions);
-      res.json(statusOptions);
+      // Create status options from actual task data
+      const statusOptionsArray = Array.from(taskColors.entries()).map(([name, color]) => ({
+        name,
+        color
+      }));
+
+      // If no task colors found, add defaults
+      if (statusOptionsArray.length === 0) {
+        statusOptionsArray.push(
+          { name: 'Planning', color: 'blue' },
+          { name: 'In Progress', color: 'yellow' },
+          { name: 'Done', color: 'green' },
+          { name: 'Archived', color: 'gray' }
+        );
+      }
+
+      console.log('[Status Options with Colors from Tasks]', statusOptionsArray);
+      res.json(statusOptionsArray);
     } catch (error) {
       console.error("Error fetching statuses:", error);
       res.status(500).json({ message: "Failed to fetch statuses" });

@@ -35,28 +35,58 @@ interface StatusOption {
 }
 
 // Notion color mapping to Tailwind classes
-const getNotionColorClass = (notionColor: string): string => {
-  const colorMap: { [key: string]: string } = {
-    'default': 'bg-gray-100 text-gray-800 border-gray-300',
-    'gray': 'bg-gray-100 text-gray-800 border-gray-300',
-    'brown': 'bg-amber-100 text-amber-800 border-amber-300',
-    'orange': 'bg-orange-100 text-orange-800 border-orange-300',
-    'yellow': 'bg-yellow-100 text-yellow-800 border-yellow-300',
-    'green': 'bg-green-100 text-green-800 border-green-300',
-    'blue': 'bg-blue-100 text-blue-800 border-blue-300',
-    'purple': 'bg-purple-100 text-purple-800 border-purple-300',
-    'pink': 'bg-pink-100 text-pink-800 border-pink-300',
-    'red': 'bg-red-100 text-red-800 border-red-300',
+const getNotionColorClasses = (notionColor: string): { badge: string; column: string } => {
+  const colorMap: { [key: string]: { badge: string; column: string } } = {
+    'default': {
+      badge: 'bg-gray-100 text-gray-800 border-gray-200',
+      column: 'bg-gray-50 border-gray-200'
+    },
+    'gray': {
+      badge: 'bg-gray-100 text-gray-800 border-gray-200',
+      column: 'bg-gray-50 border-gray-200'
+    },
+    'brown': {
+      badge: 'bg-amber-100 text-amber-800 border-amber-200',
+      column: 'bg-amber-50 border-amber-200'
+    },
+    'orange': {
+      badge: 'bg-orange-100 text-orange-800 border-orange-200',
+      column: 'bg-orange-50 border-orange-200'
+    },
+    'yellow': {
+      badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      column: 'bg-yellow-50 border-yellow-200'
+    },
+    'green': {
+      badge: 'bg-green-100 text-green-800 border-green-200',
+      column: 'bg-green-50 border-green-200'
+    },
+    'blue': {
+      badge: 'bg-blue-100 text-blue-800 border-blue-200',
+      column: 'bg-blue-50 border-blue-200'
+    },
+    'purple': {
+      badge: 'bg-purple-100 text-purple-800 border-purple-200',
+      column: 'bg-purple-50 border-purple-200'
+    },
+    'pink': {
+      badge: 'bg-pink-100 text-pink-800 border-pink-200',
+      column: 'bg-pink-50 border-pink-200'
+    },
+    'red': {
+      badge: 'bg-red-100 text-red-800 border-red-200',
+      column: 'bg-red-50 border-red-200'
+    },
   };
   return colorMap[notionColor] || colorMap['default'];
 };
 
-const getStatusColorFromOptions = (statusName: string, statusOptions: StatusOption[]): string => {
+const getStatusColorFromOptions = (statusName: string, statusOptions: StatusOption[]): { badge: string; column: string } => {
   const option = statusOptions.find(opt => opt.name === statusName);
   if (option && option.color) {
-    return getNotionColorClass(option.color);
+    return getNotionColorClasses(option.color);
   }
-  return getNotionColorClass('default');
+  return getNotionColorClasses('default');
 };
 
 const getPriorityColor = (priority: string | null): string => {
@@ -192,7 +222,16 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
   }, {} as Record<string, Task[]>);
 
   const getStatusColor = (task: Task): string => {
-    return getStatusColorFromOptions(task.status, statusOptions);
+    return getStatusColorFromOptions(task.status, statusOptions).badge;
+  };
+
+  const getColumnColor = (columnName: string): string => {
+    // Get colors based on the first task's status in each column
+    const tasksInColumn = tasksByStatus[columnName] || [];
+    if (tasksInColumn.length > 0) {
+      return getStatusColorFromOptions(tasksInColumn[0].status, statusOptions).column;
+    }
+    return getNotionColorClasses('default').column;
   };
 
   const columns = ['Planning', 'In Progress', 'Done', 'Cancelled'];
@@ -201,7 +240,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
       {columns.map((column) => (
-        <div key={column} className="space-y-4">
+        <div key={column} className={`space-y-4 p-4 rounded-lg border ${getColumnColor(column)}`}>
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">{column}</h3>
             <Badge variant="secondary" className="text-xs">
