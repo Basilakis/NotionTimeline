@@ -283,23 +283,18 @@ export default function UserDemo() {
     );
   };
 
-  // Hook to fetch project structure
-  const useProjectStructure = (projectId: string | null) => {
-    return useQuery<{projectId: string, databases: any[], pages: any[], totalChildren: number}>({
-      queryKey: [`/api/project/${projectId}/structure`],
-      enabled: !!projectId && simulateUser,
-      retry: false
-    });
-  };
-
-  // Render project relationship data (tasks, relations)
-  const renderProjectRelations = (record: DatabaseRecord) => {
+  // Create a separate component for project relations to avoid hook violations
+  const ProjectRelations = ({ record }: { record: DatabaseRecord }) => {
     const taskRelations = record.properties?.Tasks?.relation || [];
     const dates = record.properties?.Dates?.date;
     const projectId = record.notionId;
     
     // Fetch project structure to find databases
-    const { data: projectStructure, isLoading: structureLoading } = useProjectStructure(projectId);
+    const { data: projectStructure, isLoading: structureLoading } = useQuery<{projectId: string, databases: any[], pages: any[], totalChildren: number}>({
+      queryKey: [`/api/project/${projectId}/structure`],
+      enabled: !!projectId && simulateUser,
+      retry: false
+    });
     
     if (taskRelations.length === 0 && !dates && (!projectStructure || projectStructure.databases.length === 0)) return null;
 
@@ -471,7 +466,7 @@ export default function UserDemo() {
                 )}
 
                 {/* Project relations and tasks */}
-                {renderProjectRelations(record)}
+                <ProjectRelations record={record} />
 
                 {/* Action buttons */}
                 <div className="flex gap-2 pt-3 border-t">
