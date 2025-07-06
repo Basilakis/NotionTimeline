@@ -186,57 +186,9 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
     const timeStart = minDate.clone().subtract(1, 'month').startOf('month');
     const timeEnd = maxDate.clone().add(2, 'months').endOf('month');
 
-    // Group tasks by project name - use a smarter approach based on task categories
+    // Group tasks by project name - project names are now assigned in the backend
     const projectGroups = tasks.reduce((groups, task) => {
-      let projectName = 'Uncategorized Tasks';
-      
-      // Strategy 1: Use the task title itself to infer project
-      // Many Greek tasks belong to specific projects
-      const title = task.title.toLowerCase();
-      
-      if (title.includes('αποξηλώσ') || title.includes('υδραυλ') || title.includes('ηλεκτρολογ') || title.includes('θέρμανση')) {
-        projectName = 'Vertex Developments';
-      } else if (title.includes('ethos') || title.includes('ai') || title.includes('starter')) {
-        projectName = 'ethos';
-      } else if (title.includes('creative') || title.includes('design')) {
-        projectName = 'creativeG';
-      } else if (title.includes('template') || title.includes('example')) {
-        projectName = 'Project Template';
-      }
-      
-      // Strategy 2: Use section if it's not "Uncategorized"
-      if (projectName === 'Uncategorized Tasks' && task.section && task.section !== 'Uncategorized') {
-        projectName = task.section;
-      }
-      
-      // Strategy 3: Check URL patterns for project identification
-      if (projectName === 'Uncategorized Tasks' && task.url) {
-        const url = task.url.toLowerCase();
-        if (url.includes('vertex')) {
-          projectName = 'Vertex Developments';
-        } else if (url.includes('ethos')) {
-          projectName = 'ethos';
-        } else if (url.includes('creative')) {
-          projectName = 'creativeG';
-        }
-      }
-      
-      // Strategy 4: Group by task type based on properties
-      if (projectName === 'Uncategorized Tasks' && task.properties) {
-        const hasTaskProgress = task.properties['Task Progress'];
-        const hasProjectStatus = task.properties['Project Status'];
-        
-        if (hasProjectStatus && hasProjectStatus.rollup && hasProjectStatus.rollup.array) {
-          // This indicates it's part of a project structure
-          if (title.includes('gmail') || title.includes('saas') || title.includes('ai')) {
-            projectName = 'ethos';
-          } else {
-            projectName = 'Development Tasks';
-          }
-        }
-      }
-      
-      console.log('Assigned project name:', projectName, 'for task:', task.title);
+      const projectName = task.projectName || 'Uncategorized Tasks';
       
       if (!groups[projectName]) {
         groups[projectName] = [];

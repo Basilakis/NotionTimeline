@@ -252,7 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             url: (page as any).url,
             assignee: extractTextFromProperty(properties.Assign),
             userEmail: extractEmailFromProperty(properties.Assign),
-            projectName: extractTextFromProperty(properties.Project) || 'Unknown Project',
+            projectName: extractProjectName({ title: title, section: section, url: url, properties: properties }),
             properties: properties,
             subtasks: subtasks
           };
@@ -2358,7 +2358,7 @@ Don't forget to update your task progress!`
       // Send status change notification
       const notificationSent = await statusNotificationService.sendStatusChangeEmail({
         taskTitle,
-        projectName: projectName || 'Unknown Project',
+        projectName: extractProjectName(task),
         oldStatus,
         newStatus,
         assigneeEmail,
@@ -2551,6 +2551,55 @@ function extractEmailFromProperty(property: any): string {
     }
   }
   return "";
+}
+
+function extractProjectName(task: any): string {
+  // Strategy 1: Use the task title to infer project (Greek tasks for Vertex)
+  const title = task.title.toLowerCase();
+  
+  if (title.includes('αποξηλώσ') || title.includes('υδραυλ') || title.includes('ηλεκτρολογ') || title.includes('θέρμανση')) {
+    return 'Vertex Developments';
+  } else if (title.includes('ethos') || title.includes('ai') || title.includes('starter') || title.includes('zohomails') || title.includes('saas')) {
+    return 'ethos';
+  } else if (title.includes('creative') || title.includes('design')) {
+    return 'creativeG';
+  } else if (title.includes('template') || title.includes('example')) {
+    return 'Project Template';
+  }
+  
+  // Strategy 2: Use section if it's not "Uncategorized"
+  if (task.section && task.section !== 'Uncategorized') {
+    return task.section;
+  }
+  
+  // Strategy 3: Check URL patterns for project identification
+  if (task.url) {
+    const url = task.url.toLowerCase();
+    if (url.includes('vertex')) {
+      return 'Vertex Developments';
+    } else if (url.includes('ethos')) {
+      return 'ethos';
+    } else if (url.includes('creative')) {
+      return 'creativeG';
+    }
+  }
+  
+  // Strategy 4: Group by task type based on properties
+  if (task.properties) {
+    const hasTaskProgress = task.properties['Task Progress'];
+    const hasProjectStatus = task.properties['Project Status'];
+    
+    if (hasProjectStatus && hasProjectStatus.rollup && hasProjectStatus.rollup.array) {
+      // This indicates it's part of a project structure
+      if (title.includes('gmail') || title.includes('saas') || title.includes('ai')) {
+        return 'ethos';
+      } else {
+        return 'Development Tasks';
+      }
+    }
+  }
+  
+  return 'Development Tasks';
 }
 
 function mapNotionStatusToLocal(notionStatus: string | null, isCompleted: boolean): string {
