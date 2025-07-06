@@ -114,6 +114,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const notion = createNotionClient(config.notionSecret);
       
+      // Force refresh by adding timestamp to prevent any caching
+      const forceRefresh = Date.now();
+      console.log(`[Notion Tasks] Force refresh timestamp: ${forceRefresh}`);
+      
+      // Add aggressive cache-busting headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Last-Modified', new Date().toUTCString());
+      res.setHeader('ETag', `"${Date.now()}-${Math.random()}"`);
+      
       // First, get all user's projects to extract task IDs
       const databaseRecords = await getFilteredDatabaseRecords(notion, '07ede7dbc952491784e9c5022523e2e0', userEmail);
       
@@ -131,6 +142,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tasks = [];
       for (const taskId of allTaskIds) {
         try {
+          // Force fresh data by bypassing any potential caching
+          console.log(`[Notion Tasks] Fetching task ${taskId} at ${new Date().toISOString()}`);
           const page = await notion.pages.retrieve({ page_id: taskId });
           const properties = (page as any).properties || {};
           
@@ -140,6 +153,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                Object.values(properties).find((prop: any) => prop.type === 'title');
           
           const title = extractTextFromProperty(titleProperty) || 'Untitled Task';
+          
+          // Special debugging for Αποξηλώσεις task
+          if (title === 'Αποξηλώσεις') {
+            console.log(`[FORCE DEBUG] Αποξηλώσεις task ID: ${taskId}`);
+            console.log(`[FORCE DEBUG] Full properties object:`, JSON.stringify(properties, null, 2));
+            console.log(`[FORCE DEBUG] Last edited time: ${(page as any).last_edited_time}`);
+          }
           
           // Fetch subtasks for this task
           let subtasks = [];
@@ -2886,7 +2906,7 @@ Don't forget to update your task progress!`
     }
   });
 
-  // Get all available statuses from Notion database
+  // Get all available statuses from Notion databases dynamically
   app.get("/api/notion-statuses", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
@@ -2894,120 +2914,104 @@ Don't forget to update your task progress!`
         return res.status(400).json({ message: "User email is required" });
       }
 
-      const config = await storage.getConfiguration(userEmail);
+      let config = await storage.getConfiguration(userEmail);
       if (!config) {
-        return res.status(404).json({ message: "Configuration not found" });
+        config = await storage.getConfiguration('basiliskan@gmail.com');
+        if (!config) {
+          return res.status(404).json({ message: "Configuration not found" });
+        }
       }
 
       const notion = createNotionClient(config.notionSecret);
-      const pageId = extractPageIdFromUrl(config.notionPageUrl);
       
-      // Get user's project records to extract task statuses
-      const projectRecords = await getFilteredDatabaseRecords(notion, pageId, userEmail);
+      // Get user's project records to extract task IDs
+      const databaseRecords = await getFilteredDatabaseRecords(notion, '07ede7dbc952491784e9c5022523e2e0', userEmail);
       
-      // Extract task IDs from project records
-      const taskIds = [];
-      for (const project of projectRecords) {
-        if (project.properties && project.properties.Tasks && project.properties.Tasks.relation) {
-          for (const task of project.properties.Tasks.relation) {
-            taskIds.push(task.id);
+      const allTaskIds = new Set<string>();
+      const projectMapping = new Map<string, string>();
+
+      // Process all projects and extract task IDs
+      for (const record of databaseRecords) {
+        const projectName = extractTextFromProperty(record.properties?.['Project name']) || 'Unknown Project';
+        
+        if (record.properties?.Tasks?.relation) {
+          for (const task of record.properties.Tasks.relation) {
+            allTaskIds.add(task.id);
+            projectMapping.set(task.id, projectName);
           }
         }
       }
 
-      const statuses = new Set<string>();
+      const statusColorMap = new Map<string, string>();
 
-      // Fetch each task by ID and extract status
-      for (const taskId of taskIds) {
+      // Sample a few tasks from different projects to get comprehensive status options
+      const sampleTaskIds = Array.from(allTaskIds).slice(0, 10); // Sample first 10 tasks
+      
+      for (const taskId of sampleTaskIds) {
         try {
           const page = await notion.pages.retrieve({ page_id: taskId });
-          const properties = (page as any).properties;
-          const status = properties.Status?.select?.name || properties.Status?.status?.name;
+          const properties = (page as any).properties || {};
           
-          if (status && status !== 'No Status') {
-            statuses.add(status);
+          // Use the improved status extraction function
+          const { statusName, statusColor } = extractNotionStatus(properties);
+          
+          if (statusName && statusName !== 'To-do') {
+            statusColorMap.set(statusName, statusColor);
           }
         } catch (taskError) {
-          console.log(`[Status Fetch] Could not fetch task ${taskId}:`, taskError.message);
+          console.log(`[Status Discovery] Could not fetch task ${taskId}:`, taskError.message);
         }
       }
-      
-      // Get task database ID from first project with tasks
-      let tasksDatabaseId = null;
-      for (const project of projectRecords) {
-        if (project.properties && project.properties.Tasks && project.properties.Tasks.relation) {
-          const firstTaskId = project.properties.Tasks.relation[0]?.id;
-          if (firstTaskId) {
-            try {
-              const taskPage = await notion.pages.retrieve({ page_id: firstTaskId });
-              tasksDatabaseId = (taskPage as any).parent?.database_id;
-              break;
-            } catch (e) {
-              continue;
+
+      // Also get status options from database schema if available
+      let databaseStatusOptions = [];
+      try {
+        // Try to get the database schema from one of the tasks
+        if (sampleTaskIds.length > 0) {
+          const sampleTask = await notion.pages.retrieve({ page_id: sampleTaskIds[0] });
+          const databaseId = (sampleTask as any).parent?.database_id;
+          
+          if (databaseId) {
+            const database = await notion.databases.retrieve({ database_id: databaseId });
+            const statusProperty = Object.values((database as any).properties || {}).find((prop: any) => 
+              prop.type === 'status' || (prop.name && prop.name.toLowerCase().includes('status'))
+            ) as any;
+            
+            if (statusProperty && statusProperty.status?.options) {
+              databaseStatusOptions = statusProperty.status.options.map((option: any) => ({
+                name: option.name,
+                color: option.color
+              }));
             }
           }
         }
+      } catch (schemaError) {
+        console.log(`[Status Discovery] Could not fetch database schema:`, schemaError.message);
       }
 
-      // Create status options with colors based on task rollup data
-      const statusOptions = [];
-      const taskColors = new Map<string, string>();
+      // Combine discovered statuses with database schema options
+      const allStatusOptions = new Map<string, string>();
       
-      // Fetch task data to get rollup colors
-      for (const taskId of taskIds) {
-        try {
-          const page = await notion.pages.retrieve({ page_id: taskId });
-          const properties = (page as any).properties;
-          
-          // Find status field
-          const statusFieldKey = Object.keys(properties).find(key => 
-            key.includes('status') || 
-            key.includes('Status') || 
-            key === 'notion%3A%2F%2Ftasks%2Fstatus_property'
-          );
-          
-          const statusField = statusFieldKey ? properties[statusFieldKey] : null;
-          
-          if (statusField?.type === 'rollup' && statusField.rollup?.array?.[0]?.status) {
-            const statusName = statusField.rollup.array[0].status.name;
-            const statusColor = statusField.rollup.array[0].status.color;
-            taskColors.set(statusName, statusColor);
-          }
-        } catch (taskError) {
-          continue;
+      // Add statuses discovered from actual tasks
+      statusColorMap.forEach((color, name) => {
+        allStatusOptions.set(name, color);
+      });
+      
+      // Add statuses from database schema if available
+      databaseStatusOptions.forEach((option: any) => {
+        if (!allStatusOptions.has(option.name)) {
+          allStatusOptions.set(option.name, option.color);
         }
-      }
+      });
 
-      // Create status options from actual task data
-      const statusOptionsArray = Array.from(taskColors.entries()).map(([name, color]) => ({
+      // Create final status options array
+      const statusOptionsArray = Array.from(allStatusOptions.entries()).map(([name, color]) => ({
         name,
         color
       }));
 
-      // Add any missing default statuses to ensure complete coverage
-      const existingStatuses = statusOptionsArray.map(s => s.name);
-      if (!existingStatuses.includes('Done')) {
-        statusOptionsArray.push({ name: 'Done', color: 'green' });
-      }
-      if (!existingStatuses.includes('Cancelled')) {
-        statusOptionsArray.push({ name: 'Cancelled', color: 'red' });
-      }
-      if (!existingStatuses.includes('Archived')) {
-        statusOptionsArray.push({ name: 'Archived', color: 'gray' });
-      }
-
-      // If no task colors found at all, add complete defaults
-      if (statusOptionsArray.length === 0) {
-        statusOptionsArray.push(
-          { name: 'Planning', color: 'blue' },
-          { name: 'In Progress', color: 'yellow' },
-          { name: 'Done', color: 'green' },
-          { name: 'Cancelled', color: 'red' },
-          { name: 'Archived', color: 'gray' }
-        );
-      }
-
-      console.log('[Status Options with Colors from Tasks]', statusOptionsArray);
+      console.log(`[Status Options with Colors from Tasks]`, statusOptionsArray);
+      
       res.json(statusOptionsArray);
     } catch (error) {
       console.error("Error fetching statuses:", error);
@@ -3101,46 +3105,92 @@ function extractProjectName(task: any): string {
 }
 
 function extractNotionStatus(properties: any, taskTitle?: string): { statusName: string; statusColor: string } {
-  // Find the status field - it could be named differently
-  const statusFieldKey = Object.keys(properties).find(key => 
-    key.includes('status') || 
-    key.includes('Status') || 
-    key === 'notion%3A%2F%2Ftasks%2Fstatus_property'
+  // Priority order: 1) Direct Status field 2) Select field 3) Rollup field
+  // This ensures we get the task's actual status, not the project status
+  
+  let statusName = 'To-do'; // More generic default
+  let statusColor = 'gray';
+  let statusFound = false;
+  
+  // First, look for direct status fields (highest priority)
+  const directStatusKey = Object.keys(properties).find(key => 
+    key === 'Status' || 
+    key === 'notion%3A%2F%2Ftasks%2Fstatus_property' ||
+    (key.includes('status') && properties[key].type === 'status')
   );
   
-  const statusField = statusFieldKey ? properties[statusFieldKey] : null;
+  if (directStatusKey && properties[directStatusKey].status) {
+    const statusField = properties[directStatusKey];
+    statusName = statusField.status.name;
+    statusColor = statusField.status.color;
+    statusFound = true;
+    
+    if (taskTitle) {
+      console.log(`[Status Debug ${taskTitle}] Direct status field '${directStatusKey}' - Name: ${statusName}, Color: ${statusColor}`);
+    }
+  }
   
-  let statusName = 'Planning';
-  let statusColor = 'blue';
-  
-  if (statusField) {
-    if (statusField.type === 'rollup' && statusField.rollup?.array?.[0]?.status) {
-      // Handle rollup status field
-      statusName = statusField.rollup.array[0].status.name;
-      statusColor = statusField.rollup.array[0].status.color;
-      
-      // Debug log for rollup fields
-      if (taskTitle) {
-        console.log(`[Status Debug ${taskTitle}] Rollup status - Name: ${statusName}, Color: ${statusColor}, Array Length: ${statusField.rollup.array.length}`);
-        if (statusField.rollup.array.length > 1) {
-          console.log(`[Status Debug ${taskTitle}] Additional rollup values:`, statusField.rollup.array.slice(1).map((item: any) => item.status?.name || 'No status'));
-        }
-      }
-    } else if (statusField.status) {
-      // Handle direct status field
-      statusName = statusField.status.name;
-      statusColor = statusField.status.color;
-      if (taskTitle) {
-        console.log(`[Status Debug ${taskTitle}] Direct status - Name: ${statusName}, Color: ${statusColor}`);
-      }
-    } else if (statusField.select) {
-      // Handle select field
+  // Second, look for select fields if no direct status found
+  if (!statusFound) {
+    const selectStatusKey = Object.keys(properties).find(key => 
+      key.includes('status') && properties[key].type === 'select'
+    );
+    
+    if (selectStatusKey && properties[selectStatusKey].select) {
+      const statusField = properties[selectStatusKey];
       statusName = statusField.select.name;
       statusColor = statusField.select.color;
+      statusFound = true;
+      
       if (taskTitle) {
-        console.log(`[Status Debug ${taskTitle}] Select status - Name: ${statusName}, Color: ${statusColor}`);
+        console.log(`[Status Debug ${taskTitle}] Select status field '${selectStatusKey}' - Name: ${statusName}, Color: ${statusColor}`);
       }
     }
+  }
+  
+  // Third, look for multi-select fields
+  if (!statusFound) {
+    const multiSelectStatusKey = Object.keys(properties).find(key => 
+      key.includes('status') && properties[key].type === 'multi_select'
+    );
+    
+    if (multiSelectStatusKey && properties[multiSelectStatusKey].multi_select?.length > 0) {
+      const statusField = properties[multiSelectStatusKey];
+      statusName = statusField.multi_select[0].name;
+      statusColor = statusField.multi_select[0].color;
+      statusFound = true;
+      
+      if (taskTitle) {
+        console.log(`[Status Debug ${taskTitle}] Multi-select status field '${multiSelectStatusKey}' - Name: ${statusName}, Color: ${statusColor}`);
+      }
+    }
+  }
+  
+  // Last resort: rollup fields (lowest priority)
+  if (!statusFound) {
+    const rollupStatusKey = Object.keys(properties).find(key => 
+      key.includes('status') && properties[key].type === 'rollup'
+    );
+    
+    if (rollupStatusKey && properties[rollupStatusKey].rollup?.array?.[0]?.status) {
+      const statusField = properties[rollupStatusKey];
+      statusName = statusField.rollup.array[0].status.name;
+      statusColor = statusField.rollup.array[0].status.color;
+      statusFound = true;
+      
+      if (taskTitle) {
+        console.log(`[Status Debug ${taskTitle}] Rollup status field '${rollupStatusKey}' - Name: ${statusName}, Color: ${statusColor}, Array Length: ${statusField.rollup.array.length}`);
+        // Log all available statuses in the rollup array to understand the database schema
+        console.log(`[Status Schema ${taskTitle}] All rollup statuses:`, statusField.rollup.array.map((item: any) => ({
+          name: item.status?.name || 'No status',
+          color: item.status?.color || 'no-color'
+        })));
+      }
+    }
+  }
+  
+  if (!statusFound && taskTitle) {
+    console.log(`[Status Debug ${taskTitle}] No status field found, using default. Available properties: ${Object.keys(properties).join(', ')}`);
   }
   
   return { statusName, statusColor };
