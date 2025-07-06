@@ -204,6 +204,18 @@ export default function Workspace() {
     });
   };
 
+  // Auto-refresh all task-related data when task modal closes or task is updated
+  const handleTaskModalClose = () => {
+    setIsTaskModalOpen(false);
+    setSelectedTask(null);
+    
+    // Refresh all task data when closing task modal to catch any status changes
+    console.log("[Workspace] Task modal closed - refreshing all task data");
+    queryClient.invalidateQueries({ queryKey: ['/api/tasks-from-notion'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/purchases-from-notion'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/notion-statuses'] });
+  };
+
   // Status color helper function
   const getStatusColorFromOptions = (statusName: string, statusOptions: StatusOption[]): string => {
     const option = statusOptions.find(opt => opt.name === statusName);
