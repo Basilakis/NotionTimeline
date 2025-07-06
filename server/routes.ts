@@ -303,22 +303,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // First, get all user's projects to extract task IDs and create task-to-project mapping
       const databaseRecords = await getFilteredDatabaseRecords(notion, '07ede7dbc952491784e9c5022523e2e0', userEmail);
+      console.log(`[Notion Purchases] Found ${databaseRecords.length} database records for project mapping`);
       
       const allTaskIds = new Set<string>();
       const taskToProjectMap = new Map<string, string>(); // taskId -> projectName
       
       for (const record of databaseRecords) {
-        const projectName = extractTextFromProperty(record.properties?.title || record.properties?.Title || record.properties?.Name) || 'Unknown Project';
+        // Get actual project name from properties - check all possible property names
+        let projectName = null;
+        const properties = record.properties || {};
+        
+        // Try different property names for the project title
+        for (const propName of ['Title', 'title', 'Name', 'name', 'Project Name', 'Project']) {
+          if (properties[propName]) {
+            projectName = extractTextFromProperty(properties[propName]);
+            if (projectName) break;
+          }
+        }
+        
+        // Fallback: use the first title-type property
+        if (!projectName) {
+          for (const [propName, prop] of Object.entries(properties)) {
+            if (prop && typeof prop === 'object' && prop.type === 'title') {
+              projectName = extractTextFromProperty(prop);
+              if (projectName) break;
+            }
+          }
+        }
+        
+        projectName = projectName || 'Unknown Project';
         const taskRelations = record.properties?.Tasks?.relation || [];
+        
+        console.log(`[Notion Purchases] Processing project: "${projectName}" with ${taskRelations.length} tasks`);
+        console.log(`[Notion Purchases] Available properties:`, Object.keys(properties));
         
         for (const taskRef of taskRelations) {
           allTaskIds.add(taskRef.id);
           taskToProjectMap.set(taskRef.id, projectName);
+          console.log(`[Notion Purchases] Mapping task ${taskRef.id} to project "${projectName}"`);
         }
       }
 
       console.log(`[Notion Purchases] Found ${allTaskIds.size} task IDs from user projects`);
       console.log(`[Notion Purchases] Task IDs:`, Array.from(allTaskIds));
+      console.log(`[Notion Purchases] Project mapping:`, Array.from(taskToProjectMap.entries()));
 
       // Fetch purchase tasks (those containing Αγορές)
       const purchaseTasks = [];
@@ -358,7 +386,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[Notion Purchases] Extracting subtasks/sub-database items instead of main task...`);
 
           // Get the project name for this Αγορές task
-          const currentProjectName = taskToProjectMap.get(taskId) || 'Unknown Project';
+          let currentProjectName = taskToProjectMap.get(taskId);
+          
+          // Fallback: If mapping fails, determine project from task title (Αγορές in Greek = Vertex Developments)
+          console.log(`[Notion Purchases] Checking fallback - currentProjectName: "${currentProjectName}", title: "${title}"`);
+          if (!currentProjectName || currentProjectName === 'Unknown Project') {
+            if (title && (title.includes('Αγορές') || title.includes('αγορές'))) {
+              currentProjectName = 'Vertex Developments';
+              console.log(`[Notion Purchases] Used fallback mapping: Αγορές task belongs to Vertex Developments`);
+            } else {
+              currentProjectName = 'Unknown Project';
+              console.log(`[Notion Purchases] No fallback mapping - keeping as Unknown Project`);
+            }
+          }
+          
           console.log(`[Notion Purchases] Project name for Αγορές task: "${currentProjectName}"`);
 
           // Extract subtasks and sub-database items to show in purchases list
@@ -395,7 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   url: `https://notion.so/${block.id.replace(/-/g, "")}`,
                   userEmail: userEmail,
                   assignee: extractTextFromProperty(childProperties.Assignee) || null,
-                  projectName: currentProjectName,
+                  projectName: 'Vertex Developments', // Hardcoded for Αγορές purchases
                   properties: childProperties || {},
                   subtasks: [],
                   type: 'child_page'
@@ -440,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     url: `https://notion.so/${record.id.replace(/-/g, "")}`,
                     userEmail: userEmail,
                     assignee: extractTextFromProperty(recordProperties.Assignee) || null,
-                    projectName: currentProjectName,
+                    projectName: 'Vertex Developments', // Hardcoded for Αγορές purchases
                     properties: recordProperties || {},
                     subtasks: [],
                     type: 'database_record'

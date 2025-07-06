@@ -40,6 +40,9 @@ export const getQueryFn: <T>(options: {
       credentials: "include",
       headers: {
         "x-user-email": userEmail,
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
         ...(meta?.headers || {}),
       },
     });
@@ -58,7 +61,8 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      staleTime: 0, // Always fetch fresh data from Notion
+      cacheTime: 0, // Don't cache data
       retry: false,
     },
     mutations: {

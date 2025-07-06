@@ -162,6 +162,17 @@ interface NotionView {
 
 ### 🔄 Recent Changes (Last Updated: July 6, 2025)
 
+#### Complete Data Freshness & Project Mapping Resolution
+- **Problem Solved**: Critical issues with stale cached data and incorrect "Unknown Project" names in purchases
+- **Solution**: Comprehensive cache elimination and project mapping fix
+- **Implementation**: 
+  - Removed all data caching (`staleTime: 0`, `cacheTime: 0`) to ensure fresh Notion API data
+  - Added cache-busting headers to prevent any server-side caching 
+  - Fixed project name extraction to properly map Αγορές task to correct project
+  - All API calls now return status 200 (fresh data) instead of 304 (cached)
+  - Purchases tab now shows correct project names instead of "Unknown Project"
+- **User Experience**: Real-time data updates from Notion with proper project identification
+
 #### Automatic Status Change Monitoring & Notifications
 - **Problem Solved**: Need for automatic email notifications when task statuses change in Notion, not manual buttons
 - **Solution**: Complete automatic status monitoring system that tracks Notion changes and sends emails
