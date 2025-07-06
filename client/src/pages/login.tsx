@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Mail, User, History } from "lucide-react";
-import vertexLogo from "@assets/Group 2_1751826186442.png";
+import vertexLogo from "@assets/VertexDevelopments_1751826186443.png";
 
 interface LoginData {
   email: string;
@@ -66,9 +66,8 @@ export default function Login() {
             <img 
               src={vertexLogo} 
               alt="Vertex Developments" 
-              className="h-16 w-16 mb-3"
+              className="h-20 w-auto mb-3"
             />
-            <CardTitle className="text-2xl font-bold text-brand-primary">Vertex Project Hub</CardTitle>
           </div>
           <p className="text-brand-primary/70 text-sm">
             Enter your email address to access your project workspace

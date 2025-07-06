@@ -121,9 +121,9 @@ export class StatusNotificationService {
     <title>Task Status Update</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #003319; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <div style="background: linear-gradient(135deg, #003319 0%, #88B39D 100%); padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center;">
+    <div style="background: #003319; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center;">
         <div style="margin-bottom: 15px;">
-            <div style="width: 48px; height: 48px; background: #88B39D; border-radius: 8px; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; color: #003319; font-weight: bold; font-size: 18px;">V</div>
+            <img src="https://9e760ea8-1fc2-408e-8f04-d26e825e4da9-00-gcvaj0c4tpmq.picard.replit.dev/attached_assets/VertexDevelopments_1751826186443.png" alt="Vertex Developments" style="width: 120px; height: auto; margin-bottom: 10px;">
         </div>
         <h1 style="color: white; margin: 0; font-size: 24px;">${urgencyLevel}Task Status Update</h1>
         <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Your task status has been updated</p>

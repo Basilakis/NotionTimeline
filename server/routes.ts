@@ -2724,7 +2724,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }
         .container { max-width: 600px; margin: 0 auto; background: white; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; }
+        .header { background: #003319; padding: 40px 20px; text-align: center; }
         .header h1 { color: white; margin: 0; font-size: 28px; font-weight: 600; }
         .content { padding: 40px 20px; }
         .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 14px; margin: 4px; }
@@ -2734,13 +2734,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .status-red { background-color: #fee2e2; color: #b91c1c; }
         .status-purple { background-color: #f3e8ff; color: #7c3aed; }
         .task-details { background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .button { background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 10px 0; }
+        .button { background: #003319; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 10px 0; }
         .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
+            <img src="https://9e760ea8-1fc2-408e-8f04-d26e825e4da9-00-gcvaj0c4tpmq.picard.replit.dev/attached_assets/VertexDevelopments_1751826186443.png" alt="Vertex Developments" style="width: 120px; height: auto; margin-bottom: 15px;">
             <h1>{{urgencyIndicator}} Task Status Update</h1>
         </div>
         <div class="content">

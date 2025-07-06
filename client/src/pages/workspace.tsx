@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import TaskTimeline from "@/components/TaskTimeline";
 import KanbanBoard from "@/components/KanbanBoard";
 import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, RefreshCw, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard, ShoppingCart } from "lucide-react";
-import vertexLogo from "@assets/Group 2_1751826186442.png";
+import vertexLogo from "@assets/VertexDevelopments_1751826186443.png";
 
 // Notion color mapping to Tailwind classes (matching KanbanBoard)
 const getNotionColorClasses = (notionColor: string): { badge: string; column: string } => {
@@ -604,14 +604,11 @@ export default function Workspace() {
           <img 
             src={vertexLogo} 
             alt="Vertex Developments" 
-            className="h-12 w-12"
+            className="h-16 w-auto"
           />
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-bold text-brand-primary">Vertex Project Hub</h1>
-            <Badge variant="outline" className="text-xs w-fit">
-              {user?.email}
-            </Badge>
-          </div>
+          <Badge variant="outline" className="text-xs">
+            {user?.email}
+          </Badge>
         </div>
         <div className="flex gap-2">
           {isAdmin && (
