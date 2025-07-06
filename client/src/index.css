@@ -1,3 +1,6 @@
+/* React Timelines CSS */
+@import 'react-timelines/lib/css/style.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
