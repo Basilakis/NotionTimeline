@@ -15,6 +15,54 @@ import TaskTimeline from "@/components/TaskTimeline";
 import KanbanBoard from "@/components/KanbanBoard";
 import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, RefreshCw, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard } from "lucide-react";
 
+// Notion color mapping to Tailwind classes (matching KanbanBoard)
+const getNotionColorClasses = (notionColor: string): { badge: string; column: string } => {
+  const colorMap = {
+    'default': {
+      badge: 'bg-gray-100 text-gray-800 border-gray-200',
+      column: 'bg-gray-50 border-gray-200'
+    },
+    'gray': {
+      badge: 'bg-gray-100 text-gray-800 border-gray-200',
+      column: 'bg-gray-50 border-gray-200'
+    },
+    'brown': {
+      badge: 'bg-amber-100 text-amber-800 border-amber-200',
+      column: 'bg-amber-50 border-amber-200'
+    },
+    'orange': {
+      badge: 'bg-orange-100 text-orange-800 border-orange-200',
+      column: 'bg-orange-50 border-orange-200'
+    },
+    'yellow': {
+      badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      column: 'bg-yellow-50 border-yellow-200'
+    },
+    'green': {
+      badge: 'bg-green-100 text-green-800 border-green-200',
+      column: 'bg-green-50 border-green-200'
+    },
+    'blue': {
+      badge: 'bg-blue-100 text-blue-800 border-blue-200',
+      column: 'bg-blue-50 border-blue-200'
+    },
+    'purple': {
+      badge: 'bg-purple-100 text-purple-800 border-purple-200',
+      column: 'bg-purple-50 border-purple-200'
+    },
+    'pink': {
+      badge: 'bg-pink-100 text-pink-800 border-pink-200',
+      column: 'bg-pink-50 border-pink-200'
+    },
+    'red': {
+      badge: 'bg-red-100 text-red-800 border-red-200',
+      column: 'bg-red-50 border-red-200'
+    },
+  };
+  
+  return colorMap[notionColor] || colorMap['default'];
+};
+
 interface NotionView {
   id: number;
   userEmail: string;
@@ -37,6 +85,11 @@ interface DatabaseRecord {
   lastEditedTime: string;
   url: string;
   properties: any;
+}
+
+interface StatusOption {
+  name: string;
+  color: string;
 }
 
 interface ProjectSummary {
@@ -110,6 +163,15 @@ export default function Workspace() {
   const { triggerStatusChange } = useStatusNotification();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('tasks'); // Start with tasks tab
+
+  // Status color helper function
+  const getStatusColorFromOptions = (statusName: string, statusOptions: StatusOption[]): string => {
+    const option = statusOptions.find(opt => opt.name === statusName);
+    if (option && option.color) {
+      return getNotionColorClasses(option.color).badge;
+    }
+    return getNotionColorClasses('default').badge;
+  };
   const [selectedViewId, setSelectedViewId] = useState<number | null>(null);
   const [taskViewMode, setTaskViewMode] = useState<string>('list');
   const [searchTerm, setSearchTerm] = useState('');
@@ -179,8 +241,8 @@ export default function Workspace() {
     }
   });
 
-  // Fetch available statuses
-  const { data: availableStatuses = [] } = useQuery<string[]>({
+  // Fetch status options from API
+  const { data: statusOptions = [] } = useQuery<StatusOption[]>({
     queryKey: ['/api/notion-statuses'],
     enabled: !!userEmail,
     retry: false,
@@ -781,7 +843,10 @@ export default function Workspace() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                               <h3 className="font-medium text-gray-900">{task.title}</h3>
-                              <Badge variant={task.isCompleted ? "default" : "secondary"}>
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs ${getStatusColorFromOptions(task.status, statusOptions)}`}
+                              >
                                 {task.status}
                               </Badge>
                               {task.priority && (

@@ -1,7 +1,61 @@
 import { useState, useMemo, useCallback } from 'react';
 import Timeline, { TimelineGroupBase, TimelineItemBase } from 'react-calendar-timeline';
 import moment from 'moment';
+import { useQuery } from '@tanstack/react-query';
 import 'react-calendar-timeline/dist/style.css';
+
+interface StatusOption {
+  name: string;
+  color: string;
+}
+
+// Notion color mapping to Tailwind classes
+const getNotionColorClasses = (notionColor: string): { badge: string; timeline: string } => {
+  const colorMap = {
+    'default': {
+      badge: 'bg-gray-100 text-gray-800 border-gray-200',
+      timeline: '#e5e7eb'
+    },
+    'gray': {
+      badge: 'bg-gray-100 text-gray-800 border-gray-200',
+      timeline: '#e5e7eb'
+    },
+    'brown': {
+      badge: 'bg-amber-100 text-amber-800 border-amber-200',
+      timeline: '#fef3c7'
+    },
+    'orange': {
+      badge: 'bg-orange-100 text-orange-800 border-orange-200',
+      timeline: '#fed7aa'
+    },
+    'yellow': {
+      badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      timeline: '#fef3c7'
+    },
+    'green': {
+      badge: 'bg-green-100 text-green-800 border-green-200',
+      timeline: '#dcfce7'
+    },
+    'blue': {
+      badge: 'bg-blue-100 text-blue-800 border-blue-200',
+      timeline: '#dbeafe'
+    },
+    'purple': {
+      badge: 'bg-purple-100 text-purple-800 border-purple-200',
+      timeline: '#e9d5ff'
+    },
+    'pink': {
+      badge: 'bg-pink-100 text-pink-800 border-pink-200',
+      timeline: '#fce7f3'
+    },
+    'red': {
+      badge: 'bg-red-100 text-red-800 border-red-200',
+      timeline: '#fee2e2'
+    },
+  };
+  
+  return colorMap[notionColor] || colorMap['default'];
+};
 
 interface Task {
   id: string;
@@ -55,30 +109,47 @@ interface TimelineItem extends TimelineItemBase {
 export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
+  // Fetch status options from API
+  const { data: statusOptions = [] } = useQuery<StatusOption[]>({
+    queryKey: ['/api/notion-statuses'],
+    enabled: true,
+  });
+
+  const getStatusColorFromOptions = (statusName: string, statusOptions: StatusOption[]): { badge: string; timeline: string } => {
+    const option = statusOptions.find(opt => opt.name === statusName);
+    if (option && option.color) {
+      return getNotionColorClasses(option.color);
+    }
+    return getNotionColorClasses('default');
+  };
+
   const getStatusColor = useCallback((task: Task) => {
     if (task.isCompleted) return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Completed - green
     
-    // Use Notion's actual status colors
-    const statusColor = task.statusColor || 'default';
+    // Use Notion's actual status colors from API
+    const colors = getStatusColorFromOptions(task.status, statusOptions);
     
-    switch (statusColor) {
+    // Use dynamic colors based on Notion status
+    const timelineColor = colors.timeline;
+    
+    switch (task.statusColor || 'default') {
       case 'blue':
-        return { bg: '#dbeafe', border: '#2563eb', progress: '#1d4ed8' }; // Planning - blue
+        return { bg: timelineColor, border: '#2563eb', progress: '#1d4ed8' };
       case 'yellow':
-        return { bg: '#fef3c7', border: '#d97706', progress: '#b45309' }; // In Progress - yellow
+        return { bg: timelineColor, border: '#d97706', progress: '#b45309' };
       case 'green':
-        return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Done - green
+        return { bg: timelineColor, border: '#16a34a', progress: '#15803d' };
       case 'red':
-        return { bg: '#fee2e2', border: '#dc2626', progress: '#b91c1c' }; // Canceled - red
+        return { bg: timelineColor, border: '#dc2626', progress: '#b91c1c' };
       case 'purple':
-        return { bg: '#f3e8ff', border: '#9333ea', progress: '#7c3aed' }; // Paused - purple
+        return { bg: timelineColor, border: '#9333ea', progress: '#7c3aed' };
       case 'gray':
       case 'default':
-        return { bg: '#f3f4f6', border: '#6b7280', progress: '#4b5563' }; // Backlog - gray
+        return { bg: timelineColor, border: '#6b7280', progress: '#4b5563' };
       default:
-        return { bg: '#f3f4f6', border: '#6b7280', progress: '#4b5563' }; // Default - gray
+        return { bg: timelineColor, border: '#6b7280', progress: '#4b5563' };
     }
-  }, []);
+  }, [statusOptions]);
 
   const { groups, items, defaultTimeStart, defaultTimeEnd } = useMemo(() => {
     if (!tasks || tasks.length === 0) {
