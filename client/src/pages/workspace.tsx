@@ -474,124 +474,126 @@ export default function Workspace() {
                       <CardContent className="pt-0">
                         <div className="space-y-6">
                           {/* Project Details */}
-                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-2">Project Information</h4>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-4 w-4 text-gray-500" />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                            {/* Left Column */}
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
                                   <span>Created: {new Date(project.createdTime).toLocaleDateString()}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <Clock className="h-4 w-4 text-gray-500" />
-                                  <span>Last Updated: {new Date(project.lastEditedTime).toLocaleDateString()}</span>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Clock className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                  <span>Updated: {new Date(project.lastEditedTime).toLocaleDateString()}</span>
                                 </div>
-                                {(() => {
-                                  const summary = getProjectSummary(project.notionId);
-                                  return summary && (
-                                    <div className="flex items-center gap-2">
-                                      <Percent className="h-4 w-4 text-green-600" />
+                              </div>
+
+                              {(() => {
+                                const summary = getProjectSummary(project.notionId);
+                                return summary && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <Percent className="h-4 w-4 text-green-600 flex-shrink-0" />
                                       <span>Completion: <span className="font-medium text-green-600">{summary.completion}%</span></span>
                                     </div>
-                                  );
-                                })()}
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-2">Team & Access</h4>
-                              <div className="space-y-2 text-sm">
+                                    {summary.projectPrice > 0 && (
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <DollarSign className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                        <span>Price: <span className="font-medium text-purple-600">€{summary.projectPrice.toLocaleString()}</span></span>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+
+                              {/* Team Information */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {project.properties?.People?.people?.length > 0 && (
-                                  <div className="flex items-center gap-2">
-                                    <Users className="h-4 w-4 text-gray-500" />
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Users className="h-4 w-4 text-gray-500 flex-shrink-0" />
                                     <span>{project.properties.People.people.length} team members</span>
                                   </div>
                                 )}
                                 {project.properties?.['User Email']?.email && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-gray-500">Owner:</span>
-                                    <span>{project.properties['User Email'].email}</span>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-gray-500 flex-shrink-0">Owner:</span>
+                                    <span className="truncate">{project.properties['User Email'].email}</span>
                                   </div>
                                 )}
                               </div>
                             </div>
 
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-2">Financial & Documents</h4>
-                              <div className="space-y-2 text-sm">
-                                {(() => {
-                                  const summary = getProjectSummary(project.notionId);
-                                  if (!summary) return null;
-                                  
-                                  return (
-                                    <>
-                                      {summary.projectPrice > 0 && (
-                                        <div className="flex items-center gap-2">
-                                          <DollarSign className="h-4 w-4 text-purple-600" />
-                                          <span>Price: <span className="font-medium text-purple-600">€{summary.projectPrice.toLocaleString()}</span></span>
-                                        </div>
-                                      )}
-                                      
+                            {/* Right Column - Documents & Payments */}
+                            <div className="space-y-4">
+                              {(() => {
+                                const summary = getProjectSummary(project.notionId);
+                                if (!summary) return null;
+                                
+                                return (
+                                  <>
+                                    {/* Documents Row */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                       {summary.proposalUrl ? (
-                                        <div className="flex items-center gap-2">
-                                          <FileText className="h-4 w-4 text-blue-600" />
+                                        <div className="flex items-center gap-2 text-sm">
+                                          <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
                                           <Button
                                             variant="link"
                                             size="sm"
                                             onClick={() => window.open(summary.proposalUrl, '_blank')}
-                                            className="h-auto p-0 text-sm text-blue-600 hover:text-blue-800"
+                                            className="h-auto p-0 text-sm text-blue-600 hover:text-blue-800 text-left"
                                           >
                                             {summary.proposal}
                                           </Button>
                                         </div>
                                       ) : summary.proposal !== 'Not Set' && (
-                                        <div className="flex items-center gap-2">
-                                          <FileText className="h-4 w-4 text-gray-500" />
+                                        <div className="flex items-center gap-2 text-sm">
+                                          <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
                                           <span>Proposal: {summary.proposal}</span>
                                         </div>
                                       )}
                                       
                                       {summary.materialsProposalUrl ? (
-                                        <div className="flex items-center gap-2">
-                                          <Package className="h-4 w-4 text-orange-600" />
+                                        <div className="flex items-center gap-2 text-sm">
+                                          <Package className="h-4 w-4 text-orange-600 flex-shrink-0" />
                                           <Button
                                             variant="link"
                                             size="sm"
                                             onClick={() => window.open(summary.materialsProposalUrl, '_blank')}
-                                            className="h-auto p-0 text-sm text-orange-600 hover:text-orange-800"
+                                            className="h-auto p-0 text-sm text-orange-600 hover:text-orange-800 text-left"
                                           >
                                             {summary.materialsProposal}
                                           </Button>
                                         </div>
                                       ) : summary.materialsProposal !== 'Not Set' && (
-                                        <div className="flex items-center gap-2">
-                                          <Package className="h-4 w-4 text-gray-500" />
+                                        <div className="flex items-center gap-2 text-sm">
+                                          <Package className="h-4 w-4 text-gray-500 flex-shrink-0" />
                                           <span>Materials: {summary.materialsProposal}</span>
                                         </div>
                                       )}
-                                      
-                                      {summary.totalPayments && (
-                                        <div className="flex items-start gap-2">
-                                          <CreditCard className="h-4 w-4 text-indigo-600 mt-0.5" />
-                                          <div>
-                                            <span className="text-gray-500">Payments:</span>
-                                            <div className="flex flex-wrap gap-1 mt-1">
-                                              {summary.totalPayments.split(',').map((payment, index) => (
-                                                <span
-                                                  key={index}
-                                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
-                                                >
-                                                  {payment.trim()}
-                                                </span>
-                                              ))}
-                                            </div>
+                                    </div>
+                                    
+                                    {/* Payments Row */}
+                                    {summary.totalPayments && (
+                                      <div className="flex items-start gap-2">
+                                        <CreditCard className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                                        <div className="min-w-0 flex-1">
+                                          <span className="text-gray-500 text-sm">Payments:</span>
+                                          <div className="flex flex-wrap gap-1 mt-1">
+                                            {summary.totalPayments.split(',').map((payment, index) => (
+                                              <span
+                                                key={index}
+                                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+                                              >
+                                                {payment.trim()}
+                                              </span>
+                                            ))}
                                           </div>
                                         </div>
-                                      )}
-                                    </>
-                                  );
-                                })()}
-                              </div>
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
 
