@@ -1007,106 +1007,58 @@ export default function Workspace() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-6">
-              {/* Kanban View */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Purchase Tasks Overview</h3>
-                  <Badge variant="outline" className="px-3 py-1">
-                    {purchaseTasks.length} task{purchaseTasks.length !== 1 ? 's' : ''}
-                  </Badge>
-                </div>
-                
-                <KanbanBoard 
-                  tasks={purchaseTasks} 
-                  onTaskClick={(task) => {
-                    setSelectedTask(task);
-                    setIsTaskModalOpen(true);
-                  }} 
-                />
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Purchase Tasks</h3>
+                <Badge variant="outline" className="px-3 py-1">
+                  {purchaseTasks.length} task{purchaseTasks.length !== 1 ? 's' : ''}
+                </Badge>
               </div>
-
-              {/* Timeline View */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Purchase Timeline</h3>
-                <TaskTimeline 
-                  tasks={purchaseTasks} 
-                  onTaskClick={(task) => {
-                    setSelectedTask(task);
-                    setIsTaskModalOpen(true);
-                  }} 
-                />
-              </div>
-
-              {/* Purchase Tasks Details */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Purchase Tasks Details</h3>
-                <div className="grid gap-4">
-                  {purchaseTasks.map((task) => (
-                    <Card key={task.id} className="hover:shadow-md transition-shadow cursor-pointer" 
-                          onClick={() => {
-                            setSelectedTask(task);
-                            setIsTaskModalOpen(true);
-                          }}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">{task.title}</CardTitle>
-                          <Badge 
-                            variant="outline" 
-                            className={`${getNotionColorClasses(task.statusColor || 'default').badge} px-3 py-1`}
-                          >
-                            {task.status}
-                          </Badge>
+              
+              <div className="space-y-3">
+                {purchaseTasks.map((task) => (
+                  <Card key={task.id} className="hover:shadow-md transition-shadow cursor-pointer" 
+                        onClick={() => {
+                          setSelectedTask(task);
+                          setIsTaskModalOpen(true);
+                        }}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-3 h-3 rounded-full ${
+                            task.status === 'Done' ? 'bg-green-500' : 
+                            task.status === 'In Progress' ? 'bg-yellow-500' : 
+                            task.status === 'Planning' ? 'bg-blue-500' :
+                            'bg-gray-300'
+                          }`} />
+                          <h4 className="font-medium">{task.title}</h4>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {task.description && (
-                            <p className="text-sm text-gray-600">{task.description}</p>
-                          )}
-                          
-                          <div className="flex flex-wrap gap-2 text-sm text-gray-500">
-                            {task.priority && (
-                              <Badge variant="secondary">
-                                Priority: {task.priority}
-                              </Badge>
-                            )}
-                            {task.dueDate && (
-                              <Badge variant="secondary">
-                                <Calendar className="h-3 w-3 mr-1" />
-                                Due: {new Date(task.dueDate).toLocaleDateString()}
-                              </Badge>
-                            )}
-                            {task.projectName && (
-                              <Badge variant="secondary">
-                                Project: {task.projectName}
-                              </Badge>
-                            )}
-                          </div>
-
-                          {task.subtasks && task.subtasks.length > 0 && (
-                            <div className="mt-3">
-                              <p className="text-sm font-medium mb-2">Subtasks ({task.subtasks.length}):</p>
-                              <div className="space-y-1">
-                                {task.subtasks.slice(0, 3).map((subtask, index) => (
-                                  <div key={index} className="flex items-center text-xs text-gray-600">
-                                    <CheckCircle className="h-3 w-3 mr-2 text-gray-400" />
-                                    {subtask.title}
-                                  </div>
-                                ))}
-                                {task.subtasks.length > 3 && (
-                                  <p className="text-xs text-gray-500">
-                                    +{task.subtasks.length - 3} more subtasks
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        <Badge 
+                          variant="outline" 
+                          className={`${getNotionColorClasses(task.statusColor || 'default').badge} px-2 py-1 text-xs`}
+                        >
+                          {task.status}
+                        </Badge>
+                      </div>
+                      
+                      {task.description && (
+                        <p className="text-sm text-gray-600 mt-2">{task.description}</p>
+                      )}
+                      
+                      <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-3">
+                        {task.projectName && (
+                          <span>Project: {task.projectName}</span>
+                        )}
+                        {task.priority && (
+                          <span>Priority: {task.priority}</span>
+                        )}
+                        {task.dueDate && (
+                          <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </div>
           )}
