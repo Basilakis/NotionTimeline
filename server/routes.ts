@@ -1670,32 +1670,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`[Task Details] Found task: ${title}`);
         
-        // Get page content (description)
+        // Get page content (description) and find sub-pages
         let description = '';
+        let subtasks: any[] = [];
         try {
           const blocks = await notion.blocks.children.list({
             block_id: taskId,
-            page_size: 10
+            page_size: 100
           });
           
-          // Extract text from blocks
-          description = blocks.results.map((block: any) => {
+          // Extract text from blocks and find child pages
+          const textBlocks: string[] = [];
+          for (const block of blocks.results) {
             if (block.type === 'paragraph' && block.paragraph?.rich_text) {
-              return block.paragraph.rich_text.map((text: any) => text.plain_text).join('');
+              textBlocks.push(block.paragraph.rich_text.map((text: any) => text.plain_text).join(''));
             } else if (block.type === 'heading_1' && block.heading_1?.rich_text) {
-              return block.heading_1.rich_text.map((text: any) => text.plain_text).join('');
+              textBlocks.push('# ' + block.heading_1.rich_text.map((text: any) => text.plain_text).join(''));
             } else if (block.type === 'heading_2' && block.heading_2?.rich_text) {
-              return block.heading_2.rich_text.map((text: any) => text.plain_text).join('');
+              textBlocks.push('## ' + block.heading_2.rich_text.map((text: any) => text.plain_text).join(''));
             } else if (block.type === 'heading_3' && block.heading_3?.rich_text) {
-              return block.heading_3.rich_text.map((text: any) => text.plain_text).join('');
+              textBlocks.push('### ' + block.heading_3.rich_text.map((text: any) => text.plain_text).join(''));
             } else if (block.type === 'bulleted_list_item' && block.bulleted_list_item?.rich_text) {
-              return '• ' + block.bulleted_list_item.rich_text.map((text: any) => text.plain_text).join('');
+              textBlocks.push('• ' + block.bulleted_list_item.rich_text.map((text: any) => text.plain_text).join(''));
+            } else if (block.type === 'child_page') {
+              // Found a sub-page, fetch its details
+              try {
+                const childPage = await notion.pages.retrieve({ page_id: block.id });
+                const childProperties = (childPage as any).properties || {};
+                const childTitleProperty = childProperties.Title || childProperties.Name || 
+                                          Object.values(childProperties).find((prop: any) => prop.type === 'title');
+                
+                subtasks.push({
+                  id: block.id,
+                  title: extractTextFromProperty(childTitleProperty) || 'Untitled Subtask',
+                  type: 'child_page',
+                  url: (childPage as any).url,
+                  createdTime: (childPage as any).created_time,
+                  lastEditedTime: (childPage as any).last_edited_time
+                });
+                console.log(`[Task Details] Found child page: ${extractTextFromProperty(childTitleProperty)}`);
+              } catch (childError) {
+                console.log(`[Task Details] Could not fetch child page ${block.id}`);
+              }
             }
-            return '';
-          }).filter(text => text.length > 0).join('\n');
+          }
+          description = textBlocks.filter(text => text.length > 0).join('\n');
         } catch (blockError) {
           console.log(`[Task Details] Could not fetch content for ${taskId}`);
         }
+        
+        // Also get subtasks from relations
+        const subtaskRelations = properties.Subtasks?.relation || [];
+        for (const subtaskRef of subtaskRelations) {
+          try {
+            const subtaskPage = await notion.pages.retrieve({ page_id: subtaskRef.id });
+            const subtaskProperties = (subtaskPage as any).properties || {};
+            const subtaskTitleProperty = subtaskProperties.Title || subtaskProperties.Name || 
+                                        subtaskProperties.Task || subtaskProperties['Task name'] ||
+                                        Object.values(subtaskProperties).find((prop: any) => prop.type === 'title');
+            
+            subtasks.push({
+              id: subtaskRef.id,
+              title: extractTextFromProperty(subtaskTitleProperty) || 'Untitled Subtask',
+              type: 'relation',
+              url: (subtaskPage as any).url,
+              status: subtaskProperties.Status?.select?.name || subtaskProperties.Status?.status?.name || 'No Status',
+              createdTime: (subtaskPage as any).created_time,
+              lastEditedTime: (subtaskPage as any).last_edited_time
+            });
+            console.log(`[Task Details] Found subtask relation: ${extractTextFromProperty(subtaskTitleProperty)}`);
+          } catch (subtaskError) {
+            console.log(`[Task Details] Could not fetch subtask ${subtaskRef.id}`);
+          }
+        }
+        
+        console.log(`[Task Details] Found ${subtasks.length} subtasks for ${title}`);
         
         const task = {
           id: page.id,
@@ -1710,6 +1759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           url: (page as any).url,
           project: properties.Project?.relation?.[0]?.id || null,
           description: description || extractTextFromProperty(properties.Description) || 'No description available',
+          subtasks: subtasks,
           properties: properties
         };
 

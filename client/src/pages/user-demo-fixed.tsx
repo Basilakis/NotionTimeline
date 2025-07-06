@@ -761,6 +761,54 @@ export default function UserDemo() {
                 </div>
               </div>
 
+              {/* Subtasks Section */}
+              {taskDetails.subtasks && taskDetails.subtasks.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <List className="h-4 w-4 text-blue-600" />
+                    <Label className="text-sm font-medium text-gray-700">
+                      Subtasks ({taskDetails.subtasks.length})
+                    </Label>
+                  </div>
+                  <div className="space-y-2">
+                    {taskDetails.subtasks.map((subtask: any, index: number) => (
+                      <div key={index} className="p-3 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm text-blue-900">
+                              {subtask.title}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs">
+                                {subtask.type === 'child_page' ? 'Sub-page' : 'Related Task'}
+                              </Badge>
+                              {subtask.status && subtask.status !== 'No Status' && (
+                                <span className="text-xs text-blue-700">
+                                  Status: {subtask.status}
+                                </span>
+                              )}
+                              <span className="text-xs text-blue-600">
+                                Updated: {new Date(subtask.lastEditedTime).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            asChild
+                            className="ml-2"
+                          >
+                            <a href={subtask.url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-2 pt-4 border-t">
                 <Button asChild variant="outline">
                   <a href={taskDetails.url} target="_blank" rel="noopener noreferrer">
@@ -768,6 +816,19 @@ export default function UserDemo() {
                     Open in Notion
                   </a>
                 </Button>
+                {taskDetails.subtasks && taskDetails.subtasks.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      taskDetails.subtasks.forEach((subtask: any) => {
+                        window.open(subtask.url, '_blank');
+                      });
+                    }}
+                  >
+                    <List className="h-4 w-4 mr-2" />
+                    Open All Subtasks
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => setTaskModalOpen(false)}>
                   Close
                 </Button>
