@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, User, Calendar } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 interface Task {
   id: string;
@@ -28,33 +29,34 @@ interface KanbanBoardProps {
   onTaskClick: (task: Task) => void;
 }
 
-const getStatusColor = (task: Task): string => {
-  // Use actual Notion color if available
-  if (task.statusColor && task.statusColor !== 'default') {
-    const notionColor = getNotionColorClass(task.statusColor);
-    return `bg-opacity-20 ${notionColor.replace('bg-', 'bg-')} text-gray-800 border-gray-300`;
-  }
-  
-  // Fallback to predefined colors based on status
-  const statusColors: { [key: string]: string } = {
-    'Planning': 'bg-purple-100 text-purple-800 border-purple-300',
-    'Not Started': 'bg-gray-100 text-gray-800 border-gray-300',
-    'To Do': 'bg-purple-100 text-purple-800 border-purple-300',
-    'Todo': 'bg-purple-100 text-purple-800 border-purple-300',
-    'Backlog': 'bg-purple-100 text-purple-800 border-purple-300',
-    'In Progress': 'bg-blue-100 text-blue-800 border-blue-300',
-    'In Review': 'bg-blue-100 text-blue-800 border-blue-300',
-    'Review': 'bg-blue-100 text-blue-800 border-blue-300',
-    'Testing': 'bg-blue-100 text-blue-800 border-blue-300',
-    'Done': 'bg-green-100 text-green-800 border-green-300',
-    'Complete': 'bg-green-100 text-green-800 border-green-300',
-    'Completed': 'bg-green-100 text-green-800 border-green-300',
-    'Finished': 'bg-green-100 text-green-800 border-green-300',
-    'Cancelled': 'bg-red-100 text-red-800 border-red-300',
-    'Canceled': 'bg-red-100 text-red-800 border-red-300',
-    'Paused': 'bg-yellow-100 text-yellow-800 border-yellow-300'
+interface StatusOption {
+  name: string;
+  color: string;
+}
+
+// Notion color mapping to Tailwind classes
+const getNotionColorClass = (notionColor: string): string => {
+  const colorMap: { [key: string]: string } = {
+    'default': 'bg-gray-100 text-gray-800 border-gray-300',
+    'gray': 'bg-gray-100 text-gray-800 border-gray-300',
+    'brown': 'bg-amber-100 text-amber-800 border-amber-300',
+    'orange': 'bg-orange-100 text-orange-800 border-orange-300',
+    'yellow': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    'green': 'bg-green-100 text-green-800 border-green-300',
+    'blue': 'bg-blue-100 text-blue-800 border-blue-300',
+    'purple': 'bg-purple-100 text-purple-800 border-purple-300',
+    'pink': 'bg-pink-100 text-pink-800 border-pink-300',
+    'red': 'bg-red-100 text-red-800 border-red-300',
   };
-  return statusColors[task.status] || 'bg-gray-100 text-gray-800 border-gray-300';
+  return colorMap[notionColor] || colorMap['default'];
+};
+
+const getStatusColorFromOptions = (statusName: string, statusOptions: StatusOption[]): string => {
+  const option = statusOptions.find(opt => opt.name === statusName);
+  if (option && option.color) {
+    return getNotionColorClass(option.color);
+  }
+  return getNotionColorClass('default');
 };
 
 const getPriorityColor = (priority: string | null): string => {
@@ -76,22 +78,24 @@ const isOverdue = (dueDate: string | null): boolean => {
 // Map Notion statuses to Kanban columns
 const mapStatusToColumn = (status: string): string => {
   const statusMap: { [key: string]: string } = {
-    'Planning': 'Planning',
     'Not Started': 'Planning',
+    'Planning': 'Planning',
+    'In Progress': 'In Progress', 
+    'Done': 'Done',
+    'Archived': 'Cancelled',
+    // Additional fallbacks for other possible statuses
     'To Do': 'Planning',
     'Todo': 'Planning',
     'Backlog': 'Planning',
-    'In Progress': 'In Progress',
     'In Review': 'In Progress',
     'Review': 'In Progress',
     'Testing': 'In Progress',
-    'Done': 'Done',
     'Complete': 'Done',
     'Completed': 'Done',
     'Finished': 'Done',
     'Cancelled': 'Cancelled',
     'Canceled': 'Cancelled',
-    'Paused': 'Cancelled'
+    'Blocked': 'Cancelled'
   };
   return statusMap[status] || 'Planning';
 };
@@ -170,24 +174,15 @@ const extractTaskProperties = (tasks: Task[]): any[] => {
     .sort((a, b) => a.name.localeCompare(b.name));
 };
 
-// Get Notion color CSS class
-const getNotionColorClass = (color: string): string => {
-  const colorMap: { [key: string]: string } = {
-    'default': 'bg-gray-500',
-    'gray': 'bg-gray-500',
-    'brown': 'bg-amber-600',
-    'orange': 'bg-orange-500',
-    'yellow': 'bg-yellow-500',
-    'green': 'bg-green-500',
-    'blue': 'bg-blue-500',
-    'purple': 'bg-purple-500',
-    'pink': 'bg-pink-500',
-    'red': 'bg-red-500'
-  };
-  return colorMap[color] || 'bg-gray-500';
-};
+
 
 export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
+  // Fetch status options with colors from Notion
+  const { data: statusOptions = [] } = useQuery<StatusOption[]>({
+    queryKey: ['/api/notion-statuses'],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
   // Group tasks by main status category
   const tasksByStatus = tasks.reduce((acc, task) => {
     const column = mapStatusToColumn(task.status);
@@ -195,6 +190,10 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
     acc[column].push(task);
     return acc;
   }, {} as Record<string, Task[]>);
+
+  const getStatusColor = (task: Task): string => {
+    return getStatusColorFromOptions(task.status, statusOptions);
+  };
 
   const columns = ['Planning', 'In Progress', 'Done', 'Cancelled'];
   const taskProperties = extractTaskProperties(tasks);

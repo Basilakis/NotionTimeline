@@ -209,14 +209,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           
           const statusField = statusFieldKey ? properties[statusFieldKey] : null;
-          const statusName = statusField?.select?.name || statusField?.status?.name || 'Not Started';
-          const statusColor = statusField?.select?.color || statusField?.status?.color || 'default';
           
-          // Debug log to see the actual structure (remove after testing)
-          if (statusField && title.includes('Αποξηλώσεις')) {
-            console.log(`[Task ${title}] Status: ${statusName}, Color: ${statusColor}`);
-            console.log(`[Task ${title}] Available properties:`, Object.keys(properties));
+          let statusName = 'Not Started';
+          let statusColor = 'default';
+          
+          if (statusField) {
+            if (statusField.type === 'rollup' && statusField.rollup?.array?.[0]?.status) {
+              // Handle rollup status field
+              statusName = statusField.rollup.array[0].status.name;
+              statusColor = statusField.rollup.array[0].status.color;
+            } else if (statusField.status) {
+              // Handle direct status field
+              statusName = statusField.status.name;
+              statusColor = statusField.status.color;
+            } else if (statusField.select) {
+              // Handle select field
+              statusName = statusField.select.name;
+              statusColor = statusField.select.color;
+            }
           }
+          
+          // Debug log for status extraction
+          console.log(`[Task ${title}] Status: ${statusName}, Color: ${statusColor}, Field Type: ${statusField?.type}, Has Rollup: ${!!statusField?.rollup}`);
 
           const task = {
             id: taskId,
@@ -2420,9 +2434,63 @@ Don't forget to update your task progress!`
         }
       }
       
-      const statusList = Array.from(statuses).sort();
-      
-      res.json(statusList);
+      // Get task database ID from first project with tasks
+      let tasksDatabaseId = null;
+      for (const project of projectRecords) {
+        if (project.properties && project.properties.Tasks && project.properties.Tasks.relation) {
+          const firstTaskId = project.properties.Tasks.relation[0]?.id;
+          if (firstTaskId) {
+            try {
+              const taskPage = await notion.pages.retrieve({ page_id: firstTaskId });
+              tasksDatabaseId = (taskPage as any).parent?.database_id;
+              break;
+            } catch (e) {
+              continue;
+            }
+          }
+        }
+      }
+
+      if (!tasksDatabaseId) {
+        return res.status(404).json({ message: "Task database not found" });
+      }
+
+      // Get database schema to extract Status field options with colors
+      const database = await notion.databases.retrieve({
+        database_id: tasksDatabaseId
+      });
+
+      // Find Status field and extract all options with colors
+      const statusProperty = Object.values(database.properties).find(
+        (prop: any) => prop.name === 'Status' || prop.type === 'status'
+      ) as any;
+
+      if (!statusProperty) {
+        return res.status(404).json({ message: "Status field not found" });
+      }
+
+      let statusOptions: Array<{name: string, color: string}> = [];
+
+      if (statusProperty.type === 'status') {
+        // Handle status property type
+        if (statusProperty.status && statusProperty.status.options) {
+          statusOptions = statusProperty.status.options.map((option: any) => ({
+            name: option.name,
+            color: option.color
+          }));
+        }
+      } else if (statusProperty.type === 'select') {
+        // Handle select property type
+        if (statusProperty.select && statusProperty.select.options) {
+          statusOptions = statusProperty.select.options.map((option: any) => ({
+            name: option.name,
+            color: option.color
+          }));
+        }
+      }
+
+      console.log('[Status Options with Colors]', statusOptions);
+      res.json(statusOptions);
     } catch (error) {
       console.error("Error fetching statuses:", error);
       res.status(500).json({ message: "Failed to fetch statuses" });
