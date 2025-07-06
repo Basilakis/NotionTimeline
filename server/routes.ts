@@ -357,6 +357,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[Notion Purchases] ✅ Found Αγορές task: "${title}" (${taskId})`);
           console.log(`[Notion Purchases] Extracting subtasks/sub-database items instead of main task...`);
 
+          // Get the project name for this Αγορές task
+          const currentProjectName = taskToProjectMap.get(taskId) || 'Unknown Project';
+          console.log(`[Notion Purchases] Project name for Αγορές task: "${currentProjectName}"`);
+
           // Extract subtasks and sub-database items to show in purchases list
           const taskBlocks = await notion.blocks.children.list({ block_id: taskId });
           
@@ -391,7 +395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   url: `https://notion.so/${block.id.replace(/-/g, "")}`,
                   userEmail: userEmail,
                   assignee: extractTextFromProperty(childProperties.Assignee) || null,
-                  projectName: taskToProjectMap.get(taskId) || 'Unknown Project',
+                  projectName: currentProjectName,
                   properties: childProperties || {},
                   subtasks: [],
                   type: 'child_page'
@@ -436,7 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     url: `https://notion.so/${record.id.replace(/-/g, "")}`,
                     userEmail: userEmail,
                     assignee: extractTextFromProperty(recordProperties.Assignee) || null,
-                    projectName: taskToProjectMap.get(taskId) || 'Unknown Project',
+                    projectName: currentProjectName,
                     properties: recordProperties || {},
                     subtasks: [],
                     type: 'database_record'
