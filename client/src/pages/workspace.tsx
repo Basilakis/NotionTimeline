@@ -89,6 +89,7 @@ export default function Workspace() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('projects');
+  const [taskViewMode, setTaskViewMode] = useState<string>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
@@ -248,6 +249,32 @@ export default function Workspace() {
     task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     task.description.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
+
+  // Helper function to get tasks for a specific project
+  const getProjectTasks = (projectTaskIds: string[]) => {
+    return tasks?.filter(task => projectTaskIds.includes(task.id)) || [];
+  };
+
+  // Helper function to group tasks by status for Kanban view
+  const groupTasksByStatus = (projectTasks: Task[]) => {
+    const groups: { [key: string]: Task[] } = {
+      'To Do': [],
+      'In Progress': [],
+      'Done': [],
+      'Other': []
+    };
+    
+    projectTasks.forEach(task => {
+      const status = task.status || 'Other';
+      if (groups[status]) {
+        groups[status].push(task);
+      } else {
+        groups['Other'].push(task);
+      }
+    });
+    
+    return groups;
+  };
 
   if (viewsLoading || databaseLoading) {
     return (
@@ -431,8 +458,56 @@ export default function Workspace() {
                             </div>
                           </div>
 
+                          {/* Project Tasks */}
+                          {(() => {
+                            const projectTaskIds = project.properties?.Tasks?.relation?.map((task: any) => task.id) || [];
+                            const projectTasks = getProjectTasks(projectTaskIds);
+                            
+                            if (projectTasks.length > 0) {
+                              return (
+                                <div>
+                                  <h4 className="font-medium text-gray-900 mb-3">Tasks ({projectTasks.length})</h4>
+                                  <div className="space-y-2">
+                                    {projectTasks.map((task: Task) => (
+                                      <div
+                                        key={task.id}
+                                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                                        onClick={() => handleTaskClick(task)}
+                                      >
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <h5 className="font-medium text-gray-800">{task.title}</h5>
+                                            <Badge variant={task.isCompleted ? "default" : "secondary"} className="text-xs">
+                                              {task.status}
+                                            </Badge>
+                                            {task.priority && (
+                                              <Badge variant={
+                                                task.priority === 'High' ? 'destructive' :
+                                                task.priority === 'Medium' ? 'default' : 'secondary'
+                                              } className="text-xs">
+                                                {task.priority}
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                                            <span>Progress: {task.progress}%</span>
+                                            {task.dueDate && (
+                                              <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <ExternalLink className="h-4 w-4 text-gray-400" />
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+
                           {/* Actions */}
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 pt-4 border-t">
                             <Button
                               variant="outline"
                               size="sm"
@@ -478,56 +553,204 @@ export default function Workspace() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
-              {filteredTasks.map((task: Task) => (
-                <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-4" onClick={() => handleTaskClick(task)}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-medium text-gray-900">{task.title}</h3>
-                          <Badge variant={task.isCompleted ? "default" : "secondary"}>
-                            {task.status}
+            <div className="space-y-4">
+              {/* Task View Mode Selector */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Tasks ({filteredTasks.length})</h3>
+                <Tabs value={taskViewMode} onValueChange={setTaskViewMode} className="w-auto">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="list">List</TabsTrigger>
+                    <TabsTrigger value="kanban">Kanban</TabsTrigger>
+                    <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              {/* List View */}
+              {taskViewMode === 'list' && (
+                <div className="grid gap-4">
+                  {filteredTasks.map((task: Task) => (
+                    <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                      <CardContent className="p-4" onClick={() => handleTaskClick(task)}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-medium text-gray-900">{task.title}</h3>
+                              <Badge variant={task.isCompleted ? "default" : "secondary"}>
+                                {task.status}
+                              </Badge>
+                              {task.priority && (
+                                <Badge variant={
+                                  task.priority === 'High' ? 'destructive' :
+                                  task.priority === 'Medium' ? 'default' : 'secondary'
+                                }>
+                                  {task.priority}
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {task.description && (
+                              <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                            )}
+                            
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                              <span>Section: {task.section}</span>
+                              <span>Progress: {task.progress}%</span>
+                              {task.dueDate && (
+                                <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(task.url, '_blank');
+                              }}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Kanban View */}
+              {taskViewMode === 'kanban' && (() => {
+                const taskGroups = groupTasksByStatus(filteredTasks);
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {Object.entries(taskGroups).map(([status, statusTasks]) => (
+                      <div key={status} className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium text-gray-900">{status}</h4>
+                          <Badge variant="outline" className="text-xs">
+                            {statusTasks.length}
                           </Badge>
-                          {task.priority && (
-                            <Badge variant={
-                              task.priority === 'High' ? 'destructive' :
-                              task.priority === 'Medium' ? 'default' : 'secondary'
-                            }>
-                              {task.priority}
-                            </Badge>
-                          )}
                         </div>
-                        
-                        {task.description && (
-                          <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-                        )}
-                        
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span>Section: {task.section}</span>
-                          <span>Progress: {task.progress}%</span>
-                          {task.dueDate && (
-                            <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
-                          )}
+                        <div className="space-y-2">
+                          {statusTasks.map((task: Task) => (
+                            <Card 
+                              key={task.id} 
+                              className="cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={() => handleTaskClick(task)}
+                            >
+                              <CardContent className="p-3">
+                                <div className="space-y-2">
+                                  <h5 className="font-medium text-sm text-gray-900">{task.title}</h5>
+                                  {task.priority && (
+                                    <Badge variant={
+                                      task.priority === 'High' ? 'destructive' :
+                                      task.priority === 'Medium' ? 'default' : 'secondary'
+                                    } className="text-xs">
+                                      {task.priority}
+                                    </Badge>
+                                  )}
+                                  <div className="text-xs text-gray-500">
+                                    {task.dueDate && (
+                                      <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                                    )}
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div 
+                                      className="bg-blue-600 h-2 rounded-full" 
+                                      style={{ width: `${task.progress}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(task.url, '_blank');
-                          }}
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Timeline View */}
+              {taskViewMode === 'timeline' && (
+                <div className="space-y-4">
+                  <div className="relative">
+                    {/* Timeline Line */}
+                    <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                    
+                    {/* Timeline Items */}
+                    <div className="space-y-6">
+                      {filteredTasks
+                        .sort((a, b) => {
+                          const dateA = new Date(a.dueDate || a.createdTime).getTime();
+                          const dateB = new Date(b.dueDate || b.createdTime).getTime();
+                          return dateA - dateB;
+                        })
+                        .map((task: Task, index) => (
+                          <div key={task.id} className="relative flex items-start gap-6">
+                            {/* Timeline Node */}
+                            <div className="flex-shrink-0 w-16 flex justify-center">
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                task.isCompleted 
+                                  ? 'bg-green-500 border-green-500' 
+                                  : 'bg-white border-blue-500'
+                              }`}></div>
+                            </div>
+                            
+                            {/* Task Card */}
+                            <Card 
+                              className="flex-1 cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={() => handleTaskClick(task)}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <h3 className="font-medium text-gray-900">{task.title}</h3>
+                                      <Badge variant={task.isCompleted ? "default" : "secondary"}>
+                                        {task.status}
+                                      </Badge>
+                                      {task.priority && (
+                                        <Badge variant={
+                                          task.priority === 'High' ? 'destructive' :
+                                          task.priority === 'Medium' ? 'default' : 'secondary'
+                                        }>
+                                          {task.priority}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                                      <span>Progress: {task.progress}%</span>
+                                      {task.dueDate && (
+                                        <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                                      )}
+                                      <span>Updated: {new Date(task.lastEditedTime).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                  
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(task.url, '_blank');
+                                    }}
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        ))}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
