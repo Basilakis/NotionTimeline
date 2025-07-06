@@ -120,30 +120,33 @@ export class StatusNotificationService {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Status Update</title>
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px; margin-bottom: 30px;">
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #003319; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #003319 0%, #88B39D 100%); padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center;">
+        <div style="margin-bottom: 15px;">
+            <div style="width: 48px; height: 48px; background: #88B39D; border-radius: 8px; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; color: #003319; font-weight: bold; font-size: 18px;">V</div>
+        </div>
         <h1 style="color: white; margin: 0; font-size: 24px;">${urgencyLevel}Task Status Update</h1>
         <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Your task status has been updated</p>
     </div>
     
-    <div style="background: #f8fafc; border-radius: 8px; padding: 25px; margin-bottom: 25px;">
-        <h2 style="margin: 0 0 15px 0; color: #1e293b; font-size: 20px;">${taskTitle}</h2>
-        <p style="margin: 0 0 15px 0; color: #64748b;"><strong>Project:</strong> ${projectName}</p>
+    <div style="background: #88B39D/20; border-radius: 8px; padding: 25px; margin-bottom: 25px;">
+        <h2 style="margin: 0 0 15px 0; color: #003319; font-size: 20px;">${taskTitle}</h2>
+        <p style="margin: 0 0 15px 0; color: #003319/70;"><strong>Project:</strong> ${projectName}</p>
         
         <div style="display: flex; align-items: center; gap: 10px; margin: 20px 0;">
-            <span style="background: #e2e8f0; color: #475569; padding: 4px 12px; border-radius: 20px; font-size: 14px;">${oldStatus}</span>
-            <span style="color: #64748b;">→</span>
+            <span style="background: #88B39D; color: #003319; padding: 4px 12px; border-radius: 20px; font-size: 14px;">${oldStatus}</span>
+            <span style="color: #003319;">→</span>
             <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600;">${newStatus}</span>
             ${priorityBadge}
         </div>
         
-        <p style="margin: 15px 0; color: #475569; font-size: 16px; font-style: italic;">${statusMessage}</p>
+        <p style="margin: 15px 0; color: #003319; font-size: 16px; font-style: italic;">${statusMessage}</p>
         
-        ${dueDate ? `<p style="margin: 10px 0; color: #64748b;"><strong>Due Date:</strong> ${new Date(dueDate).toLocaleDateString()}</p>` : ''}
+        ${dueDate ? `<p style="margin: 10px 0; color: #003319/70;"><strong>Due Date:</strong> ${new Date(dueDate).toLocaleDateString()}</p>` : ''}
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-        <a href="${taskUrl}" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">View Task in Notion</a>
+        <a href="${taskUrl}" style="background: #003319; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">View Task in Notion</a>
     </div>
     
     <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; color: #64748b; font-size: 14px;">

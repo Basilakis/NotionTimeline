@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Mail, User, History } from "lucide-react";
+import vertexLogo from "@assets/Group 2_1751826186442.png";
 
 interface LoginData {
   email: string;
@@ -58,15 +59,19 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-brand-secondary/20 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md shadow-material">
         <CardHeader className="text-center">
-          <div className="flex items-center justify-center space-x-2 mb-2">
-            <History className="text-blue-700 h-8 w-8" />
-            <CardTitle className="text-2xl font-bold text-gray-900">TaskFlow</CardTitle>
+          <div className="flex flex-col items-center justify-center mb-4">
+            <img 
+              src={vertexLogo} 
+              alt="Vertex Developments" 
+              className="h-16 w-16 mb-3"
+            />
+            <CardTitle className="text-2xl font-bold text-brand-primary">Vertex Project Hub</CardTitle>
           </div>
-          <p className="text-gray-600 text-sm">
-            Enter your email address to access your task timeline
+          <p className="text-brand-primary/70 text-sm">
+            Enter your email address to access your project workspace
           </p>
         </CardHeader>
         <CardContent>
@@ -93,15 +98,15 @@ export default function Login() {
 
             <Button 
               type="submit" 
-              className="w-full bg-blue-700 hover:bg-blue-600 text-white"
+              className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white"
               disabled={loginMutation.isPending}
             >
               {loginMutation.isPending ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
+          <div className="mt-6 pt-6 border-t border-brand-secondary/30">
+            <p className="text-xs text-brand-primary/60 text-center">
               Your email will be used to access your personalized Notion workspace.
               First-time users will automatically get an account created.
             </p>

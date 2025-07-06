@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import TaskTimeline from "@/components/TaskTimeline";
 import KanbanBoard from "@/components/KanbanBoard";
 import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, RefreshCw, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard, ShoppingCart } from "lucide-react";
+import vertexLogo from "@assets/Group 2_1751826186442.png";
 
 // Notion color mapping to Tailwind classes (matching KanbanBoard)
 const getNotionColorClasses = (notionColor: string): { badge: string; column: string } => {
@@ -600,10 +601,17 @@ export default function Workspace() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-bold">Workspace</h1>
-          <Badge variant="outline" className="text-sm">
-            {user?.email}
-          </Badge>
+          <img 
+            src={vertexLogo} 
+            alt="Vertex Developments" 
+            className="h-12 w-12"
+          />
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-bold text-brand-primary">Vertex Project Hub</h1>
+            <Badge variant="outline" className="text-xs w-fit">
+              {user?.email}
+            </Badge>
+          </div>
         </div>
         <div className="flex gap-2">
           {isAdmin && (
@@ -629,6 +637,7 @@ export default function Workspace() {
             size="sm"
             onClick={() => discoverWorkspace.mutate()}
             disabled={discoverWorkspace.isPending}
+            className="border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white"
           >
             {discoverWorkspace.isPending ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -677,7 +686,7 @@ export default function Workspace() {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4 bg-brand-secondary/10 p-1">
           <TabsTrigger value="projects">
             <Database className="h-4 w-4 mr-2" />
             Projects ({filteredProjects.length})
