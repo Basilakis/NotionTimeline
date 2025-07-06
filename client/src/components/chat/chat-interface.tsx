@@ -293,29 +293,36 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
-        {selectedChatId ? (
-          <>
-            {/* Chat Header */}
-            <div className="p-4 border-b border-border">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="h-5 w-5" />
-                <span className="font-medium">
-                  {chats.find((c: Chat) => c.id === selectedChatId)?.title || 'Chat'}
-                </span>
-                <Badge
-                  variant={
-                    chats.find((c: Chat) => c.id === selectedChatId)?.type === 'ai'
-                      ? 'default'
-                      : 'secondary'
-                  }
-                >
-                  {chats.find((c: Chat) => c.id === selectedChatId)?.type === 'ai' ? 'AI Discussion' : 'Support Request'}
-                </Badge>
-              </div>
+        {/* Always show chat interface */}
+        <>
+          {/* Chat Header */}
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              <span className="font-medium">
+                {selectedChatId 
+                  ? (chats.find((c: Chat) => c.id === selectedChatId)?.title || 'Chat')
+                  : 'New Chat'
+                }
+              </span>
+              <Badge
+                variant={
+                  selectedChatId 
+                    ? (chats.find((c: Chat) => c.id === selectedChatId)?.type === 'ai' ? 'default' : 'secondary')
+                    : (commandType === 'ai' ? 'default' : 'secondary')
+                }
+              >
+                {selectedChatId 
+                  ? (chats.find((c: Chat) => c.id === selectedChatId)?.type === 'ai' ? 'AI Discussion' : 'Support Request')
+                  : (commandType === 'ai' ? 'AI Discussion' : 'Support Request')
+                }
+              </Badge>
             </div>
+          </div>
 
-            {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
+          {/* Messages */}
+          <ScrollArea className="flex-1 p-4">
+            {selectedChatId ? (
               <div className="space-y-4">
                 {messages.map((msg: ChatMessage) => (
                   <div
@@ -350,72 +357,68 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
                 ))}
                 <div ref={messagesEndRef} />
               </div>
-            </ScrollArea>
-
-            {/* Message Input */}
-            <div className="p-4 border-t border-border">
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Select
-                      value={commandType}
-                      onValueChange={(value: 'ai' | 'request') => setCommandType(value)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ai">AI Discussion</SelectItem>
-                        <SelectItem value="request">Support Request</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <span className="text-xs text-muted-foreground">
-                      Or type /ai or /request at the start of your message
-                    </span>
+            ) : (
+              /* New Chat Welcome */
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium mb-2">Start a New Conversation</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Type your message below to begin.
+                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      <strong>AI Discussion:</strong> Ask questions about your Notion data, tasks, and projects
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Support Request:</strong> Get help from administrators
+                    </p>
                   </div>
-                  <Textarea
-                    placeholder={`Type your ${commandType === 'ai' ? 'AI question' : 'support request'}...`}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    disabled={isLoading}
-                  />
                 </div>
-                <Button onClick={handleSendMessage} disabled={!message.trim() || isLoading}>
-                  <Send className="h-4 w-4" />
-                </Button>
               </div>
-            </div>
-          </>
-        ) : (
-          /* Welcome Screen */
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium mb-2">Welcome to AI Assistant</h3>
-              <p className="text-muted-foreground mb-4">
-                Start a new conversation or select an existing chat from the sidebar.
-              </p>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  <strong>AI Discussion:</strong> Ask questions about your Notion data, tasks, and projects
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  <strong>Support Request:</strong> Get help from administrators
-                </p>
+            )}
+          </ScrollArea>
+
+          {/* Message Input - Always Available */}
+          <div className="p-4 border-t border-border">
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Select
+                    value={commandType}
+                    onValueChange={(value: 'ai' | 'request') => setCommandType(value)}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ai">AI Discussion</SelectItem>
+                      <SelectItem value="request">Support Request</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">
+                    Or type /ai or /request at the start of your message
+                  </span>
+                </div>
+                <Textarea
+                  placeholder={`Type your ${commandType === 'ai' ? 'AI question' : 'support request'}...`}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  disabled={isLoading}
+                />
               </div>
-              <Button onClick={handleNewChat} className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Start New Chat
+              <Button onClick={handleSendMessage} disabled={!message.trim() || isLoading}>
+                <Send className="h-4 w-4" />
               </Button>
             </div>
           </div>
-        )}
+        </>
       </div>
     </div>
   );
