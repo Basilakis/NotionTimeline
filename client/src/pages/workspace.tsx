@@ -826,70 +826,7 @@ export default function Workspace() {
                 </div>
               )}
 
-              {/* Kanban View */}
-              {taskViewMode === 'kanban' && (() => {
-                const taskGroups = groupTasksByStatus(filteredTasks);
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {Object.entries(taskGroups).map(([status, statusTasks]) => (
-                      <div key={status} className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-gray-900">{status}</h4>
-                          <Badge variant="outline" className="text-xs">
-                            {statusTasks.length}
-                          </Badge>
-                        </div>
-                        <div className="space-y-2">
-                          {statusTasks.map((task: Task) => (
-                            <Card 
-                              key={task.id} 
-                              className="cursor-pointer hover:shadow-md transition-shadow"
-                              onClick={() => handleTaskClick(task)}
-                            >
-                              <CardContent className="p-3">
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <h5 className="font-medium text-sm text-gray-900 flex-1">{task.title}</h5>
-                                    {task.mainStatus && (
-                                      <Badge className={`text-xs ${getStatusBadgeStyle(task.statusColor || 'default', true)}`}>
-                                        {task.mainStatus}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {task.subStatus && (
-                                    <Badge className={`text-xs ${getStatusBadgeStyle(task.statusColor || 'default', false)}`}>
-                                      {task.subStatus}
-                                    </Badge>
-                                  )}
-                                  {task.priority && (
-                                    <Badge variant={
-                                      task.priority === 'High' ? 'destructive' :
-                                      task.priority === 'Medium' ? 'default' : 'secondary'
-                                    } className="text-xs">
-                                      {task.priority}
-                                    </Badge>
-                                  )}
-                                  <div className="text-xs text-gray-500">
-                                    {task.dueDate && (
-                                      <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
-                                    )}
-                                  </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div 
-                                      className="bg-blue-600 h-2 rounded-full" 
-                                      style={{ width: `${task.progress}%` }}
-                                    ></div>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
+
 
               {/* Kanban View */}
               {taskViewMode === 'kanban' && (
