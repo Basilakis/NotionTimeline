@@ -1596,6 +1596,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test OpenAI API connection
+  app.post("/api/admin/test/openai", async (req, res) => {
+    try {
+      // Check if OpenAI API key is configured
+      const openaiKey = await storage.getApiSetting('openaiApiKey') || process.env.OPENAI_API_KEY;
+      
+      if (!openaiKey) {
+        return res.status(400).json({ message: "OpenAI API key not configured" });
+      }
+
+      try {
+        // Import OpenAI dynamically
+        const { default: OpenAI } = await import('openai');
+        
+        // Create OpenAI client with the configured key
+        const openai = new OpenAI({ 
+          apiKey: openaiKey 
+        });
+
+        // Test with a simple completion request
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+          messages: [
+            {
+              role: "user",
+              content: "Test connection. Please respond with 'Connection successful'."
+            }
+          ],
+          max_tokens: 10
+        });
+
+        if (response.choices[0]?.message?.content) {
+          res.json({ message: "OpenAI API connection successful" });
+        } else {
+          res.status(400).json({ message: "OpenAI API test failed: No response received" });
+        }
+      } catch (openaiError: any) {
+        console.error("OpenAI API test error:", openaiError);
+        
+        if (openaiError.status === 401) {
+          res.status(400).json({ message: "OpenAI API connection failed: Invalid API key" });
+        } else if (openaiError.status === 429) {
+          res.status(400).json({ message: "OpenAI API connection failed: Rate limit exceeded or quota exceeded" });
+        } else {
+          res.status(400).json({ message: `OpenAI API connection failed: ${openaiError.message}` });
+        }
+      }
+    } catch (error) {
+      console.error("Error testing OpenAI API:", error);
+      res.status(500).json({ message: "Failed to test OpenAI API connection" });
+    }
+  });
+
+  // AI Request endpoint
+  app.post("/api/ai/request", async (req, res) => {
+    try {
+      const { message } = req.body;
+      const userEmail = req.headers['x-user-email'] as string;
+
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email required" });
+      }
+
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      // Import AI service dynamically
+      const { aiService } = await import('./aiService');
+
+      // Generate AI response based on user's Notion context
+      const response = await aiService.generateResponse(userEmail, message);
+
+      res.json({ 
+        message: response,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error("Error processing AI request:", error);
+      
+      if (error.message.includes("OpenAI API key not configured")) {
+        res.status(400).json({ 
+          message: "AI service is not available. Please configure OpenAI API key in admin settings." 
+        });
+      } else if (error.message.includes("Rate limit") || error.message.includes("quota")) {
+        res.status(429).json({ 
+          message: "AI service is temporarily unavailable due to rate limits. Please try again later." 
+        });
+      } else {
+        res.status(500).json({ 
+          message: "Failed to process AI request. Please try again." 
+        });
+      }
+    }
+  });
+
   // Find all databases in the workspace including child databases
 
 
@@ -3068,17 +3165,38 @@ Don't forget to update your task progress!`
           message: "Request sent to admin successfully" 
         });
       } else if (requestType === '/ai') {
-        // Handle AI request - this is where crewAI integration would go
+        // Handle AI request with Notion context integration
         console.log(`[AI Request] User ${userEmail} asked: ${content}`);
         
-        // For now, return a simple response
-        // TODO: Integrate with crewAI to search user's Notion database
-        const aiResponse = `I received your request: "${content}". AI integration with your Notion database is coming soon!`;
-        
-        res.json({ 
-          success: true, 
-          response: aiResponse 
-        });
+        try {
+          // Import AI service dynamically to avoid circular dependencies
+          const { aiService } = await import('./aiService');
+          
+          // Generate AI response based on user's Notion data
+          const aiResponse = await aiService.generateResponse(userEmail, content);
+          
+          res.json({ 
+            success: true, 
+            response: aiResponse 
+          });
+        } catch (error) {
+          console.error(`[AI Request] Error generating AI response:`, error);
+          
+          // Provide helpful error messages based on the error type
+          let errorMessage = "I encountered an error while processing your request.";
+          
+          if (error.message.includes("OpenAI API key")) {
+            errorMessage = "AI features require an OpenAI API key. Please ask an administrator to configure the OPENAI_API_KEY environment variable.";
+          } else if (error.message.includes("Notion configuration")) {
+            errorMessage = "I need access to your Notion workspace to provide personalized responses. Please make sure your Notion integration is properly configured in Settings.";
+          }
+          
+          res.json({ 
+            success: false, 
+            response: errorMessage,
+            error: error.message 
+          });
+        }
       }
 
     } catch (error) {

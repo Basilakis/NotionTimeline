@@ -27,7 +27,8 @@ const apiSettingsSchema = z.object({
   twilioPhoneNumber: z.string().min(1, "Twilio Phone Number is required"),
   awsAccessKeyId: z.string().min(1, "AWS Access Key ID is required"),
   awsSecretAccessKey: z.string().min(1, "AWS Secret Access Key is required"),
-  awsRegion: z.string().min(1, "AWS Region is required")
+  awsRegion: z.string().min(1, "AWS Region is required"),
+  openaiApiKey: z.string().min(1, "OpenAI API Key is required")
 });
 
 export function AdminSettings() {
@@ -36,7 +37,8 @@ export function AdminSettings() {
   const [isEditingAPI, setIsEditingAPI] = useState(false);
   const [showSecrets, setShowSecrets] = useState({
     twilioAuthToken: false,
-    awsSecretAccessKey: false
+    awsSecretAccessKey: false,
+    openaiApiKey: false
   });
   const [apiSettings, setApiSettings] = useState({
     twilioAccountSid: "",
@@ -44,7 +46,8 @@ export function AdminSettings() {
     twilioPhoneNumber: "",
     awsAccessKeyId: "",
     awsSecretAccessKey: "",
-    awsRegion: "us-east-1"
+    awsRegion: "us-east-1",
+    openaiApiKey: ""
   });
 
   const form = useForm<z.infer<typeof settingsSchema>>({
@@ -101,7 +104,8 @@ export function AdminSettings() {
         twilioPhoneNumber: (apiConfig as any).twilioPhoneNumber || "",
         awsAccessKeyId: (apiConfig as any).awsAccessKeyId || "",
         awsSecretAccessKey: (apiConfig as any).awsSecretAccessKey || "",
-        awsRegion: (apiConfig as any).awsRegion || "us-east-1"
+        awsRegion: (apiConfig as any).awsRegion || "us-east-1",
+        openaiApiKey: (apiConfig as any).openaiApiKey || ""
       });
     }
   }, [apiConfig]);
@@ -543,6 +547,79 @@ export function AdminSettings() {
                 >
                   <TestTube className="h-4 w-4 mr-2" />
                   Test AWS SES
+                </Button>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* OpenAI Settings */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Key className="h-4 w-4" />
+                <h3 className="text-lg font-medium">OpenAI API Settings</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <Label htmlFor="openaiApiKey">OpenAI API Key</Label>
+                  <div className="relative">
+                    <Input
+                      id="openaiApiKey"
+                      type={showSecrets.openaiApiKey ? "text" : "password"}
+                      placeholder="sk-..."
+                      value={apiSettings.openaiApiKey}
+                      onChange={(e) => setApiSettings({...apiSettings, openaiApiKey: e.target.value})}
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => setShowSecrets({...showSecrets, openaiApiKey: !showSecrets.openaiApiKey})}
+                    >
+                      {showSecrets.openaiApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Used for AI-powered responses that analyze your Notion workspace data
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    fetch('/api/admin/test/openai', {
+                      method: 'POST',
+                      headers: {
+                        'x-user-email': localStorage.getItem('userEmail') || ''
+                      }
+                    }).then(res => res.json()).then(data => {
+                      if (data.message.includes('successful')) {
+                        toast({
+                          title: "OpenAI Test Successful",
+                          description: data.message
+                        });
+                      } else {
+                        toast({
+                          title: "OpenAI Test Failed",
+                          description: data.message,
+                          variant: "destructive"
+                        });
+                      }
+                    }).catch(err => {
+                      toast({
+                        title: "Test Failed",
+                        description: "Unable to test OpenAI connection",
+                        variant: "destructive"
+                      });
+                    });
+                  }}
+                >
+                  <TestTube className="h-4 w-4 mr-2" />
+                  Test OpenAI API
                 </Button>
               </div>
             </div>
