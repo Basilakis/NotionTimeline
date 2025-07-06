@@ -109,8 +109,9 @@ export default function Workspace() {
   const { toast } = useToast();
   const { triggerStatusChange } = useStatusNotification();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<string>('projects');
-  const [taskViewMode, setTaskViewMode] = useState<string>('list');
+  const [activeTab, setActiveTab] = useState<string>('tasks'); // Start with tasks tab
+  const [selectedViewId, setSelectedViewId] = useState<number | null>(null);
+  const [taskViewMode, setTaskViewMode] = useState<string>('table');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
@@ -249,6 +250,24 @@ export default function Workspace() {
       discoverWorkspace.mutate();
     }
   }, [views, viewsLoading, userEmail]);
+
+  // Auto-load tasks when views are available
+  useEffect(() => {
+    if (views && views.length > 0 && userEmail && !selectedViewId) {
+      // Find the Tasks view and automatically select it to load tasks
+      const tasksView = views.find(view => 
+        view.viewType.toLowerCase().includes('task') || 
+        view.title.toLowerCase().includes('task')
+      );
+      
+      if (tasksView) {
+        setSelectedViewId(tasksView.id);
+        setTaskViewMode('table'); // Default to table view
+        setActiveTab('tasks'); // Switch to tasks tab
+        console.log('[Workspace] Auto-loading tasks from view:', tasksView.title);
+      }
+    }
+  }, [views, userEmail, selectedViewId]);
 
   const handleProjectClick = (project: any) => {
     setSelectedProject(project);
