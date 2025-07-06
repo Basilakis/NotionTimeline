@@ -42,7 +42,9 @@ interface ProjectSummary {
   title: string;
   completion: number;
   proposal: string;
+  proposalUrl: string | null;
   materialsProposal: string;
+  materialsProposalUrl: string | null;
   projectPrice: number;
   totalPayments: string;
   url: string;
@@ -380,88 +382,112 @@ export default function Workspace() {
         </div>
       </div>
 
-      {/* Project Summary Table */}
+      {/* Projects Overview Table */}
       {projectSummary && projectSummary.length > 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Project Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              {projectSummary.map((project) => (
-                <div key={project.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-lg">{project.title}</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(project.url, '_blank')}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {/* Completion */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <Percent className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium text-gray-600">Completion</span>
-                      </div>
-                      <div className="text-lg font-bold text-green-600">
-                        {project.completion}%
-                      </div>
+        <div className="mb-6">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse bg-white rounded-lg shadow-sm">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="text-left p-4 font-semibold text-gray-900">Project</th>
+                  <th className="text-center p-4 font-semibold text-gray-900">
+                    <div className="flex items-center justify-center gap-1">
+                      <Percent className="h-4 w-4 text-green-600" />
+                      Completion
                     </div>
-                    
-                    {/* Proposal */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <FileText className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium text-gray-600">Proposal</span>
-                      </div>
-                      <Badge 
-                        variant={project.proposal === 'Approved' ? 'default' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {project.proposal}
-                      </Badge>
+                  </th>
+                  <th className="text-center p-4 font-semibold text-gray-900">
+                    <div className="flex items-center justify-center gap-1">
+                      <FileText className="h-4 w-4 text-blue-600" />
+                      Proposal
                     </div>
-                    
-                    {/* Materials Proposal */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <Package className="h-4 w-4 text-orange-600" />
-                        <span className="text-sm font-medium text-gray-600">Materials</span>
-                      </div>
-                      <Badge 
-                        variant={project.materialsProposal === 'Approved' ? 'default' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {project.materialsProposal}
-                      </Badge>
+                  </th>
+                  <th className="text-center p-4 font-semibold text-gray-900">
+                    <div className="flex items-center justify-center gap-1">
+                      <Package className="h-4 w-4 text-orange-600" />
+                      Materials Proposal
                     </div>
-                    
-                    {/* Project Price */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-4 w-4 text-purple-600" />
-                        <span className="text-sm font-medium text-gray-600">Price</span>
+                  </th>
+                  <th className="text-center p-4 font-semibold text-gray-900">
+                    <div className="flex items-center justify-center gap-1">
+                      <DollarSign className="h-4 w-4 text-purple-600" />
+                      Project Price
+                    </div>
+                  </th>
+                  <th className="text-center p-4 font-semibold text-gray-900">
+                    <div className="flex items-center justify-center gap-1">
+                      <CreditCard className="h-4 w-4 text-indigo-600" />
+                      Total Payments
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {projectSummary.map((project, index) => (
+                  <tr key={project.id} className={`border-b hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}>
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <div className="font-medium text-gray-900">{project.title}</div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto p-0 text-xs text-blue-600 hover:text-blue-800"
+                            onClick={() => window.open(project.url, '_blank')}
+                          >
+                            View in Notion <ExternalLink className="h-3 w-3 ml-1" />
+                          </Button>
+                        </div>
                       </div>
+                    </td>
+                    <td className="p-4 text-center">
+                      <div className="flex items-center justify-center">
+                        <div className="text-lg font-bold text-green-600">
+                          {project.completion}%
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4 text-center">
+                      {project.proposalUrl ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(project.proposalUrl, '_blank')}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          {project.proposal}
+                        </Button>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">
+                          {project.proposal}
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="p-4 text-center">
+                      {project.materialsProposalUrl ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(project.materialsProposalUrl, '_blank')}
+                          className="text-orange-600 hover:text-orange-800"
+                        >
+                          <Package className="h-4 w-4 mr-1" />
+                          {project.materialsProposal}
+                        </Button>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">
+                          {project.materialsProposal}
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="p-4 text-center">
                       <div className="text-lg font-bold text-purple-600">
                         €{project.projectPrice.toLocaleString()}
                       </div>
-                    </div>
-                    
-                    {/* Total Payments */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <CreditCard className="h-4 w-4 text-indigo-600" />
-                        <span className="text-sm font-medium text-gray-600">Payments</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
+                    </td>
+                    <td className="p-4 text-center">
+                      <div className="flex flex-wrap gap-1 justify-center">
                         {project.totalPayments ? (
                           project.totalPayments.split(',').map((payment, index) => (
                             <span
@@ -475,13 +501,13 @@ export default function Workspace() {
                           <span className="text-gray-400 text-sm">No payments</span>
                         )}
                       </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {/* Search */}

@@ -2075,12 +2075,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract completion percentage
         const completion = props.Completion?.number || 0;
         
-        // Extract proposal status
-        const proposal = props.Proposal?.select?.name || props.Proposal?.status?.name || 'Not Set';
+        // Extract proposal - check for file links
+        let proposal = 'Not Set';
+        let proposalUrl = null;
+        if (props.Proposal?.files && props.Proposal.files.length > 0) {
+          const file = props.Proposal.files[0];
+          proposal = file.name || 'Proposal File';
+          proposalUrl = file.file?.url || file.external?.url;
+        } else if (props.Proposal?.select?.name || props.Proposal?.status?.name) {
+          proposal = props.Proposal.select?.name || props.Proposal.status?.name;
+        }
         
-        // Extract materials proposal
-        const materialsProposal = props['Materials Proposal']?.select?.name || 
-                                 props['Materials Proposal']?.status?.name || 'Not Set';
+        // Extract materials proposal - check for file links
+        let materialsProposal = 'Not Set';
+        let materialsProposalUrl = null;
+        if (props['Materials Proposal']?.files && props['Materials Proposal'].files.length > 0) {
+          const file = props['Materials Proposal'].files[0];
+          materialsProposal = file.name || 'Materials Proposal File';
+          materialsProposalUrl = file.file?.url || file.external?.url;
+        } else if (props['Materials Proposal']?.select?.name || props['Materials Proposal']?.status?.name) {
+          materialsProposal = props['Materials Proposal'].select?.name || props['Materials Proposal'].status?.name;
+        }
         
         // Extract project price
         const projectPrice = props['Project Price']?.number || 0;
@@ -2094,7 +2109,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           title: project.title,
           completion,
           proposal,
+          proposalUrl,
           materialsProposal,
+          materialsProposalUrl,
           projectPrice,
           totalPayments,
           url: project.url
@@ -2124,15 +2141,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const notion = createNotionClient(config.notionSecret);
       const pageId = extractPageIdFromUrl(config.notionPageUrl);
       
-      // Get all tasks and extract unique statuses
-      const allTasks = await getTasks(notion, pageId, userEmail);
-      const statuses = new Set<string>();
+      // Get user's project records to extract task statuses
+      const projectRecords = await getFilteredDatabaseRecords(notion, pageId, userEmail);
       
-      allTasks.forEach(task => {
-        if (task.status && task.status !== 'No Status') {
-          statuses.add(task.status);
+      // Extract task IDs from project records
+      const taskIds = [];
+      for (const project of projectRecords) {
+        if (project.properties && project.properties.Tasks && project.properties.Tasks.relation) {
+          for (const task of project.properties.Tasks.relation) {
+            taskIds.push(task.id);
+          }
         }
-      });
+      }
+
+      const statuses = new Set<string>();
+
+      // Fetch each task by ID and extract status
+      for (const taskId of taskIds) {
+        try {
+          const page = await notion.pages.retrieve({ page_id: taskId });
+          const properties = (page as any).properties;
+          const status = properties.Status?.select?.name || properties.Status?.status?.name;
+          
+          if (status && status !== 'No Status') {
+            statuses.add(status);
+          }
+        } catch (taskError) {
+          console.log(`[Status Fetch] Could not fetch task ${taskId}:`, taskError.message);
+        }
+      }
       
       const statusList = Array.from(statuses).sort();
       
