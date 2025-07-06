@@ -144,6 +144,7 @@ interface SubTask {
   id: string;
   title: string;
   status: string;
+  statusColor?: string;
   type: 'child_page' | 'relation';
   lastEditedTime: string;
 }
@@ -1222,7 +1223,10 @@ export default function Workspace() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${getNotionColorClasses(subtask.statusColor || 'default').badge}`}
+                          >
                             {subtask.status}
                           </Badge>
                           <ExternalLink className="h-4 w-4 text-gray-400" />

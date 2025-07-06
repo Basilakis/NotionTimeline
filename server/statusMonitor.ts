@@ -61,22 +61,8 @@ export class StatusMonitor {
   private async checkForStatusChanges() {
     try {
       // Get all user configurations to monitor their tasks
-      // Try to get any admin configuration dynamically
-      const possibleAdminEmails = ['basiliskan@gmail.com', 'admin@example.com', 'admin@domain.com'];
-      let config = null;
-      let adminEmail = '';
-      
-      for (const email of possibleAdminEmails) {
-        try {
-          config = await storage.getConfiguration(email);
-          if (config) {
-            adminEmail = email;
-            break;
-          }
-        } catch (error) {
-          continue;
-        }
-      }
+      const adminEmail = "basiliskan@gmail.com";
+      const config = await storage.getConfiguration(adminEmail);
       
       if (!config) {
         return;

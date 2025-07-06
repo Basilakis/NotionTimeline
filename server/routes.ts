@@ -37,7 +37,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check for admin email
-      if (await isAdminUser(email)) {
+      if (email === "basiliskan@gmail.com") {
         let user = await storage.getUserByEmail(email);
         if (!user) {
           user = await storage.createUser({ 
@@ -709,7 +709,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let views = await storage.getNotionViews(userEmail);
       
       // If no views found and user is not admin, check if admin has Notion config and create demo views
-      if (views.length === 0 && !(await isAdminUser(userEmail))) {
+      if (views.length === 0 && userEmail !== "basiliskan@gmail.com") {
         console.log(`[Notion Views] No views found for ${userEmail}, checking admin config for demo...`);
         
         const adminConfig = await getAdminConfiguration();
@@ -914,7 +914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/projects", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -952,7 +952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/config", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -972,7 +972,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/config", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1005,7 +1005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/test-connection", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1033,7 +1033,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/stats", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1057,7 +1057,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/project-details/:projectId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1107,7 +1107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/crm/users", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1131,7 +1131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/crm/stats", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1147,7 +1147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/crm/users", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1175,7 +1175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/crm/users/:userId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1204,7 +1204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/admin/crm/users/:userId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1226,7 +1226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/crm/sync-from-notion", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1291,7 +1291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/crm/users/:userId/reminders", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1308,7 +1308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/crm/users/:userId/reminders", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1337,7 +1337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/crm/reminders/:reminderId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1365,7 +1365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/admin/crm/reminders/:reminderId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1387,7 +1387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/crm/users/:userId/send-sms", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1424,7 +1424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/crm/users/:userId/send-email", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1464,7 +1464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/settings/api", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1492,7 +1492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/settings/api", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1532,7 +1532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/test/twilio", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1563,7 +1563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/test/ses", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -2029,7 +2029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/debug/notion-database-all/:databaseId", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -2571,7 +2571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/debug/notion-page", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -2703,7 +2703,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/email-templates", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -2847,7 +2847,7 @@ Don't forget to update your task progress!`
   app.post("/api/admin/email-templates", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      if (!userEmail || !(await isAdminUser(userEmail))) {
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
