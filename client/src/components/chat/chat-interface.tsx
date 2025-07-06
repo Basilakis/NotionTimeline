@@ -96,21 +96,22 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
     mutationFn: async (data: { message: string; type: 'ai' | 'request'; chatId?: string }) => {
       if (data.chatId) {
         // Add message to existing chat
-        return await apiRequest(`/api/chats/${data.chatId}/messages`, {
-          method: 'POST',
-          body: { message: data.message, isFromUser: true }
+        return await apiRequest('POST', `/api/chats/${data.chatId}/messages`, { 
+          message: data.message, 
+          isFromUser: true 
         });
       } else {
         // Create new chat with first message
-        return await apiRequest('/api/chats', {
-          method: 'POST',
-          body: { message: data.message, type: data.type }
+        return await apiRequest('POST', '/api/chats', { 
+          message: data.message, 
+          type: data.type 
         });
       }
     },
-    onSuccess: (response) => {
-      if (!selectedChatId && response.chat) {
-        setSelectedChatId(response.chat.id);
+    onSuccess: async (response) => {
+      const data = await response.json();
+      if (!selectedChatId && data.chat) {
+        setSelectedChatId(data.chat.id);
       }
       refetchChats();
       refetchMessages();
@@ -134,19 +135,14 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
     try {
       if (!selectedChatId) {
         // Create new chat with first message
-        const response = await apiRequest('/api/chats', {
-          method: 'POST',
-          body: {
-            message: message,
-            type: commandType
-          },
-          headers: {
-            'x-user-email': userEmail
-          }
+        const response = await apiRequest('POST', '/api/chats', {
+          message: message,
+          type: commandType
         });
 
-        if (response.chat) {
-          setSelectedChatId(response.chat.id);
+        const data = await response.json();
+        if (data.chat) {
+          setSelectedChatId(data.chat.id);
         }
         
         refetchChats();
@@ -154,15 +150,9 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
         setMessage('');
       } else {
         // Send to existing chat
-        await apiRequest(`/api/chats/${selectedChatId}/messages`, {
-          method: 'POST',
-          body: {
-            message: message,
-            isFromUser: true
-          },
-          headers: {
-            'x-user-email': userEmail
-          }
+        await apiRequest('POST', `/api/chats/${selectedChatId}/messages`, {
+          message: message,
+          isFromUser: true
         });
 
         setMessage('');
@@ -188,9 +178,7 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
   // Delete chat mutation
   const deleteChatMutation = useMutation({
     mutationFn: async (chatId: string) => {
-      return await apiRequest(`/api/chats/${chatId}`, {
-        method: 'DELETE'
-      });
+      return await apiRequest('DELETE', `/api/chats/${chatId}`);
     },
     onSuccess: () => {
       refetchChats();
