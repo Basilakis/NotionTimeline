@@ -200,108 +200,75 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
   const taskProperties = extractTaskProperties(tasks);
 
   return (
-    <div className="space-y-6">
-      {/* Properties Panel */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-gray-600">
-            Tasks ({tasks.length}) - All Properties
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {taskProperties.map((property) => (
-            <div key={property.name} className="space-y-2">
-              <div className="text-sm font-medium text-gray-800">{property.name}</div>
-              <div className="flex flex-wrap gap-2">
-                {property.options.map((option: string, idx: number) => (
-                  <div key={option} className="flex items-center gap-2 text-xs">
-                    <div 
-                      className={`w-3 h-3 rounded-full ${
-                        property.colors[idx % property.colors.length] ? 
-                          getNotionColorClass(property.colors[idx % property.colors.length]) : 
-                          'bg-gray-400'
-                      }`}
-                    />
-                    <span className="text-gray-600">{option}</span>
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {columns.map((column) => (
+        <div key={column} className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">{column}</h3>
+            <Badge variant="secondary" className="text-xs">
+              {tasksByStatus[column]?.length || 0}
+            </Badge>
+          </div>
+          
+          <div className="space-y-3 min-h-[400px]">
+            {(tasksByStatus[column] || []).map((task) => (
+              <Card 
+                key={task.id} 
+                className={`cursor-pointer hover:shadow-md transition-shadow ${getPriorityColor(task.priority)} ${isOverdue(task.dueDate) ? 'ring-2 ring-red-400' : ''}`}
+                onClick={() => onTaskClick(task)}
+              >
+                <CardContent className="p-4">
+                  {/* Status Tag */}
+                  <div className="mb-2">
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${getStatusColor(task)}`}
+                    >
+                      {task.status}
+                    </Badge>
                   </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Kanban Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {columns.map((column) => (
-          <div key={column} className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">{column}</h3>
-              <Badge variant="secondary" className="text-xs">
-                {tasksByStatus[column]?.length || 0}
-              </Badge>
-            </div>
-            
-            <div className="space-y-3 min-h-[400px]">
-              {(tasksByStatus[column] || []).map((task) => (
-                <Card 
-                  key={task.id} 
-                  className={`cursor-pointer hover:shadow-md transition-shadow ${getPriorityColor(task.priority)} ${isOverdue(task.dueDate) ? 'ring-2 ring-red-400' : ''}`}
-                  onClick={() => onTaskClick(task)}
-                >
-                  <CardContent className="p-4">
-                    {/* Status Tag */}
-                    <div className="mb-2">
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs ${getStatusColor(task)}`}
-                      >
-                        {task.status}
-                      </Badge>
-                    </div>
-                    
-                    {/* Task Title */}
-                    <h4 className="font-medium text-sm mb-2 line-clamp-2">
-                      {task.title}
-                    </h4>
-                    
-                    {/* Task Meta */}
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                      {task.dueDate && (
-                        <div className={`flex items-center gap-1 ${isOverdue(task.dueDate) ? 'text-red-600' : ''}`}>
-                          <Calendar className="h-3 w-3" />
-                          <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                        </div>
-                      )}
-                      
-                      {task.priority && (
-                        <div className="flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          <span>{task.priority}</span>
-                        </div>
-                      )}
-                      
-                      {task.assignee && (
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          <span className="truncate max-w-[80px]">{task.assignee}</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Project Name */}
-                    {task.projectName && (
-                      <div className="mt-2 text-xs text-gray-400 truncate">
-                        {task.projectName}
+                  
+                  {/* Task Title */}
+                  <h4 className="font-medium text-sm mb-2 line-clamp-2">
+                    {task.title}
+                  </h4>
+                  
+                  {/* Task Meta */}
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    {task.dueDate && (
+                      <div className={`flex items-center gap-1 ${isOverdue(task.dueDate) ? 'text-red-600' : ''}`}>
+                        <Calendar className="h-3 w-3" />
+                        <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    
+                    {task.priority && (
+                      <div className="flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>{task.priority}</span>
+                      </div>
+                    )}
+                    
+                    {task.assignee && (
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        <span className="truncate max-w-[80px]">{task.assignee}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Project Name */}
+                  {task.projectName && (
+                    <div className="mt-2 text-xs text-gray-400 truncate">
+                      {task.projectName}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
