@@ -8,6 +8,7 @@ import { z } from "zod";
 import { userDB, type CRMUser } from "./userDatabase";
 import { reminderDB, type Reminder } from "./reminderDatabase";
 import { requestDB } from "./requestDatabase";
+import { chatDB } from "./chatDatabase";
 import { emailService, smsService } from "./communications";
 import { statusNotificationService } from "./statusNotifications";
 
@@ -3142,36 +3143,65 @@ Don't forget to update your task progress!`
     }
   });
 
-  // Requests API endpoint
+  // Legacy requests API endpoint (keeping for old chat interface support)
   app.post("/api/requests", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
-      const { content, requestType } = req.body;
+      const { content, requestType, chatId } = req.body;
 
       if (!userEmail) {
         return res.status(400).json({ message: "User email is required" });
       }
 
-      if (!content || !requestType) {
-        return res.status(400).json({ message: "Content and request type are required" });
+      if (!content) {
+        return res.status(400).json({ message: "Content is required" });
       }
 
-      if (requestType !== '/request' && requestType !== '/ai') {
-        return res.status(400).json({ message: "Invalid request type. Must be '/request' or '/ai'" });
+      // Default to 'ai' if no requestType specified (backward compatibility)
+      const type = requestType === '/request' ? 'request' : 'ai';
+      
+      console.log(`[Requests] ${type} from ${userEmail}: ${content}`);
+
+      let currentChatId = chatId;
+      let chat = null;
+
+      // Create new chat if none exists
+      if (!currentChatId) {
+        chat = await chatDB.createChat(userEmail, type, content);
+        currentChatId = chat.id;
+        console.log(`[Chat] Created new ${type} chat: ${currentChatId}`);
+      } else {
+        // Get existing chat
+        chat = await chatDB.getChat(currentChatId);
+        if (!chat) {
+          return res.status(404).json({ message: "Chat not found" });
+        }
       }
 
-      console.log(`[Requests] ${requestType} from ${userEmail}: ${content}`);
+      // Add user message to chat
+      const userMessage = await chatDB.createMessage(currentChatId, userEmail, content, type, true);
 
-      if (requestType === '/request') {
-        // Handle admin request - for now just log it
-        // In the future, this could send an email or create a ticket
+      if (type === 'request') {
+        // Handle admin request - create in both chat and request systems
         console.log(`[Admin Request] User ${userEmail} sent: ${content}`);
+        
+        // Also create in the old request system for admin panel
+        await requestDB.createRequest({
+          userEmail,
+          message: content
+        });
+        
+        // Add system response to chat
+        const systemResponse = "Your request has been sent to the administrator. You will receive a response soon.";
+        await chatDB.createMessage(currentChatId, 'system', systemResponse, type, false);
         
         res.json({ 
           success: true, 
-          message: "Request sent to admin successfully" 
+          message: systemResponse,
+          chatId: currentChatId,
+          chat: chat
         });
-      } else if (requestType === '/ai') {
+      } else {
         // Handle AI request with Notion context integration
         console.log(`[AI Request] User ${userEmail} asked: ${content}`);
         
@@ -3182,9 +3212,14 @@ Don't forget to update your task progress!`
           // Generate AI response based on user's Notion data
           const aiResponse = await aiService.generateResponse(userEmail, content);
           
+          // Add AI response to chat
+          await chatDB.createMessage(currentChatId, 'assistant', aiResponse, type, false);
+          
           res.json({ 
             success: true, 
-            response: aiResponse 
+            response: aiResponse,
+            chatId: currentChatId,
+            chat: chat
           });
         } catch (error) {
           console.error(`[AI Request] Error generating AI response:`, error);
@@ -3198,10 +3233,15 @@ Don't forget to update your task progress!`
             errorMessage = "I need access to your Notion workspace to provide personalized responses. Please make sure your Notion integration is properly configured in Settings.";
           }
           
+          // Add error response to chat
+          await chatDB.createMessage(currentChatId, 'system', errorMessage, type, false);
+          
           res.json({ 
             success: false, 
             response: errorMessage,
-            error: error.message 
+            error: error.message,
+            chatId: currentChatId,
+            chat: chat
           });
         }
       }
@@ -3392,6 +3432,141 @@ Don't forget to update your task progress!`
     } catch (error) {
       console.error("Error sending notification:", error);
       res.status(500).json({ message: "Failed to send notification" });
+    }
+  });
+
+  // Chat System API Routes (ChatGPT-like interface)
+  
+  // Get user's chat history
+  app.get("/api/chats", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(401).json({ message: "User email is required" });
+      }
+
+      const chats = await chatDB.getUserChats(userEmail);
+      res.json(chats);
+    } catch (error) {
+      console.error("Error fetching chats:", error);
+      res.status(500).json({ message: "Failed to fetch chats" });
+    }
+  });
+
+  // Get messages for a specific chat
+  app.get("/api/chats/:chatId/messages", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(401).json({ message: "User email is required" });
+      }
+
+      const { chatId } = req.params;
+      const messages = await chatDB.getChatMessages(chatId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching chat messages:", error);
+      res.status(500).json({ message: "Failed to fetch chat messages" });
+    }
+  });
+
+  // Create a new chat with first message
+  app.post("/api/chats", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(401).json({ message: "User email is required" });
+      }
+
+      const { message, type } = req.body;
+      if (!message || !type || !['ai', 'request'].includes(type)) {
+        return res.status(400).json({ message: "Message and valid type (ai or request) are required" });
+      }
+
+      // Create the chat
+      const chat = await chatDB.createChat(userEmail, type, message);
+      
+      // Add the first message
+      const firstMessage = await chatDB.createMessage(chat.id, userEmail, message, type, true);
+
+      res.status(201).json({ chat, message: firstMessage });
+    } catch (error) {
+      console.error("Error creating chat:", error);
+      res.status(500).json({ message: "Failed to create chat" });
+    }
+  });
+
+  // Add a message to existing chat
+  app.post("/api/chats/:chatId/messages", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(401).json({ message: "User email is required" });
+      }
+
+      const { chatId } = req.params;
+      const { message, isFromUser = true } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      // Get chat to determine type
+      const chat = await chatDB.getChat(chatId);
+      if (!chat) {
+        return res.status(404).json({ message: "Chat not found" });
+      }
+
+      // Add the message
+      const newMessage = await chatDB.createMessage(chatId, userEmail, message, chat.type, isFromUser);
+
+      res.status(201).json(newMessage);
+    } catch (error) {
+      console.error("Error adding message:", error);
+      res.status(500).json({ message: "Failed to add message" });
+    }
+  });
+
+  // Delete a chat
+  app.delete("/api/chats/:chatId", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(401).json({ message: "User email is required" });
+      }
+
+      const { chatId } = req.params;
+      const success = await chatDB.deleteChat(chatId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Chat not found" });
+      }
+
+      res.json({ message: "Chat deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting chat:", error);
+      res.status(500).json({ message: "Failed to delete chat" });
+    }
+  });
+
+  // Search user's chats
+  app.get("/api/chats/search", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(401).json({ message: "User email is required" });
+      }
+
+      const { q } = req.query;
+      if (!q || typeof q !== 'string') {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+
+      const chats = await chatDB.searchUserChats(userEmail, q);
+      res.json(chats);
+    } catch (error) {
+      console.error("Error searching chats:", error);
+      res.status(500).json({ message: "Failed to search chats" });
     }
   });
 
