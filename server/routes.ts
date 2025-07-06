@@ -1361,7 +1361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const notion = createNotionClient(config.notionSecret);
-      const agoresDatabaseId = '22868d53a05c802fb41df44b941c31a0';
+      const agoresDatabaseId = '22868d53-a05c-802f-b41d-f44b941c31a0';
       
       // Verify the database exists and get its details
       try {
@@ -1773,11 +1773,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pageId = extractPageIdFromUrl(config.notionPageUrl);
 
       // Auto-check for Αγορές database and create view if accessible
-      const agoresDatabaseId = '22868d53a05c802fb41df44b941c31a0';
+      const agoresDatabaseId = '22868d53-a05c-802f-b41d-f44b941c31a0';
       try {
+        console.log(`[Discovery] Attempting to access Αγορές database: ${agoresDatabaseId}`);
         const agoresDatabase = await notion.databases.retrieve({ 
           database_id: agoresDatabaseId 
         });
+
+        const databaseTitle = agoresDatabase.title?.[0]?.plain_text || 'Αγορές';
+        console.log(`[Discovery] Successfully accessed Αγορές database: "${databaseTitle}"`);
 
         // Check if Αγορές view already exists
         const existingAgoresView = await storage.getNotionViewByType(userEmail, 'αγορές');
@@ -1795,9 +1799,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           console.log(`[Discovery] Auto-created Αγορές view for user: ${userEmail}`);
           viewsCreated++;
+        } else {
+          console.log(`[Discovery] Αγορές view already exists for user: ${userEmail}`);
         }
-      } catch (error) {
-        console.log(`[Discovery] Αγορές database not accessible for user: ${userEmail}`);
+      } catch (error: any) {
+        console.log(`[Discovery] Αγορές database not accessible for user: ${userEmail}, error: ${error.message}`);
       }
 
       try {
