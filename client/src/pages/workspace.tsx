@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import TaskTimeline from "@/components/TaskTimeline";
 import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, RefreshCw, Settings, LogOut } from "lucide-react";
 
 interface NotionView {
@@ -668,80 +669,10 @@ export default function Workspace() {
 
               {/* Timeline View */}
               {taskViewMode === 'timeline' && (
-                <div className="space-y-4">
-                  <div className="relative">
-                    {/* Timeline Line */}
-                    <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-300"></div>
-                    
-                    {/* Timeline Items */}
-                    <div className="space-y-6">
-                      {filteredTasks
-                        .sort((a, b) => {
-                          const dateA = new Date(a.dueDate || a.createdTime).getTime();
-                          const dateB = new Date(b.dueDate || b.createdTime).getTime();
-                          return dateA - dateB;
-                        })
-                        .map((task: Task, index) => (
-                          <div key={task.id} className="relative flex items-start gap-6">
-                            {/* Timeline Node */}
-                            <div className="flex-shrink-0 w-16 flex justify-center">
-                              <div className={`w-4 h-4 rounded-full border-2 ${
-                                task.isCompleted 
-                                  ? 'bg-green-500 border-green-500' 
-                                  : 'bg-white border-blue-500'
-                              }`}></div>
-                            </div>
-                            
-                            {/* Task Card */}
-                            <Card 
-                              className="flex-1 cursor-pointer hover:shadow-md transition-shadow"
-                              onClick={() => handleTaskClick(task)}
-                            >
-                              <CardContent className="p-4">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <h3 className="font-medium text-gray-900">{task.title}</h3>
-                                      <Badge variant={task.isCompleted ? "default" : "secondary"}>
-                                        {task.status}
-                                      </Badge>
-                                      {task.priority && (
-                                        <Badge variant={
-                                          task.priority === 'High' ? 'destructive' :
-                                          task.priority === 'Medium' ? 'default' : 'secondary'
-                                        }>
-                                          {task.priority}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                                      <span>Progress: {task.progress}%</span>
-                                      {task.dueDate && (
-                                        <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
-                                      )}
-                                      <span>Updated: {new Date(task.lastEditedTime).toLocaleDateString()}</span>
-                                    </div>
-                                  </div>
-                                  
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      window.open(task.url, '_blank');
-                                    }}
-                                  >
-                                    <ExternalLink className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
+                <TaskTimeline 
+                  tasks={filteredTasks}
+                  onTaskClick={handleTaskClick}
+                />
               )}
             </div>
           )}

@@ -148,6 +148,27 @@ interface NotionView {
 
 ### 🔄 Recent Changes (Last Updated: July 6, 2025)
 
+#### Enhanced Timeline View with Professional Project Management Interface
+- **Problem Solved**: Basic timeline view lacking professional project management features
+- **Solution**: Complete custom timeline component inspired by modern project management tools
+- **Implementation**: 
+  - Built custom TaskTimeline component with grouped time periods (Overdue, This Week, Upcoming, Future)
+  - Advanced date formatting with relative time display (Today, Tomorrow, In X days)
+  - Smart task grouping by due dates and creation dates
+  - Professional visual design with progress bars, status indicators, and priority badges
+  - Improved user experience with hover effects and smooth transitions
+- **User Experience**: Professional timeline view matching industry standards for project management tools
+
+#### Restored and Enhanced Subtask Functionality  
+- **Problem Solved**: Missing subtasks in task modals for tasks like "Αποξηλώσεις"
+- **Solution**: Complete subtask fetching and display system with real Notion data
+- **Implementation**: 
+  - Enhanced tasks API to fetch both child pages and related tasks as subtasks
+  - Added comprehensive subtask detection for Sub-tasks, Subtasks, and Related relations
+  - Real-time subtask integration with task data (no additional API calls needed)
+  - Enhanced task modal with dedicated subtasks section and bulk actions
+- **User Experience**: Complete task overview with all subtasks visible and clickable, "Open All Subtasks" functionality
+
 #### Complete Task System with Subtask Integration
 - **Problem Solved**: Tasks showing generic names instead of real database entries and missing subtask details
 - **Solution**: Complete rewrite of task fetching system with real database integration and subtask support
