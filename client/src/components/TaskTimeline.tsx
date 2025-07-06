@@ -106,13 +106,6 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
     const timelineStart = new Date(minDate.getFullYear(), minDate.getMonth() - 1, 1);
     const timelineEnd = new Date(maxDate.getFullYear(), maxDate.getMonth() + 2, 0);
 
-    // Update scale state
-    setScale(prev => ({
-      ...prev,
-      start: timelineStart,
-      end: timelineEnd
-    }));
-
     // Create simple tracks - one per task with project name prefix
     const tracks = tasks.map((task, index) => {
       const startTime = new Date(task.createdTime);
@@ -247,7 +240,13 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
           
           <div style={{ height: '500px', overflow: 'auto' }}>
             <Timeline
-              scale={scale}
+              scale={{
+                start: timelineData.start,
+                end: timelineData.end,
+                zoom: scale.zoom,
+                zoomMin: scale.zoomMin,
+                zoomMax: scale.zoomMax
+              }}
               isOpen={isOpen}
               toggleOpen={toggleOpen}
               zoomIn={zoomIn}
