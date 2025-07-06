@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 import { NotionRenderer } from "react-notion-x";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -45,15 +46,13 @@ interface NotionRecord {
   properties: any;
 }
 
-function getUserEmail(): string {
-  return localStorage.getItem('userEmail') || '';
-}
-
 export default function Workspace() {
   const { toast } = useToast();
+  const { user, logout } = useAuth();
   const [activeView, setActiveView] = useState<string>('tasks');
   const [pageData, setPageData] = useState<any>(null);
-  const userEmail = getUserEmail();
+  const [autoDiscovering, setAutoDiscovering] = useState(false);
+  const userEmail = user?.email || '';
 
   // Fetch user's Notion views
   const { data: views, isLoading: viewsLoading } = useQuery<NotionView[]>({
@@ -109,6 +108,7 @@ export default function Workspace() {
         description: data.message
       });
       queryClient.invalidateQueries({ queryKey: ['/api/notion-views'] });
+      setAutoDiscovering(false);
     },
     onError: (error: Error) => {
       toast({
@@ -116,15 +116,27 @@ export default function Workspace() {
         description: error.message,
         variant: "destructive"
       });
+      setAutoDiscovering(false);
     }
   });
 
-  if (viewsLoading) {
+  // Auto-discover workspace when user first arrives and has no views
+  useEffect(() => {
+    if (userEmail && !viewsLoading && views && views.length === 0 && !autoDiscovering) {
+      console.log('[Workspace] Auto-discovering workspace for user:', userEmail);
+      setAutoDiscovering(true);
+      discoverWorkspace.mutate();
+    }
+  }, [userEmail, views, viewsLoading, autoDiscovering]);
+
+  if (viewsLoading || autoDiscovering) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex items-center gap-2">
           <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading workspace...</span>
+          <span>
+            {autoDiscovering ? 'Discovering your workspace...' : 'Loading workspace...'}
+          </span>
         </div>
       </div>
     );
@@ -137,13 +149,18 @@ export default function Workspace() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              No Views Configured
+              Welcome to Your Workspace!
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              No database views have been set up for your account. Click below to discover and configure your Notion workspace automatically.
-            </p>
+            <div className="text-center space-y-2">
+              <p className="text-muted-foreground">
+                Hi <strong>{userEmail}</strong>! We're setting up your personalized workspace.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                We'll automatically discover your Notion databases and create views for data assigned to your email.
+              </p>
+            </div>
             <Button 
               onClick={() => discoverWorkspace.mutate()}
               disabled={discoverWorkspace.isPending}
@@ -152,15 +169,18 @@ export default function Workspace() {
               {discoverWorkspace.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Discovering Workspace...
+                  Discovering Your Workspace...
                 </>
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Discover Notion Workspace
+                  Discover My Notion Workspace
                 </>
               )}
             </Button>
+            <div className="text-xs text-muted-foreground text-center">
+              <p>This process scans your Notion databases for records containing your email address.</p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -184,7 +204,10 @@ export default function Workspace() {
       
       <div className={`container mx-auto py-6 ${hasProposalRecords ? 'relative z-10' : ''}`}>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Workspace</h1>
+          <div>
+            <h1 className="text-3xl font-bold">Welcome back, {userEmail.split('@')[0]}!</h1>
+            <p className="text-muted-foreground mt-1">Your personalized workspace with {views?.length || 0} active views</p>
+          </div>
           <div className="flex gap-2">
             <Button
               variant="ghost"
@@ -212,6 +235,13 @@ export default function Workspace() {
                 <RefreshCw className="h-4 w-4 mr-2" />
               )}
               Refresh Views
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={logout}
+            >
+              Logout
             </Button>
           </div>
         </div>

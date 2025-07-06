@@ -60,13 +60,13 @@ interface ProjectDetails {
 export default function UserDemo() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const [testUserEmail, setTestUserEmail] = useState("basiliskan@gmail.com");
+  const [simulateUser, setSimulateUser] = useState(false);
   const [activeView, setActiveView] = useState<string>('projects');
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
-  const [autoInitialized, setAutoInitialized] = useState(false);
 
   // Set user email for testing
   const handleSetUserEmail = () => {
