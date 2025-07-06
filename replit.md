@@ -149,16 +149,17 @@ interface NotionView {
 ### 🔄 Recent Changes (Last Updated: July 6, 2025)
 
 #### Professional Timeline View Implementation with React-Timelines Package
-- **Problem Solved**: Need for proper timeline visualization using react-timelines package as requested
-- **Solution**: Complete timeline implementation using react-timelines package for professional Gantt-style visualization
+- **Problem Solved**: Need for proper hierarchical timeline visualization using react-timelines package with project-based organization
+- **Solution**: Complete hierarchical timeline with projects, tasks, and expandable subtasks using react-timelines
 - **Implementation**: 
-  - Integrated react-timelines package with proper CSS imports and configuration
-  - Task tracks organized by sections with color-coded status indicators
-  - Interactive timeline bars showing task duration from creation to due date
-  - Custom element components displaying task progress and priority borders
-  - Click functionality to open task modals and tooltips for quick information
-  - Professional date scaling and zoom capabilities
-- **User Experience**: Industry-standard Gantt chart timeline with interactive task bars and proper time visualization
+  - Integrated react-timelines package with proper state management and callback functions
+  - Project-based organization showing real project names (Vertex Developments, ethos, creativeG) instead of sections
+  - Individual task tracks with each task on separate timeline rows under their project
+  - Expandable/collapsible functionality for projects and tasks with subtasks using + icons
+  - Monthly and weekly timeline scales with proper date positioning from creation to due dates
+  - Color-coded status indicators and priority borders with click functionality for task modals
+  - Smart project name extraction from task properties with multiple format support
+- **User Experience**: Professional hierarchical Gantt chart with project grouping, expandable subtasks, and accurate date-based positioning
 
 #### Restored and Enhanced Subtask Functionality  
 - **Problem Solved**: Missing subtasks in task modals for tasks like "Αποξηλώσεις"

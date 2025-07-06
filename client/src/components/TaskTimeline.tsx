@@ -28,6 +28,8 @@ interface TaskTimelineProps {
 }
 
 export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) {
+  const [openTracks, setOpenTracks] = React.useState<Record<string, boolean>>({});
+
   const getStatusColor = (status: string, isCompleted: boolean) => {
     if (isCompleted) return '#10b981'; // green
     switch (status.toLowerCase()) {
@@ -36,6 +38,13 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
       case 'blocked': return '#dc2626'; // red
       default: return '#6b7280'; // gray
     }
+  };
+
+  const handleToggleOpen = (trackId: string) => {
+    setOpenTracks(prev => ({
+      ...prev,
+      [trackId]: !prev[trackId]
+    }));
   };
 
   // Transform tasks data for react-timelines
@@ -112,10 +121,11 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
 
     Object.entries(projectGroups).forEach(([projectName, projectTasks]) => {
       // Add project header track
+      const projectTrackId = `project-${trackIndex}`;
       tracks.push({
-        id: `project-${trackIndex}`,
+        id: projectTrackId,
         title: projectName,
-        isOpen: true,
+        isOpen: openTracks[projectTrackId] !== false, // default to open
         hasButton: true,
         elements: [],
         tracks: projectTasks.map((task, taskIndex) => {
@@ -127,11 +137,12 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
             endTime.setTime(startTime.getTime() + 7 * 24 * 60 * 60 * 1000); // Add 1 week
           }
 
+          const taskTrackId = `task-${trackIndex}-${taskIndex}`;
           const taskTrack = {
-            id: `task-${trackIndex}-${taskIndex}`,
+            id: taskTrackId,
             title: task.title,
             hasButton: task.subtasks && task.subtasks.length > 0,
-            isOpen: false,
+            isOpen: openTracks[taskTrackId] || false,
             elements: [{
               id: task.id,
               title: task.title,
@@ -268,14 +279,14 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
                 zoomMax: 20
               }}
               isOpen={true}
-              toggleOpen={() => {}}
+              toggleOpen={handleToggleOpen}
               zoomIn={() => {}}
               zoomOut={() => {}}
               tracks={timelineData.tracks}
               now={timelineData.now}
               timebar={timelineData.timebar}
               clickElement={handleElementClick}
-              clickTrackButton={() => {}}
+              clickTrackButton={handleToggleOpen}
             />
           </div>
           
