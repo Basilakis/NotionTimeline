@@ -14,7 +14,7 @@ import { useStatusNotification, createStatusChangeData } from "@/hooks/useStatus
 import { useAuth } from "@/hooks/useAuth";
 import TaskTimeline from "@/components/TaskTimeline";
 import KanbanBoard from "@/components/KanbanBoard";
-import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard, ShoppingCart } from "lucide-react";
+import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard, ShoppingCart, Send, Bot, User, MessageSquare } from "lucide-react";
 import vertexLogo from "@assets/VertexDevelopments_1751826186443.png";
 
 // Notion color mapping to Tailwind classes (matching KanbanBoard)
@@ -207,6 +207,16 @@ interface SubTask {
   lastEditedTime: string;
 }
 
+interface ChatMessage {
+  id: string;
+  content: string;
+  type: 'user' | 'admin' | 'ai';
+  requestType: '/request' | '/ai';
+  timestamp: string;
+  userEmail: string;
+  status: 'pending' | 'replied' | 'resolved';
+}
+
 function getUserEmail(): string {
   const userEmail = localStorage.getItem('userEmail');
   if (!userEmail) {
@@ -223,6 +233,108 @@ export default function Workspace() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('tasks'); // Start with tasks tab
   const [statusFilter, setStatusFilter] = useState<string>('all'); // Filter state for tasks and subtasks
+  
+  // Requests/Chat state
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [currentMessage, setCurrentMessage] = useState('');
+  const [isRequestLoading, setIsRequestLoading] = useState(false);
+
+  // Handle sending a request
+  const handleSendRequest = async () => {
+    if (!currentMessage.trim()) return;
+    
+    const messageContent = currentMessage.trim();
+    let requestType: '/request' | '/ai';
+    let actualMessage: string;
+    
+    if (messageContent.startsWith('/request ')) {
+      requestType = '/request';
+      actualMessage = messageContent.substring(9).trim();
+    } else if (messageContent.startsWith('/ai ')) {
+      requestType = '/ai';
+      actualMessage = messageContent.substring(4).trim();
+    } else {
+      toast({
+        title: "Invalid Format",
+        description: "Please start your message with /request or /ai",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!actualMessage) {
+      toast({
+        title: "Empty Message",
+        description: "Please provide a message after the command",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const newMessage: ChatMessage = {
+      id: Date.now().toString(),
+      content: actualMessage,
+      type: 'user',
+      requestType,
+      timestamp: new Date().toISOString(),
+      userEmail: userEmail,
+      status: 'pending'
+    };
+    
+    setMessages(prev => [...prev, newMessage]);
+    setCurrentMessage('');
+    setIsRequestLoading(true);
+    
+    try {
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': userEmail
+        },
+        body: JSON.stringify({
+          content: actualMessage,
+          requestType,
+          userEmail
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      
+      const result = await response.json();
+      
+      if (requestType === '/ai' && result.response) {
+        // Add AI response to chat
+        const aiMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          content: result.response,
+          type: 'ai',
+          requestType,
+          timestamp: new Date().toISOString(),
+          userEmail: userEmail,
+          status: 'replied'
+        };
+        setMessages(prev => [...prev, aiMessage]);
+      }
+      
+      toast({
+        title: requestType === '/request' ? "Request Sent" : "AI Response Received",
+        description: requestType === '/request' ? "Your request has been sent to the admin" : "AI has processed your request"
+      });
+      
+    } catch (error) {
+      console.error('Error sending request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send request. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRequestLoading(false);
+    }
+  };
 
   // Handle tab change with cache invalidation to refresh data
   const handleTabChange = (newTab: string) => {
@@ -643,9 +755,9 @@ export default function Workspace() {
             <ShoppingCart className="h-4 w-4 mr-2" />
             Purchases ({(purchaseTasks || []).length})
           </TabsTrigger>
-          <TabsTrigger value="analytics">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Analytics
+          <TabsTrigger value="requests">
+            <FileText className="h-4 w-4 mr-2" />
+            Requests
           </TabsTrigger>
         </TabsList>
 
@@ -1102,44 +1214,96 @@ export default function Workspace() {
           )}
         </TabsContent>
 
-        {/* Analytics Tab */}
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Projects</p>
-                    <p className="text-2xl font-bold">{filteredProjects.length}</p>
-                  </div>
-                  <Database className="h-8 w-8 text-blue-600" />
+        {/* Requests Tab */}
+        <TabsContent value="requests" className="space-y-4">
+          <div className="h-[600px] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold">Requests & Support</h2>
+                <p className="text-sm text-gray-600">
+                  Type <span className="font-mono bg-gray-100 px-1 rounded">/request</span> for admin support or <span className="font-mono bg-gray-100 px-1 rounded">/ai</span> for AI assistance
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">
+                  <MessageSquare className="h-3 w-3 mr-1" />
+                  {messages.length} messages
+                </Badge>
+              </div>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 border rounded-lg p-4 overflow-y-auto bg-gray-50 space-y-4">
+              {messages.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  <MessageSquare className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                  <p>No messages yet. Start a conversation!</p>
+                  <p className="text-sm mt-2">
+                    Try: <span className="font-mono bg-gray-200 px-2 py-1 rounded">/request Can you help me with...</span>
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Tasks</p>
-                    <p className="text-2xl font-bold">{filteredTasks.length}</p>
+              ) : (
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                        message.type === 'user'
+                          ? 'bg-[#003319] text-white'
+                          : message.type === 'ai'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-[#88B39D] text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        {message.type === 'user' ? (
+                          <User className="h-3 w-3" />
+                        ) : message.type === 'ai' ? (
+                          <Bot className="h-3 w-3" />
+                        ) : (
+                          <Settings className="h-3 w-3" />
+                        )}
+                        <span className="text-xs font-medium">
+                          {message.type === 'user' ? 'You' : message.type === 'ai' ? 'AI Assistant' : 'Admin'}
+                        </span>
+                        <Badge variant="outline" className="text-xs">
+                          {message.requestType}
+                        </Badge>
+                      </div>
+                      <p className="text-sm">{message.content}</p>
+                      <p className="text-xs opacity-75 mt-1">
+                        {new Date(message.timestamp).toLocaleTimeString()}
+                      </p>
+                    </div>
                   </div>
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Completed Tasks</p>
-                    <p className="text-2xl font-bold">{filteredTasks.filter(t => t.isCompleted).length}</p>
-                  </div>
-                  <AlertCircle className="h-8 w-8 text-yellow-600" />
-                </div>
-              </CardContent>
-            </Card>
+                ))
+              )}
+            </div>
+
+            {/* Input Area */}
+            <div className="mt-4 flex gap-2">
+              <Input
+                placeholder="Type /request for admin or /ai for AI assistance..."
+                value={currentMessage}
+                onChange={(e) => setCurrentMessage(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSendRequest()}
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleSendRequest}
+                disabled={!currentMessage.trim() || isRequestLoading}
+                size="sm"
+              >
+                {isRequestLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
         </TabsContent>
       </Tabs>

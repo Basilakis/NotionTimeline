@@ -3038,6 +3038,58 @@ Don't forget to update your task progress!`
     }
   });
 
+  // Requests API endpoint
+  app.post("/api/requests", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      const { content, requestType } = req.body;
+
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      if (!content || !requestType) {
+        return res.status(400).json({ message: "Content and request type are required" });
+      }
+
+      if (requestType !== '/request' && requestType !== '/ai') {
+        return res.status(400).json({ message: "Invalid request type. Must be '/request' or '/ai'" });
+      }
+
+      console.log(`[Requests] ${requestType} from ${userEmail}: ${content}`);
+
+      if (requestType === '/request') {
+        // Handle admin request - for now just log it
+        // In the future, this could send an email or create a ticket
+        console.log(`[Admin Request] User ${userEmail} sent: ${content}`);
+        
+        res.json({ 
+          success: true, 
+          message: "Request sent to admin successfully" 
+        });
+      } else if (requestType === '/ai') {
+        // Handle AI request - this is where crewAI integration would go
+        console.log(`[AI Request] User ${userEmail} asked: ${content}`);
+        
+        // For now, return a simple response
+        // TODO: Integrate with crewAI to search user's Notion database
+        const aiResponse = `I received your request: "${content}". AI integration with your Notion database is coming soon!`;
+        
+        res.json({ 
+          success: true, 
+          response: aiResponse 
+        });
+      }
+
+    } catch (error) {
+      console.error("Error handling request:", error);
+      res.status(500).json({ 
+        message: "Failed to process request",
+        error: (error as Error).message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
@@ -3277,3 +3329,4 @@ function getSortOrderForViewType(viewType: string): number {
     default: return 99;
   }
 }
+
