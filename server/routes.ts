@@ -1676,18 +1676,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error: any) {
       console.error("Error processing AI request:", error);
+      console.error("Error status:", error.status);
+      console.error("Error message:", error.message);
       
       if (error.message.includes("OpenAI API key not configured")) {
         res.status(400).json({ 
           message: "AI service is not available. Please configure OpenAI API key in admin settings." 
         });
-      } else if (error.message.includes("Rate limit") || error.message.includes("quota")) {
+      } else if (error.status === 429 || error.message.includes("quota") || error.message.includes("Rate limit")) {
         res.status(429).json({ 
-          message: "AI service is temporarily unavailable due to rate limits. Please try again later." 
+          message: "OpenAI API quota exceeded. Please check your OpenAI billing and upgrade your plan, or wait for the quota to reset. You can configure a different API key in admin settings." 
+        });
+      } else if (error.status === 401 || error.message.includes("Invalid API key")) {
+        res.status(400).json({ 
+          message: "Invalid OpenAI API key. Please check your API key in admin settings and ensure it's valid." 
         });
       } else {
         res.status(500).json({ 
-          message: "Failed to process AI request. Please try again." 
+          message: error.message || "Failed to process AI request. Please try again." 
         });
       }
     }

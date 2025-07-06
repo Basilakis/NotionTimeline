@@ -133,11 +133,20 @@ Guidelines:
       
       return aiResponse;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(`[AI Response] Error generating response for ${userEmail}:`, error);
       
-      if (error.message.includes("OpenAI API key")) {
-        return "I need an OpenAI API key to provide AI-powered responses. Please ask an administrator to configure the OPENAI_API_KEY environment variable.";
+      // Pass through specific OpenAI errors to route handler for better error messages
+      if (error.status === 429 || error.message.includes("quota") || error.message.includes("Rate limit")) {
+        throw error; // Let route handler provide quota-specific message
+      }
+      
+      if (error.status === 401 || error.message.includes("Invalid API key") || error.message.includes("API key")) {
+        throw error; // Let route handler provide authentication-specific message  
+      }
+      
+      if (error.message.includes("OpenAI API key not configured")) {
+        throw new Error("OpenAI API key not configured");
       }
       
       if (error.message.includes("Notion configuration")) {
