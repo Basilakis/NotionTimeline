@@ -686,7 +686,7 @@ export default function Workspace() {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 bg-brand-secondary/10 p-1">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="projects">
             <Database className="h-4 w-4 mr-2" />
             Projects ({filteredProjects.length})
