@@ -58,8 +58,9 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
   const getStatusColor = useCallback((task: Task) => {
     if (task.isCompleted) return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Completed - green
     
-    // Use Notion's actual status colors
+    // Use Notion's actual status colors with debug logging
     const statusColor = task.statusColor || 'default';
+    console.log('[Timeline Color Debug] Task:', task.title, 'statusColor:', statusColor, 'status:', task.status);
     
     switch (statusColor) {
       case 'blue':

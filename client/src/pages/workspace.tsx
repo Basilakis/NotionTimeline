@@ -296,6 +296,9 @@ export default function Workspace() {
 
   // Helper function to get badge variant and color classes based on Notion status color
   const getStatusBadgeStyle = (statusColor: string, isMainStatus: boolean = false) => {
+    // Debug log to verify color mapping
+    console.log('[Color Debug] Getting style for status color:', statusColor, 'isMainStatus:', isMainStatus);
+    
     const colorMap = {
       blue: isMainStatus ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-blue-50 text-blue-700 border-blue-200',
       yellow: isMainStatus ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200',
