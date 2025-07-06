@@ -146,7 +146,19 @@ interface NotionView {
 }
 ```
 
-### 🔄 Recent Changes (Last Updated: July 5, 2025)
+### 🔄 Recent Changes (Last Updated: July 6, 2025)
+
+#### Complete Task System with Subtask Integration
+- **Problem Solved**: Tasks showing generic names instead of real database entries and missing subtask details
+- **Solution**: Complete rewrite of task fetching system with real database integration and subtask support
+- **Implementation**: 
+  - Fixed conflicting API routes that prevented proper task fetching
+  - Enhanced task API to fetch individual database entries with actual Greek titles
+  - Added subtask detection from both child pages and task relations  
+  - Built comprehensive task modal with subtask display and bulk actions
+  - Real task names now display: "Αποξηλώσεις", "Υδραυλικές Εργασίες", "Ηλεκτρολογικές Εργασίες", "Θέρμανση"
+  - Subtasks fetch with full details: "Αποξήλωση Μπάνιου", "Αποξήλωση Κουζίνα", etc.
+- **User Experience**: Complete task management with real data, clickable subtasks, and direct Notion integration
 
 #### Comprehensive Hierarchical Project Display Implementation
 - **Problem Solved**: Demo page showing only basic project titles without detailed structure
