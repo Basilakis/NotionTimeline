@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,13 +60,13 @@ interface ProjectDetails {
 export default function UserDemo() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [testUserEmail, setTestUserEmail] = useState("basiliskan@gmail.com");
-  const [simulateUser, setSimulateUser] = useState(false);
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [activeView, setActiveView] = useState<string>('projects');
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [autoInitialized, setAutoInitialized] = useState(false);
 
   // Set user email for testing
   const handleSetUserEmail = () => {
