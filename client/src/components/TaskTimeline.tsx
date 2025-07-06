@@ -28,6 +28,16 @@ interface TaskTimelineProps {
 }
 
 export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) {
+  const getStatusColor = (status: string, isCompleted: boolean) => {
+    if (isCompleted) return '#10b981'; // green
+    switch (status.toLowerCase()) {
+      case 'in progress': return '#3b82f6'; // blue
+      case 'to do': return '#6b7280'; // gray
+      case 'blocked': return '#dc2626'; // red
+      default: return '#6b7280'; // gray
+    }
+  };
+
   // Transform tasks data for react-timelines
   const timelineData = useMemo(() => {
     if (tasks.length === 0) {
@@ -94,17 +104,7 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
       end: timelineEnd,
       now: today
     };
-  }, [tasks]);
-
-  const getStatusColor = (status: string, isCompleted: boolean) => {
-    if (isCompleted) return '#10b981'; // green
-    switch (status.toLowerCase()) {
-      case 'in progress': return '#3b82f6'; // blue
-      case 'to do': return '#6b7280'; // gray
-      case 'blocked': return '#dc2626'; // red
-      default: return '#6b7280'; // gray
-    }
-  };
+  }, [tasks, getStatusColor]);
 
   const handleElementClick = (element: any) => {
     if (element.task) {
