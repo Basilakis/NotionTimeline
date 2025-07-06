@@ -350,110 +350,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           console.log(`[Notion Purchases] ✅ Found Αγορές task: "${title}" (${taskId})`);
+          console.log(`[Notion Purchases] Extracting subtasks/sub-database items instead of main task...`);
 
-          // Simplify to avoid complex processing that's causing errors
-          const purchaseTask = {
-            id: taskId,
-            notionId: taskId,
-            title: title || 'Αγορές',
-            status: 'Planning',
-            mainStatus: 'not_started',
-            subStatus: 'Planning',
-            statusColor: 'blue',
-            priority: null,
-            dueDate: null,
-            description: 'Purchase-related task',
-            section: 'Purchases',
-            isCompleted: false,
-            progress: 0,
-            createdTime: (page as any).created_time || new Date().toISOString(),
-            lastEditedTime: (page as any).last_edited_time || new Date().toISOString(),
-            url: `https://notion.so/${taskId.replace(/-/g, "")}`,
-            userEmail: userEmail,
-            assignee: null,
-            projectName: 'Vertex Developments',
-            properties: properties || {},
-            subtasks: []
-          };
-
-          console.log(`[Notion Purchases] Created basic purchase task: "${purchaseTask.title}"`);
-          purchaseTasks.push(purchaseTask);
-          continue; // Skip the complex processing below
+          // Extract subtasks and sub-database items to show in purchases list
+          const taskBlocks = await notion.blocks.children.list({ block_id: taskId });
           
-          try {
-            // Extract subtasks (same logic as regular tasks)
-            console.log(`[Notion Purchases] Processing subtasks for "${title}"`);
-            const taskBlocks = await notion.blocks.children.list({ block_id: taskId });
-            
-            for (const block of taskBlocks.results) {
-              if (block.type === 'child_page') {
-                try {
-                  const childPage = await notion.pages.retrieve({ page_id: block.id });
-                  const childProperties = (childPage as any).properties || {};
+          for (const block of taskBlocks.results) {
+            if (block.type === 'child_page') {
+              try {
+                const childPage = await notion.pages.retrieve({ page_id: block.id });
+                const childProperties = (childPage as any).properties || {};
+                
+                const childTitleProperty = childProperties.title || childProperties.Title || childProperties.Name ||
+                                          Object.values(childProperties).find((prop: any) => prop.type === 'title');
+                const childTitle = extractTextFromProperty(childTitleProperty) || block.child_page?.title || 'Untitled Purchase Item';
+                
+                // Create purchase item from child page
+                const purchaseItem = {
+                  id: block.id,
+                  notionId: block.id,
+                  title: childTitle,
+                  status: childProperties.Status?.select?.name || childProperties.Status?.status?.name || 'Planning',
+                  mainStatus: 'Planning',
+                  subStatus: childProperties.Status?.select?.name || 'Planning',
+                  statusColor: childProperties.Status?.select?.color || 'blue',
+                  priority: childProperties.Priority?.select?.name || null,
+                  dueDate: childProperties.DueDate?.date?.start || null,
+                  description: extractTextFromProperty(childProperties.Description) || '',
+                  section: 'Purchases',
+                  isCompleted: childProperties.Status?.select?.name === 'Done',
+                  progress: childProperties.Status?.select?.name === 'Done' ? 100 : 
+                           childProperties.Status?.select?.name === 'In Progress' ? 50 : 0,
+                  createdTime: (childPage as any).created_time || new Date().toISOString(),
+                  lastEditedTime: (childPage as any).last_edited_time || new Date().toISOString(),
+                  url: `https://notion.so/${block.id.replace(/-/g, "")}`,
+                  userEmail: userEmail,
+                  assignee: extractTextFromProperty(childProperties.Assignee) || null,
+                  projectName: 'Vertex Developments',
+                  properties: childProperties || {},
+                  subtasks: [],
+                  type: 'child_page'
+                };
+
+                console.log(`[Notion Purchases] Added child page item: "${childTitle}"`);
+                purchaseTasks.push(purchaseItem);
+              } catch (subtaskError) {
+                console.log(`[Notion Purchases] Could not fetch child page ${block.id}:`, subtaskError);
+              }
+            } else if (block.type === 'child_database') {
+              try {
+                const database = await notion.databases.retrieve({ database_id: block.id });
+                const dbRecords = await notion.databases.query({ database_id: block.id });
+                
+                console.log(`[Notion Purchases] Found child database with ${dbRecords.results.length} records`);
+                
+                for (const record of dbRecords.results) {
+                  const recordProperties = (record as any).properties || {};
+                  const recordTitleProperty = recordProperties.title || recordProperties.Title || recordProperties.Name ||
+                                            Object.values(recordProperties).find((prop: any) => prop.type === 'title');
+                  const recordTitle = extractTextFromProperty(recordTitleProperty) || 'Untitled Purchase Item';
                   
-                  const childTitleProperty = childProperties.title || childProperties.Title || childProperties.Name ||
-                                            Object.values(childProperties).find((prop: any) => prop.type === 'title');
-                  const childTitle = extractTextFromProperty(childTitleProperty) || block.child_page?.title || 'Untitled Subtask';
-                  
-                  subtasks.push({
-                    id: block.id,
-                    title: childTitle,
-                    status: childProperties.Status?.select?.name || childProperties.Status?.status?.name || 'No Status',
-                    type: 'child_page',
-                    lastEditedTime: (childPage as any).last_edited_time
-                  });
-                } catch (childError) {
-                  console.log(`[Purchase Subtask] Could not fetch child page ${block.id}:`, childError.message);
+                  // Create purchase item from database record
+                  const purchaseItem = {
+                    id: record.id,
+                    notionId: record.id,
+                    title: recordTitle,
+                    status: recordProperties.Status?.select?.name || recordProperties.Status?.status?.name || 'Planning',
+                    mainStatus: 'Planning',
+                    subStatus: recordProperties.Status?.select?.name || 'Planning',
+                    statusColor: recordProperties.Status?.select?.color || 'blue',
+                    priority: recordProperties.Priority?.select?.name || null,
+                    dueDate: recordProperties.DueDate?.date?.start || recordProperties.Date?.date?.start || null,
+                    description: extractTextFromProperty(recordProperties.Description) || '',
+                    section: 'Purchases',
+                    isCompleted: recordProperties.Status?.select?.name === 'Done',
+                    progress: recordProperties.Status?.select?.name === 'Done' ? 100 : 
+                             recordProperties.Status?.select?.name === 'In Progress' ? 50 : 0,
+                    createdTime: (record as any).created_time || new Date().toISOString(),
+                    lastEditedTime: (record as any).last_edited_time || new Date().toISOString(),
+                    url: `https://notion.so/${record.id.replace(/-/g, "")}`,
+                    userEmail: userEmail,
+                    assignee: extractTextFromProperty(recordProperties.Assignee) || null,
+                    projectName: 'Vertex Developments',
+                    properties: recordProperties || {},
+                    subtasks: [],
+                    type: 'database_record'
+                  };
+
+                  console.log(`[Notion Purchases] Added database record item: "${recordTitle}"`);
+                  purchaseTasks.push(purchaseItem);
                 }
+              } catch (dbError) {
+                console.log(`[Notion Purchases] Could not fetch database ${block.id}:`, dbError);
               }
             }
-          } catch (subtaskError) {
-            console.log(`[Purchase Subtask] Could not fetch subtasks for task ${taskId}:`, subtaskError.message);
           }
 
-          // Extract status properly - with safe checks
-          console.log(`[Notion Purchases] Processing status for "${title}"`);
-          console.log(`[Notion Purchases] Properties type:`, typeof properties);
-          console.log(`[Notion Purchases] Properties keys:`, properties ? Object.keys(properties).length : 'properties is null');
-          
-          try {
-            console.log(`[Notion Purchases] Step 1: Finding status field for "${title}"`);
-            const statusFieldKey = Object.keys(properties || {}).find(key => 
-              key && (
-                key.includes('status') || 
-                key.includes('Status') || 
-                key === 'notion%3A%2F%2Ftasks%2Fstatus_property'
-              )
-            );
-            
-            console.log(`[Notion Purchases] Step 2: Status field key for "${title}": ${statusFieldKey}`);
-            const statusField = statusFieldKey ? properties[statusFieldKey] : null;
-            console.log(`[Notion Purchases] Step 3: Status field for "${title}": ${statusField ? 'found' : 'not found'}`);
-            
-            if (statusField) {
-              console.log(`[Notion Purchases] Step 4: Processing status field type: ${statusField.type}`);
-              if (statusField.type === 'rollup' && statusField.rollup?.array?.[0]?.status) {
-                statusName = statusField.rollup.array[0].status.name;
-                statusColor = statusField.rollup.array[0].status.color;
-                console.log(`[Notion Purchases] Step 5a: Rollup status for "${title}": ${statusName}`);
-              } else if (statusField.status) {
-                statusName = statusField.status.name;
-                statusColor = statusField.status.color;
-                console.log(`[Notion Purchases] Step 5b: Direct status for "${title}": ${statusName}`);
-              } else if (statusField.select) {
-                statusName = statusField.select.name;
-                statusColor = statusField.select.color;
-                console.log(`[Notion Purchases] Step 5c: Select status for "${title}": ${statusName}`);
-              }
-            }
-            console.log(`[Notion Purchases] Step 6: Final status for "${title}": ${statusName}`);
-          } catch (statusError) {
-            console.log(`[Notion Purchases] Could not extract status for "${title}":`, statusError.message);
-            console.log(`[Notion Purchases] Status error stack:`, statusError.stack);
-            // statusName and statusColor keep their default values
-          }
-
-          // This section has been removed - using simplified version above
+          // Don't add the main Αγορές task itself - only its subtasks/sub-database items
+          continue;
         } catch (taskError) {
           console.log(`[Notion Purchases] Could not fetch task ${taskId}:`, taskError.message);
           // Skip this task and continue with others

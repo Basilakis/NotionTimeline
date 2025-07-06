@@ -1017,11 +1017,7 @@ export default function Workspace() {
               
               <div className="space-y-3">
                 {purchaseTasks.map((task) => (
-                  <Card key={task.id} className="hover:shadow-md transition-shadow cursor-pointer" 
-                        onClick={() => {
-                          setSelectedTask(task);
-                          setIsTaskModalOpen(true);
-                        }}>
+                  <Card key={task.id} className="hover:shadow-sm transition-shadow">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -1032,13 +1028,28 @@ export default function Workspace() {
                             'bg-gray-300'
                           }`} />
                           <h4 className="font-medium">{task.title}</h4>
+                          {task.type && (
+                            <Badge variant="secondary" className="text-xs">
+                              {task.type === 'child_page' ? 'Page' : 'Record'}
+                            </Badge>
+                          )}
                         </div>
-                        <Badge 
-                          variant="outline" 
-                          className={`${getNotionColorClasses(task.statusColor || 'default').badge} px-2 py-1 text-xs`}
-                        >
-                          {task.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant="outline" 
+                            className={`${getNotionColorClasses(task.statusColor || 'default').badge} px-2 py-1 text-xs`}
+                          >
+                            {task.status}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(task.url, '_blank')}
+                            className="h-6 w-6 p-0"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                       
                       {task.description && (
@@ -1054,6 +1065,9 @@ export default function Workspace() {
                         )}
                         {task.dueDate && (
                           <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                        )}
+                        {task.assignee && (
+                          <span>Assignee: {task.assignee}</span>
                         )}
                       </div>
                     </CardContent>
