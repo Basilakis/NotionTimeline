@@ -36,7 +36,11 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey, meta }) => {
     const userEmail = localStorage.getItem('userEmail') || '';
     
-    const res = await fetch(queryKey[0] as string, {
+    const url = queryKey[0] as string;
+    const timestamp = new Date().getTime();
+    const urlWithTimestamp = url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
+    
+    const res = await fetch(urlWithTimestamp, {
       credentials: "include",
       headers: {
         "x-user-email": userEmail,
@@ -60,7 +64,8 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
       staleTime: 0, // Always fetch fresh data from Notion
       cacheTime: 0, // Don't cache data
       retry: false,
