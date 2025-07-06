@@ -252,7 +252,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             url: (page as any).url,
             assignee: extractTextFromProperty(properties.Assign),
             userEmail: extractEmailFromProperty(properties.Assign),
-            projectName: extractProjectName({ title: title, section: section, url: url, properties: properties }),
+            projectName: extractProjectName({ 
+              title: properties.Title?.title?.[0]?.plain_text || "Untitled Task",
+              section: properties.Section?.select?.name || "Uncategorized",
+              url: (page as any).url,
+              properties: properties 
+            }),
             properties: properties,
             subtasks: subtasks
           };
