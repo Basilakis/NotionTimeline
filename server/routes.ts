@@ -1346,6 +1346,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Find all databases in the workspace including child databases
+  // Quick search for Αγορές database only
+  app.get('/api/notion-workspace/find-agores', async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        return res.status(404).json({ message: "No Notion configuration found" });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      let parentPageId = extractPageIdFromUrl(config.notionPageUrl);
+
+      // If the current URL is a database, find its parent page
+      try {
+        const currentDb = await notion.databases.retrieve({ database_id: parentPageId });
+        if ('parent' in currentDb && currentDb.parent.type === 'page_id') {
+          parentPageId = currentDb.parent.page_id;
+          console.log(`[Find Agores] Found parent page: ${parentPageId}`);
+        }
+      } catch (err) {
+        console.log(`[Find Agores] Current ID is a page, not a database`);
+      }
+
+      console.log(`[Find Agores] Scanning parent page ${parentPageId} for Αγορές database...`);
+
+      // Get all blocks from the parent page only (no recursion)
+      const response = await notion.blocks.children.list({
+        block_id: parentPageId,
+      });
+
+      console.log(`[Find Agores] Found ${response.results.length} blocks in parent page`);
+
+      // Look for any database blocks and check their names
+      for (const block of response.results) {
+        console.log(`[Find Agores] Checking block type: ${('type' in block) ? block.type : 'unknown'}`);
+        
+        if ('type' in block && (block.type === "child_database" || block.type === "table")) {
+          try {
+            const databaseInfo = await notion.databases.retrieve({
+              database_id: block.id,
+            });
+            
+            const title = databaseInfo.title?.[0]?.plain_text || 'Untitled';
+            console.log(`[Find Agores] Found database: "${title}" (ID: ${block.id})`);
+            
+            if (title === 'Αγορές') {
+              console.log(`[Find Agores] Found Αγορές database! Creating view...`);
+              
+              // Auto-create the view
+              const existingView = await storage.getNotionViewByType(userEmail, 'αγορές');
+              if (!existingView) {
+                await storage.createNotionView({
+                  userEmail: userEmail,
+                  viewType: 'αγορές',
+                  pageId: parentPageId,
+                  databaseId: block.id,
+                  title: 'Αγορές',
+                  icon: '🛒',
+                  isActive: true,
+                  sortOrder: 3
+                });
+                console.log(`[Find Agores] Created Αγορές view for database: ${block.id}`);
+              }
+              
+              return res.json({
+                found: true,
+                database: {
+                  id: block.id,
+                  title: title
+                },
+                viewCreated: !existingView
+              });
+            }
+          } catch (error) {
+            console.log(`[Find Agores] Error checking database ${block.id}:`, error);
+          }
+        }
+      }
+
+      res.json({ found: false, message: "Αγορές database not found in parent page" });
+
+    } catch (error) {
+      console.error("Error finding Αγορές database:", error);
+      res.status(500).json({ 
+        message: "Failed to find Αγορές database",
+        error: (error as Error).message 
+      });
+    }
+  });
+
   app.get('/api/notion-workspace/all-databases', async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
