@@ -170,6 +170,13 @@ interface NotionView {
 
 ### 🔄 Recent Changes (Last Updated: July 6, 2025)
 
+#### UI Cleanup: Removed Duplicate Status Bubbles
+- **Problem Solved**: Secondary status bubbles showing "pending" and "not_started" appearing in Projects tab task lists
+- **Solution**: Removed duplicate mainStatus and subStatus badge displays, keeping only single status badge per task
+- **Implementation**: Cleaned up task display in Projects tab to show one clear status badge instead of confusing multiple badges
+- **User Experience**: Cleaner, more readable task lists in Projects with single status indicators
+- **Status**: ✅ RESOLVED - Projects tab now shows clean single status badges per task
+
 #### Complete ChatGPT-Style AI Agent with Chat History Implementation
 - **Problem Solved**: Need for professional ChatGPT-like interface with persistent chat history and AI integration
 - **Solution**: Complete chat system with sidebar history, command handling, and real-time messaging

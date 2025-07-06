@@ -963,16 +963,9 @@ export default function Workspace() {
                                           <div className="flex items-center gap-2 mb-1">
                                             <h5 className="font-medium text-gray-800">{task.title}</h5>
                                             <div className="flex items-center gap-1">
-                                              {task.mainStatus && (
-                                                <Badge className={`text-xs ${getStatusBadgeStyle(task.statusColor || 'default', true)}`}>
-                                                  {task.mainStatus}
-                                                </Badge>
-                                              )}
-                                              {task.subStatus && (
-                                                <Badge className={`text-xs ${getStatusBadgeStyle(task.statusColor || 'blue', false)}`}>
-                                                  {task.subStatus}
-                                                </Badge>
-                                              )}
+                                              <Badge className={`text-xs ${getStatusBadgeStyle(task.statusColor || 'default', true)}`}>
+                                                {task.status}
+                                              </Badge>
                                             </div>
                                             {task.priority && (
                                               <Badge variant={
