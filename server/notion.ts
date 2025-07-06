@@ -47,9 +47,28 @@ export async function getNotionDatabases(notion: Client, pageId: string) {
 
             for (const block of response.results) {
                 console.log(`[getNotionDatabases] Block type: ${('type' in block) ? block.type : 'unknown'}`);
-                if ('type' in block && block.type === "child_database") {
+                
+                // Also check child pages for databases
+                if ('type' in block && block.type === "child_page") {
+                    console.log(`[getNotionDatabases] Found child page: ${block.id}`);
+                    try {
+                        const childPageDatabases = await getNotionDatabases(notion, block.id);
+                        childPageDatabases.forEach(db => {
+                            const title = 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
+                                ? db.title[0]?.plain_text 
+                                : 'Untitled Database';
+                            console.log(`[getNotionDatabases] Found database in child page: "${title}"`);
+                            childDatabases.push(db);
+                        });
+                    } catch (err) {
+                        console.log(`[getNotionDatabases] Could not scan child page ${block.id}`);
+                    }
+                }
+                
+                // Check for both child databases and inline databases (tables)
+                if ('type' in block && (block.type === "child_database" || block.type === "table")) {
                     const databaseId = block.id;
-                    console.log(`[getNotionDatabases] Found database ${databaseId}`);
+                    console.log(`[getNotionDatabases] Found ${block.type} database ${databaseId}`);
 
                     try {
                         const databaseInfo = await notion.databases.retrieve({

@@ -1416,6 +1416,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual database ID addition endpoint
+  app.post('/api/notion-views/add-database', async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      const { databaseId, title, icon } = req.body;
+      
+      if (!userEmail || !databaseId || !title) {
+        return res.status(400).json({ message: "User email, database ID, and title are required" });
+      }
+
+      // Create new view for the database
+      const newView = await storage.createNotionView({
+        userEmail: userEmail,
+        viewType: title.toLowerCase(),
+        pageId: 'direct',
+        databaseId: databaseId,
+        title: title,
+        icon: icon || '🗂️',
+        isActive: true,
+        sortOrder: 3
+      });
+
+      console.log(`[Manual DB Add] Created new view for database: ${title} (${databaseId})`);
+
+      res.json({
+        success: true,
+        view: newView,
+        databaseId: databaseId
+      });
+
+    } catch (error) {
+      console.error("Error adding database view:", error);
+      res.status(500).json({ 
+        message: "Failed to add database view",
+        error: (error as Error).message 
+      });
+    }
+  });
+
   // Create new view for Αγορές database
   app.post('/api/notion-views/create-agores', async (req, res) => {
     try {
