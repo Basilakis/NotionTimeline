@@ -45,7 +45,8 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
         tracks: [],
         start: new Date(),
         end: new Date(),
-        now: new Date()
+        now: new Date(),
+        timebar: []
       };
     }
 
@@ -58,6 +59,16 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
       new Date(task.dueDate || task.createdTime).getTime()
     ).filter(date => !isNaN(date));
 
+    if (validDates.length === 0) {
+      return {
+        tracks: [],
+        start: oneWeekAgo,
+        end: oneMonthFromNow,
+        now: today,
+        timebar: []
+      };
+    }
+
     const minDate = new Date(Math.min(...validDates));
     const maxDate = new Date(Math.max(...validDates));
 
@@ -67,12 +78,13 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
 
     // Create tracks (sections/projects)
     const sections = [...new Set(tasks.map(task => task.section))];
-    const tracks = sections.map((section, index) => ({
-      id: `track-${index}`,
-      title: section || 'Uncategorized',
-      elements: tasks
-        .filter(task => task.section === section)
-        .map(task => {
+    const tracks = sections.map((section, index) => {
+      const sectionTasks = tasks.filter(task => task.section === section);
+      
+      return {
+        id: `track-${index}`,
+        title: section || 'Uncategorized',
+        elements: sectionTasks.map(task => {
           const startTime = new Date(task.createdTime);
           const endTime = new Date(task.dueDate || task.lastEditedTime);
           
@@ -96,68 +108,30 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
             task: task
           };
         })
-    }));
+      };
+    });
+
+    // Create timebar for header
+    const timebar = [
+      {
+        id: 'days',
+        title: 'Days',
+        cells: []
+      }
+    ];
 
     return {
       tracks,
       start: timelineStart,
       end: timelineEnd,
-      now: today
+      now: today,
+      timebar
     };
   }, [tasks, getStatusColor]);
 
   const handleElementClick = (element: any) => {
-    if (element.task) {
+    if (element && element.task) {
       onTaskClick(element.task);
-    }
-  };
-
-  const customElementComponent = ({ element, ...props }: any) => {
-    const task = element.task;
-    const width = props.width || 100;
-    const height = props.height || 24;
-    
-    return (
-      <div
-        style={{
-          ...element.style,
-          width: `${width}px`,
-          height: `${height}px`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '4px 8px',
-          fontSize: '12px',
-          fontWeight: '500',
-          cursor: 'pointer',
-          overflow: 'hidden',
-          whiteSpace: 'nowrap',
-          textOverflow: 'ellipsis'
-        }}
-        onClick={() => handleElementClick(element)}
-        title={element.tooltip}
-      >
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {element.title}
-        </span>
-        <span style={{ fontSize: '10px', marginLeft: '4px' }}>
-          {task.progress}%
-        </span>
-      </div>
-    );
-  };
-
-  // Custom timeline configuration
-  const timelineConfig = {
-    header: {
-      dateFormat: 'MMM DD',
-      height: 40
-    },
-    timeline: {
-      height: 400
-    },
-    sidebar: {
-      width: 200
     }
   };
 
@@ -226,9 +200,9 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
               zoomOut={() => {}}
               tracks={timelineData.tracks}
               now={timelineData.now}
-              format="MMM DD"
-              elementClick={handleElementClick}
-              elementComponent={customElementComponent}
+              timebar={timelineData.timebar}
+              clickElement={handleElementClick}
+              clickTrackButton={() => {}}
             />
           </div>
           
