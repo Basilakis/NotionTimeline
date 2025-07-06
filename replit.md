@@ -160,15 +160,17 @@ interface NotionView {
 - **User Experience**: System automatically detects when task statuses change in Notion and sends professional email notifications
 
 #### Enhanced Kanban Board with Proper Status Hierarchy
-- **Problem Solved**: Need for proper three-column Kanban board with subcategory tags
-- **Solution**: Complete Kanban board redesign with hierarchical status support
+- **Problem Solved**: Need for proper four-column Kanban board aligned with Notion statuses and property display
+- **Solution**: Complete Kanban board redesign with hierarchical status support and property visualization
 - **Implementation**: 
-  - Created KanbanBoard component with To-do, In Progress, Completed columns
+  - Created KanbanBoard component with Planning, In Progress, Done, Cancelled columns
   - Added subcategory tags showing specific Notion status before task titles
   - Color-coded priority borders and overdue indicators
-  - Smart status mapping from Notion's complex status system to three main categories
-  - Removed manual status buttons since changes come from Notion automatically
-- **User Experience**: Clean three-column Kanban view with subcategory tags and automatic Notion synchronization
+  - Smart status mapping from Notion's complex status system to four main categories
+  - Removed second row table as requested by user
+  - Added comprehensive properties panel showing all task properties with colors and subproperties
+  - Extracted and displayed all unique properties from tasks with proper color coding
+- **User Experience**: Clean four-column Kanban view with property visualization and automatic Notion synchronization
 
 #### Complete Visual Status System with Notion Colors Implementation
 

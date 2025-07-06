@@ -202,8 +202,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const task = {
             id: taskId,
+            notionId: taskId,
             title: title,
             status: properties.Status?.select?.name || properties.Status?.status?.name || 'No Status',
+            mainStatus: mapNotionStatusToLocal(properties.Status?.select?.name || properties.Status?.status?.name || 'No Status', properties.Completed?.checkbox || false),
+            subStatus: properties.Status?.select?.name || properties.Status?.status?.name || 'No Status',
+            statusColor: properties.Status?.select?.color || properties.Status?.status?.color || 'default',
             priority: properties.Priority?.select?.name || null,
             dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
             description: '', // Will be populated if needed
@@ -214,6 +218,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             createdTime: (page as any).created_time,
             lastEditedTime: (page as any).last_edited_time,
             url: (page as any).url,
+            assignee: extractTextFromProperty(properties.Assignee),
+            userEmail: extractEmailFromProperty(properties.Assignee),
+            projectName: extractTextFromProperty(properties.Project) || 'Unknown Project',
             properties: properties,
             subtasks: subtasks
           };

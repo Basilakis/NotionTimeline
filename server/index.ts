@@ -112,6 +112,7 @@ async function initializePersistentSettings() {
     // Start status monitoring for automatic email notifications
     setTimeout(() => {
       statusMonitor.startMonitoring(60000); // Check every 60 seconds
+      log('Status monitoring started - checking for task status changes every 60 seconds');
     }, 5000); // Wait 5 seconds after server start
   });
 })();
