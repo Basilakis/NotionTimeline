@@ -94,8 +94,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get task by ID
-  app.get("/api/tasks/:id", async (req, res) => {
+  // Get task by numeric ID (for local storage tasks)
+  app.get("/api/tasks/local/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const task = await storage.getTask(id);
@@ -1524,6 +1524,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all tasks from all accessible databases for a project
+  app.get("/api/project/:projectId/tasks", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const userEmail = req.headers['x-user-email'] as string;
+      
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      // Get user's Notion configuration
+      let config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        config = await storage.getConfiguration('basiliskan@gmail.com');
+        if (!config) {
+          return res.status(404).json({ message: "Notion configuration not found" });
+        }
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      
+      console.log(`[Project Tasks] Fetching all tasks for project: ${projectId}`);
+      
+      // Get project structure to find databases
+      const projectStructure = await getProjectHierarchy(notion, projectId);
+      const allTasks: any[] = [];
+      
+      // Search through all databases for tasks related to this project
+      const databases = projectStructure.databases || [];
+      console.log(`[Project Tasks] Found ${databases.length} databases in project structure`);
+      
+      for (const database of databases) {
+        try {
+          console.log(`[Project Tasks] Checking database: ${database.title} (${database.id})`);
+          
+          const response = await notion.databases.query({
+            database_id: database.id,
+            page_size: 100,
+            filter: {
+              or: [
+                {
+                  property: 'Project',
+                  relation: {
+                    contains: projectId
+                  }
+                },
+                {
+                  property: 'Projects',
+                  relation: {
+                    contains: projectId
+                  }
+                }
+              ]
+            }
+          });
+
+          const databaseTasks = response.results.map((page: any) => {
+            const properties = page.properties || {};
+            
+            // Try multiple possible field names for the title
+            const titleProperty = properties.Title || properties.Name || properties.Task || 
+                                 properties['Task Name'] || properties.Item || 
+                                 Object.values(properties).find((prop: any) => prop.type === 'title');
+            
+            return {
+              id: page.id,
+              title: extractTextFromProperty(titleProperty) || 'Untitled Entry',
+              status: properties.Status?.select?.name || properties.Status?.status?.name || 'No Status',
+              priority: properties.Priority?.select?.name || null,
+              assignee: properties.Assignee?.people?.[0]?.name || 
+                       (properties.People?.people?.[0]?.name) || null,
+              dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
+              createdTime: (page as any).created_time,
+              lastEditedTime: (page as any).last_edited_time,
+              url: (page as any).url,
+              project: projectId,
+              description: extractTextFromProperty(properties.Description) || 'No description available',
+              databaseId: database.id,
+              databaseTitle: database.title,
+              properties: properties
+            };
+          });
+          
+          allTasks.push(...databaseTasks);
+          console.log(`[Project Tasks] Found ${databaseTasks.length} tasks in ${database.title}`);
+          
+        } catch (dbError) {
+          console.log(`[Project Tasks] Could not access database ${database.title}:`, dbError);
+        }
+      }
+
+      console.log(`[Project Tasks] Total tasks found for project ${projectId}: ${allTasks.length}`);
+      
+      res.json({
+        projectId,
+        tasks: allTasks,
+        total: allTasks.length
+      });
+    } catch (error) {
+      console.error("Error fetching project tasks:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch project tasks",
+        error: (error as Error).message 
+      });
+    }
+  });
+
   // Get specific task by ID
   app.get("/api/tasks/:taskId", async (req, res) => {
     try {
@@ -1549,7 +1656,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         // Get the specific task page
+        console.log(`[Task Details] Attempting to retrieve page: ${taskId}`);
         const page = await notion.pages.retrieve({ page_id: taskId });
+        console.log(`[Task Details] Page retrieved successfully: ${page.id}`);
         const properties = (page as any).properties || {};
         
         // Try multiple possible field names for the title

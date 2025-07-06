@@ -363,14 +363,7 @@ export default function UserDemo() {
     const dates = record.properties?.Dates?.date;
     const projectId = record.notionId;
     
-    // Fetch project structure to find databases
-    const { data: projectStructure, isLoading: structureLoading } = useQuery<{projectId: string, databases: any[], pages: any[], totalChildren: number}>({
-      queryKey: [`/api/project/${projectId}/structure`],
-      enabled: !!projectId && simulateUser,
-      retry: false
-    });
-    
-    if (taskRelations.length === 0 && !dates && (!projectStructure || projectStructure.databases.length === 0)) return null;
+    if (taskRelations.length === 0 && !dates) return null;
 
     return (
       <div className="mt-4 space-y-3 border-t pt-3">
@@ -383,22 +376,6 @@ export default function UserDemo() {
               {dates.end && ` - ${new Date(dates.end).toLocaleDateString()}`}
             </span>
           </div>
-        )}
-        
-        {/* Show tasks from project databases */}
-        {structureLoading ? (
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            <span>Discovering project databases...</span>
-          </div>
-        ) : (
-          projectStructure?.databases.map((db: any) => (
-            <TasksFromDatabase 
-              key={db.id} 
-              databaseId={db.id} 
-              title={db.title}
-            />
-          ))
         )}
         
         {/* Task relations from project properties */}
