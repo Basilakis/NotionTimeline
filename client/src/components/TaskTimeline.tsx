@@ -47,6 +47,10 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
     }));
   };
 
+  const handleTrackButtonClick = (trackId: string) => {
+    handleToggleOpen(trackId);
+  };
+
   // Transform tasks data for react-timelines
   const timelineData = useMemo(() => {
     if (tasks.length === 0) {
@@ -211,7 +215,7 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
       now: today,
       timebar
     };
-  }, [tasks, getStatusColor]);
+  }, [tasks, getStatusColor, openTracks]);
 
   const handleElementClick = (element: any) => {
     if (element && element.task) {
@@ -279,14 +283,14 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
                 zoomMax: 20
               }}
               isOpen={true}
-              toggleOpen={handleToggleOpen}
+              toggleOpen={(trackId) => handleToggleOpen(trackId)}
               zoomIn={() => {}}
               zoomOut={() => {}}
               tracks={timelineData.tracks}
               now={timelineData.now}
               timebar={timelineData.timebar}
               clickElement={handleElementClick}
-              clickTrackButton={handleToggleOpen}
+              clickTrackButton={(trackId) => handleToggleOpen(trackId)}
             />
           </div>
           
