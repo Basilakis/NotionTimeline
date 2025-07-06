@@ -14,6 +14,8 @@ import { useStatusNotification, createStatusChangeData } from "@/hooks/useStatus
 import { useAuth } from "@/hooks/useAuth";
 import TaskTimeline from "@/components/TaskTimeline";
 import KanbanBoard from "@/components/KanbanBoard";
+import ProfessionalTimeline from "@/components/timeline/ProfessionalTimeline";
+import KanbanBoardNew from "@/components/kanban/KanbanBoard";
 import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard, ShoppingCart, Send, Bot, User, MessageSquare } from "lucide-react";
 import vertexLogo from "@assets/VertexDevelopments_1751826186443.png";
 
@@ -1050,10 +1052,12 @@ export default function Workspace() {
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Tasks ({filteredTasks.length})</h3>
                 <Tabs value={taskViewMode} onValueChange={setTaskViewMode} className="w-auto">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="list">List</TabsTrigger>
                     <TabsTrigger value="kanban">Kanban</TabsTrigger>
+                    <TabsTrigger value="kanban-pro">Pro Kanban</TabsTrigger>
                     <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                    <TabsTrigger value="timeline-pro">Pro Timeline</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
@@ -1129,6 +1133,23 @@ export default function Workspace() {
               {taskViewMode === 'timeline' && (
                 <TaskTimeline 
                   tasks={filteredTasks}
+                  onTaskClick={handleTaskClick}
+                />
+              )}
+
+              {/* Professional Kanban View */}
+              {taskViewMode === 'kanban-pro' && (
+                <KanbanBoardNew 
+                  tasks={filteredTasks} 
+                  onTaskClick={handleTaskClick}
+                />
+              )}
+
+              {/* Professional Timeline View */}
+              {taskViewMode === 'timeline-pro' && (
+                <ProfessionalTimeline 
+                  tasks={filteredTasks}
+                  projects={filteredProjects}
                   onTaskClick={handleTaskClick}
                 />
               )}

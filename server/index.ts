@@ -81,6 +81,16 @@ async function initializePersistentSettings() {
   // Initialize persistent settings first
   await initializePersistentSettings();
   
+  // Start status monitoring for automatic notifications
+  setTimeout(async () => {
+    try {
+      await statusMonitor.startMonitoring(60000); // Check every minute
+      log("Status monitoring started for automatic notifications");
+    } catch (error) {
+      log("Could not start status monitoring:", error);
+    }
+  }, 5000); // Delay to ensure server is fully initialized
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
