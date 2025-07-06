@@ -28,7 +28,14 @@ interface TaskTimelineProps {
 }
 
 export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) {
-  const [openTracks, setOpenTracks] = React.useState<Record<string, boolean>>({});
+  const [scale, setScale] = React.useState({
+    start: new Date(),
+    end: new Date(),
+    zoom: 1,
+    zoomMin: 1,
+    zoomMax: 20
+  });
+  const [isOpen, setIsOpen] = React.useState(true);
 
   const getStatusColor = (status: string, isCompleted: boolean) => {
     if (isCompleted) return '#10b981'; // green
@@ -40,16 +47,28 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
     }
   };
 
-  const handleToggleOpen = (trackId: string) => {
-    setOpenTracks(prev => ({
-      ...prev,
-      [trackId]: !prev[trackId]
-    }));
-  };
+  const toggleOpen = React.useCallback(() => {
+    setIsOpen(prev => !prev);
+  }, []);
 
-  const handleTrackButtonClick = (trackId: string) => {
-    handleToggleOpen(trackId);
-  };
+  const zoomIn = React.useCallback(() => {
+    setScale(prev => ({
+      ...prev,
+      zoom: Math.min(prev.zoom * 1.5, prev.zoomMax)
+    }));
+  }, []);
+
+  const zoomOut = React.useCallback(() => {
+    setScale(prev => ({
+      ...prev,
+      zoom: Math.max(prev.zoom / 1.5, prev.zoomMin)
+    }));
+  }, []);
+
+  const clickTrackButton = React.useCallback((track: any) => {
+    // Handle track button clicks for expanding/collapsing
+    console.log('Track button clicked:', track);
+  }, []);
 
   // Transform tasks data for react-timelines
   const timelineData = useMemo(() => {
@@ -87,10 +106,25 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
     const timelineStart = new Date(minDate.getFullYear(), minDate.getMonth() - 1, 1);
     const timelineEnd = new Date(maxDate.getFullYear(), maxDate.getMonth() + 2, 0);
 
-    // Group tasks by project first, then create individual tracks for each task
-    const projectGroups = tasks.reduce((groups, task) => {
+    // Update scale state
+    setScale(prev => ({
+      ...prev,
+      start: timelineStart,
+      end: timelineEnd
+    }));
+
+    // Create simple tracks - one per task with project name prefix
+    const tracks = tasks.map((task, index) => {
+      const startTime = new Date(task.createdTime);
+      const endTime = new Date(task.dueDate || task.lastEditedTime);
+      
+      // Ensure end time is after start time
+      if (endTime <= startTime) {
+        endTime.setTime(startTime.getTime() + 7 * 24 * 60 * 60 * 1000); // Add 1 week
+      }
+
       // Extract project name from task properties or use section
-      let projectName = 'General Tasks';
+      let projectName = 'General';
       
       if (task.properties) {
         // Try to find project name in various property formats
@@ -102,96 +136,34 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
           projectName = task.properties.Project.select.name;
         } else if (task.properties.project && task.properties.project.select) {
           projectName = task.properties.project.select.name;
-        } else if (task.properties.Project && Array.isArray(task.properties.Project) && task.properties.Project.length > 0) {
-          projectName = task.properties.Project[0].name || task.properties.Project[0];
         }
       }
       
       // Fallback to section if no project found
-      if (projectName === 'General Tasks' && task.section) {
+      if (projectName === 'General' && task.section) {
         projectName = task.section;
       }
-      
-      if (!groups[projectName]) {
-        groups[projectName] = [];
-      }
-      groups[projectName].push(task);
-      return groups;
-    }, {} as Record<string, typeof tasks>);
 
-    // Create tracks - each task gets its own track, grouped by project
-    const tracks: any[] = [];
-    let trackIndex = 0;
-
-    Object.entries(projectGroups).forEach(([projectName, projectTasks]) => {
-      // Add project header track
-      const projectTrackId = `project-${trackIndex}`;
-      tracks.push({
-        id: projectTrackId,
-        title: projectName,
-        isOpen: openTracks[projectTrackId] !== false, // default to open
-        hasButton: true,
-        elements: [],
-        tracks: projectTasks.map((task, taskIndex) => {
-          const startTime = new Date(task.createdTime);
-          const endTime = new Date(task.dueDate || task.lastEditedTime);
-          
-          // Ensure end time is after start time
-          if (endTime <= startTime) {
-            endTime.setTime(startTime.getTime() + 7 * 24 * 60 * 60 * 1000); // Add 1 week
-          }
-
-          const taskTrackId = `task-${trackIndex}-${taskIndex}`;
-          const taskTrack = {
-            id: taskTrackId,
-            title: task.title,
-            hasButton: task.subtasks && task.subtasks.length > 0,
-            isOpen: openTracks[taskTrackId] || false,
-            elements: [{
-              id: task.id,
-              title: task.title,
-              start: startTime,
-              end: endTime,
-              style: {
-                backgroundColor: getStatusColor(task.status, task.isCompleted),
-                color: 'white',
-                borderRadius: '4px',
-                border: task.priority === 'High' ? '2px solid #dc2626' : 'none',
-                fontSize: '12px',
-                padding: '2px 6px'
-              },
-              tooltip: `${task.title} - ${task.status} (${task.progress}%)`,
-              task: task
-            }]
-          };
-
-          // Add subtask tracks if they exist
-          if (task.subtasks && task.subtasks.length > 0) {
-            taskTrack.tracks = task.subtasks.map((subtask: any, subIndex: number) => ({
-              id: `subtask-${trackIndex}-${taskIndex}-${subIndex}`,
-              title: `  → ${subtask.title || subtask.name || 'Subtask'}`,
-              elements: [{
-                id: `${task.id}-sub-${subIndex}`,
-                title: subtask.title || subtask.name || 'Subtask',
-                start: startTime,
-                end: new Date(startTime.getTime() + 3 * 24 * 60 * 60 * 1000), // 3 days duration
-                style: {
-                  backgroundColor: '#94a3b8', // gray for subtasks
-                  color: 'white',
-                  borderRadius: '2px',
-                  fontSize: '11px',
-                  padding: '1px 4px'
-                },
-                tooltip: `Subtask: ${subtask.title || subtask.name}`,
-                task: subtask
-              }]
-            }));
-          }
-
-          return taskTrack;
-        })
-      });
-      trackIndex++;
+      return {
+        id: `track-${index}`,
+        title: `[${projectName}] ${task.title}`,
+        elements: [{
+          id: task.id,
+          title: task.title,
+          start: startTime,
+          end: endTime,
+          style: {
+            backgroundColor: getStatusColor(task.status, task.isCompleted),
+            color: 'white',
+            borderRadius: '4px',
+            border: task.priority === 'High' ? '2px solid #dc2626' : 'none',
+            fontSize: '12px',
+            padding: '2px 6px'
+          },
+          tooltip: `${task.title} - ${task.status} (${task.progress}%)`,
+          task: task
+        }]
+      };
     });
 
     // Create timebar with months and days
@@ -215,7 +187,7 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
       now: today,
       timebar
     };
-  }, [tasks, getStatusColor, openTracks]);
+  }, [tasks, getStatusColor]);
 
   const handleElementClick = (element: any) => {
     if (element && element.task) {
@@ -275,22 +247,16 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
           
           <div style={{ height: '500px', overflow: 'auto' }}>
             <Timeline
-              scale={{
-                start: timelineData.start,
-                end: timelineData.end,
-                zoom: 1,
-                zoomMin: 1,
-                zoomMax: 20
-              }}
-              isOpen={true}
-              toggleOpen={(trackId) => handleToggleOpen(trackId)}
-              zoomIn={() => {}}
-              zoomOut={() => {}}
+              scale={scale}
+              isOpen={isOpen}
+              toggleOpen={toggleOpen}
+              zoomIn={zoomIn}
+              zoomOut={zoomOut}
               tracks={timelineData.tracks}
               now={timelineData.now}
               timebar={timelineData.timebar}
               clickElement={handleElementClick}
-              clickTrackButton={(trackId) => handleToggleOpen(trackId)}
+              clickTrackButton={clickTrackButton}
             />
           </div>
           
