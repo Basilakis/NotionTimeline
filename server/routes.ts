@@ -1358,7 +1358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get tasks from Task database
+  // Get tasks from all databases (including project-specific databases)
   app.get("/api/tasks", async (req, res) => {
     try {
       const userEmail = req.headers['x-user-email'] as string;
@@ -1373,49 +1373,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const notion = createNotionClient(config.notionSecret);
-      
-      // Find the Task database
+      const allTasks = [];
+
+      // Get all views for this user
       const views = await storage.getNotionViews(userEmail);
-      const taskView = views.find(v => v.viewType === 'tasks');
       
-      if (!taskView || !taskView.databaseId) {
-        return res.status(404).json({ message: "Task database not found" });
+      // Find all task-related databases
+      const taskDatabases = views.filter(v => 
+        v.viewType === 'tasks' || 
+        v.viewType === 'database' || 
+        v.title.toLowerCase().includes('task')
+      );
+
+      console.log(`[Tasks API] Found ${taskDatabases.length} potential task databases`);
+
+      // Query each database for tasks
+      for (const db of taskDatabases) {
+        if (!db.databaseId) continue;
+        
+        try {
+          console.log(`[Tasks API] Querying database: ${db.title} (${db.databaseId})`);
+          
+          const response = await notion.databases.query({
+            database_id: db.databaseId,
+            page_size: 100
+          });
+
+          const tasks = response.results.map((page: any) => {
+            const properties = page.properties || {};
+            
+            // Try multiple possible field names for the title
+            const titleProperty = properties.Title || properties.Name || properties.Task || 
+                                 properties['Task Name'] || properties.Item || properties.Project;
+            
+            return {
+              id: page.id,
+              title: extractTextFromProperty(titleProperty) || 'Untitled Task',
+              status: properties.Status?.select?.name || properties.Status?.status?.name || 'Unknown',
+              priority: properties.Priority?.select?.name || null,
+              assignee: properties.Assignee?.people?.[0]?.name || null,
+              dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
+              createdTime: (page as any).created_time,
+              lastEditedTime: (page as any).last_edited_time,
+              url: (page as any).url,
+              project: properties.Project?.relation?.[0]?.id || null,
+              description: extractTextFromProperty(properties.Description),
+              database: db.title,
+              databaseId: db.databaseId,
+              properties: properties
+            };
+          });
+
+          allTasks.push(...tasks);
+          console.log(`[Tasks API] Found ${tasks.length} tasks in ${db.title}`);
+        } catch (dbError) {
+          console.error(`[Tasks API] Error querying database ${db.title}:`, dbError);
+        }
       }
 
-      // Query the Task database
+      res.json({
+        tasks: allTasks,
+        total: allTasks.length
+      });
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch tasks",
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Get tasks from specific database
+  app.get("/api/database/:databaseId/tasks", async (req, res) => {
+    try {
+      const { databaseId } = req.params;
+      const userEmail = req.headers['x-user-email'] as string;
+      
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      // Get user's Notion configuration
+      const config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        return res.status(404).json({ message: "Notion configuration not found" });
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      
+      console.log(`[Database Tasks] Fetching tasks from database: ${databaseId}`);
+      
+      // Query the specific database
       const response = await notion.databases.query({
-        database_id: taskView.databaseId,
+        database_id: databaseId,
         page_size: 100
       });
 
       const tasks = response.results.map((page: any) => {
         const properties = page.properties || {};
         
+        // Try multiple possible field names for the title
+        const titleProperty = properties.Title || properties.Name || properties.Task || 
+                             properties['Task Name'] || properties.Item || properties.Project;
+        
         return {
           id: page.id,
-          title: extractTextFromProperty(properties.Title || properties.Name || properties.Task),
+          title: extractTextFromProperty(titleProperty) || 'Untitled Task',
           status: properties.Status?.select?.name || properties.Status?.status?.name || 'Unknown',
           priority: properties.Priority?.select?.name || null,
           assignee: properties.Assignee?.people?.[0]?.name || null,
           dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
-          createdTime: page.created_time,
-          lastEditedTime: page.last_edited_time,
-          url: page.url,
+          createdTime: (page as any).created_time,
+          lastEditedTime: (page as any).last_edited_time,
+          url: (page as any).url,
           project: properties.Project?.relation?.[0]?.id || null,
           description: extractTextFromProperty(properties.Description),
+          databaseId: databaseId,
           properties: properties
         };
       });
 
+      console.log(`[Database Tasks] Found ${tasks.length} tasks in database ${databaseId}`);
+      
       res.json({
         tasks,
-        total: tasks.length
+        total: tasks.length,
+        databaseId
       });
     } catch (error) {
-      console.error("Error fetching tasks:", error);
+      console.error("Error fetching database tasks:", error);
       res.status(500).json({ 
-        message: "Failed to fetch tasks",
-        error: error.message 
+        message: "Failed to fetch database tasks",
+        error: (error as Error).message 
       });
     }
   });
@@ -1440,7 +1530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get the specific task page
       const page = await notion.pages.retrieve({ page_id: taskId });
-      const properties = page.properties || {};
+      const properties = (page as any).properties || {};
       
       const task = {
         id: page.id,
@@ -1449,9 +1539,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priority: properties.Priority?.select?.name || null,
         assignee: properties.Assignee?.people?.[0]?.name || null,
         dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
-        createdTime: page.created_time,
-        lastEditedTime: page.last_edited_time,
-        url: page.url,
+        createdTime: (page as any).created_time,
+        lastEditedTime: (page as any).last_edited_time,
+        url: (page as any).url,
         project: properties.Project?.relation?.[0]?.id || null,
         description: extractTextFromProperty(properties.Description),
         properties: properties
@@ -1462,7 +1552,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching task:", error);
       res.status(500).json({ 
         message: "Failed to fetch task",
-        error: error.message 
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Get detailed page structure for a project
+  app.get("/api/project/:projectId/structure", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const userEmail = req.headers['x-user-email'] as string;
+      
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      // Get user's Notion configuration
+      let config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        config = await storage.getConfiguration('basiliskan@gmail.com');
+        if (!config) {
+          return res.status(404).json({ message: "Notion configuration not found" });
+        }
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      
+      console.log(`[Project Structure] Analyzing project page: ${projectId}`);
+      
+      // Get child blocks of the project page
+      const childBlocks = await notion.blocks.children.list({
+        block_id: projectId,
+        page_size: 100
+      });
+
+      const databases = [];
+      const pages = [];
+
+      for (const block of childBlocks.results) {
+        if (block.type === 'child_database') {
+          try {
+            const dbInfo = await notion.databases.retrieve({
+              database_id: block.id
+            });
+            databases.push({
+              id: block.id,
+              title: (dbInfo as any).title?.[0]?.plain_text || 'Untitled Database',
+              type: 'database'
+            });
+            console.log(`[Project Structure] Found database: ${(dbInfo as any).title?.[0]?.plain_text || 'Untitled'}`);
+          } catch (dbError) {
+            console.error(`[Project Structure] Error retrieving database ${block.id}:`, dbError);
+          }
+        } else if (block.type === 'child_page') {
+          pages.push({
+            id: block.id,
+            title: (block as any).child_page?.title || 'Untitled Page',
+            type: 'page'
+          });
+          console.log(`[Project Structure] Found page: ${(block as any).child_page?.title || 'Untitled'}`);
+        }
+      }
+
+      res.json({
+        projectId,
+        databases,
+        pages,
+        totalChildren: childBlocks.results.length
+      });
+    } catch (error) {
+      console.error("Error fetching project structure:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch project structure",
+        error: (error as Error).message 
       });
     }
   });

@@ -153,6 +153,15 @@ export default function UserDemo() {
     retry: false
   });
 
+  // Fetch tasks from a specific database
+  const useTasksFromDatabase = (databaseId: string | null) => {
+    return useQuery<{tasks: any[], total: number}>({
+      queryKey: [`/api/database/${databaseId}/tasks`],
+      enabled: !!databaseId && simulateUser,
+      retry: false
+    });
+  };
+
   // Fetch specific task details for modal
   const { data: taskDetails, isLoading: taskDetailsLoading } = useQuery<any>({
     queryKey: [`/api/tasks/${selectedTask?.id}`],
@@ -207,12 +216,92 @@ export default function UserDemo() {
     setTaskModalOpen(true);
   };
 
+  // Component to render tasks from a specific database
+  const TasksFromDatabase = ({ databaseId, title }: { databaseId: string; title: string }) => {
+    const { data: databaseTasks, isLoading } = useTasksFromDatabase(databaseId);
+    
+    if (isLoading) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          <span>Loading tasks...</span>
+        </div>
+      );
+    }
+    
+    if (!databaseTasks?.tasks?.length) {
+      return (
+        <div className="text-sm text-gray-500">
+          No tasks found in {title}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <BarChart3 className="h-4 w-4 text-green-600" />
+          <span>{title} ({databaseTasks.tasks.length})</span>
+        </div>
+        <div className="space-y-2">
+          {databaseTasks.tasks.slice(0, 6).map((task: any, index: number) => (
+            <div 
+              key={index} 
+              className="bg-gray-50 p-3 rounded border hover:bg-gray-100 cursor-pointer transition-colors"
+              onClick={() => openTaskModal(task)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="font-medium text-sm">
+                    {task.title}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    {task.status && renderTaskStatus(task.status)}
+                    {task.priority && (
+                      <span className="text-xs text-gray-600">
+                        Priority: {task.priority}
+                      </span>
+                    )}
+                    {task.dueDate && (
+                      <span className="text-xs text-gray-600">
+                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Eye className="h-4 w-4 text-gray-400" />
+              </div>
+            </div>
+          ))}
+          {databaseTasks.tasks.length > 6 && (
+            <div className="text-xs text-gray-500 text-center py-2">
+              +{databaseTasks.tasks.length - 6} more tasks
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Hook to fetch project structure
+  const useProjectStructure = (projectId: string | null) => {
+    return useQuery<{projectId: string, databases: any[], pages: any[], totalChildren: number}>({
+      queryKey: [`/api/project/${projectId}/structure`],
+      enabled: !!projectId && simulateUser,
+      retry: false
+    });
+  };
+
   // Render project relationship data (tasks, relations)
   const renderProjectRelations = (record: DatabaseRecord) => {
     const taskRelations = record.properties?.Tasks?.relation || [];
     const dates = record.properties?.Dates?.date;
+    const projectId = record.notionId;
     
-    if (taskRelations.length === 0 && !dates) return null;
+    // Fetch project structure to find databases
+    const { data: projectStructure, isLoading: structureLoading } = useProjectStructure(projectId);
+    
+    if (taskRelations.length === 0 && !dates && (!projectStructure || projectStructure.databases.length === 0)) return null;
 
     return (
       <div className="mt-4 space-y-3 border-t pt-3">
@@ -227,11 +316,28 @@ export default function UserDemo() {
           </div>
         )}
         
+        {/* Show tasks from project databases */}
+        {structureLoading ? (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Discovering project databases...</span>
+          </div>
+        ) : (
+          projectStructure?.databases.map((db: any) => (
+            <TasksFromDatabase 
+              key={db.id} 
+              databaseId={db.id} 
+              title={db.title}
+            />
+          ))
+        )}
+        
+        {/* Legacy task relations (fallback) */}
         {taskRelations.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
-              <BarChart3 className="h-4 w-4 text-green-600" />
-              <span>Related Tasks ({taskRelations.length})</span>
+              <BarChart3 className="h-4 w-4 text-orange-600" />
+              <span>Task Relations ({taskRelations.length})</span>
             </div>
             <div className="space-y-2">
               {taskRelations.slice(0, 6).map((taskRef: any, index: number) => {
@@ -245,7 +351,7 @@ export default function UserDemo() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="font-medium text-sm">
-                          {task?.title || `Untitled Task`}
+                          {task?.title || `Loading task...`}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           {task?.status && renderTaskStatus(task.status)}
