@@ -29,11 +29,17 @@ export function extractPageIdFromUrl(pageUrl: string): string {
  * @param pageId - The page ID to search for databases
  * @returns {Promise<Array<{id: string, title: string}>>} - Array of database objects with id and title
  */
-export async function getNotionDatabases(notion: Client, pageId: string) {
+export async function getNotionDatabases(notion: Client, pageId: string, depth: number = 0) {
     const childDatabases = [];
+    const MAX_DEPTH = 3;
+
+    if (depth > MAX_DEPTH) {
+        console.log(`[getNotionDatabases] Maximum depth reached, stopping recursion at ${pageId}`);
+        return childDatabases;
+    }
 
     try {
-        console.log(`[getNotionDatabases] Scanning page ${pageId} for databases...`);
+        console.log(`[getNotionDatabases] Scanning page ${pageId} for databases (depth: ${depth})...`);
         let hasMore = true;
         let startCursor: string | undefined = undefined;
 
@@ -48,24 +54,7 @@ export async function getNotionDatabases(notion: Client, pageId: string) {
             for (const block of response.results) {
                 console.log(`[getNotionDatabases] Block type: ${('type' in block) ? block.type : 'unknown'}`);
                 
-                // Also check child pages for databases
-                if ('type' in block && block.type === "child_page") {
-                    console.log(`[getNotionDatabases] Found child page: ${block.id}`);
-                    try {
-                        const childPageDatabases = await getNotionDatabases(notion, block.id);
-                        childPageDatabases.forEach(db => {
-                            const title = 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
-                                ? db.title[0]?.plain_text 
-                                : 'Untitled Database';
-                            console.log(`[getNotionDatabases] Found database in child page: "${title}"`);
-                            childDatabases.push(db);
-                        });
-                    } catch (err) {
-                        console.log(`[getNotionDatabases] Could not scan child page ${block.id}`);
-                    }
-                }
-                
-                // Check for both child databases and inline databases (tables)
+                // Check for databases first (both child_database and table types)
                 if ('type' in block && (block.type === "child_database" || block.type === "table")) {
                     const databaseId = block.id;
                     console.log(`[getNotionDatabases] Found ${block.type} database ${databaseId}`);
@@ -75,10 +64,28 @@ export async function getNotionDatabases(notion: Client, pageId: string) {
                             database_id: databaseId,
                         });
 
-                        console.log(`[getNotionDatabases] Successfully retrieved database: ${databaseInfo.title?.[0]?.plain_text || 'Untitled'}`);
+                        const title = databaseInfo.title?.[0]?.plain_text || 'Untitled';
+                        console.log(`[getNotionDatabases] Successfully retrieved database: "${title}"`);
                         childDatabases.push(databaseInfo);
                     } catch (error) {
                         console.error(`Error retrieving database ${databaseId}:`, error);
+                    }
+                }
+                
+                // Recursively check child pages for inline databases
+                if ('type' in block && block.type === "child_page") {
+                    console.log(`[getNotionDatabases] Found child page: ${block.id}, recursing...`);
+                    try {
+                        const childPageDatabases = await getNotionDatabases(notion, block.id, depth + 1);
+                        childPageDatabases.forEach(db => {
+                            const title = 'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 
+                                ? db.title[0]?.plain_text 
+                                : 'Untitled Database';
+                            console.log(`[getNotionDatabases] Found database in child page: "${title}"`);
+                            childDatabases.push(db);
+                        });
+                    } catch (err) {
+                        console.log(`[getNotionDatabases] Could not scan child page ${block.id}:`, err);
                     }
                 }
             }

@@ -1393,17 +1393,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parent: parentPageId
       }));
 
-      // Look for the "Αγορές" database specifically
+      // Look for the "Αγορές" database specifically (could be named Αγορές or be an Untitled database)
       const agoresDb = allDatabases.find(db => 
         'title' in db && db.title && Array.isArray(db.title) && db.title.length > 0 && 
-        db.title[0]?.plain_text === 'Αγορές'
+        (db.title[0]?.plain_text === 'Αγορές' || 
+         db.title[0]?.plain_text?.toLowerCase().includes('agores') ||
+         db.title[0]?.plain_text?.toLowerCase().includes('purchases'))
       );
+
+      const agoresFound = !!agoresDb;
+      console.log(`[All Databases] Αγορές database found: ${agoresFound}`);
+
+      // If Αγορές database is found, automatically create the view
+      if (agoresFound && agoresDb) {
+        try {
+          const existingView = await storage.getNotionViewByType(userEmail, 'αγορές');
+          if (!existingView) {
+            await storage.createNotionView({
+              userEmail: userEmail,
+              viewType: 'αγορές',
+              pageId: parentPageId,
+              databaseId: agoresDb.id,
+              title: 'Αγορές',
+              icon: '🛒',
+              isActive: true,
+              sortOrder: 3
+            });
+            console.log(`[All Databases] Auto-created Αγορές view for database: ${agoresDb.id}`);
+          }
+        } catch (error) {
+          console.error(`[All Databases] Error auto-creating Αγορές view:`, error);
+        }
+      }
 
       res.json({
         databases: databaseList,
         parentPageId: parentPageId,
         totalFound: allDatabases.length,
-        agoresFound: !!agoresDb,
+        agoresFound: agoresFound,
         agoresId: agoresDb?.id
       });
 
@@ -1411,45 +1438,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error finding all databases:", error);
       res.status(500).json({ 
         message: "Failed to find databases",
-        error: (error as Error).message 
-      });
-    }
-  });
-
-  // Manual database ID addition endpoint
-  app.post('/api/notion-views/add-database', async (req, res) => {
-    try {
-      const userEmail = req.headers['x-user-email'] as string;
-      const { databaseId, title, icon } = req.body;
-      
-      if (!userEmail || !databaseId || !title) {
-        return res.status(400).json({ message: "User email, database ID, and title are required" });
-      }
-
-      // Create new view for the database
-      const newView = await storage.createNotionView({
-        userEmail: userEmail,
-        viewType: title.toLowerCase(),
-        pageId: 'direct',
-        databaseId: databaseId,
-        title: title,
-        icon: icon || '🗂️',
-        isActive: true,
-        sortOrder: 3
-      });
-
-      console.log(`[Manual DB Add] Created new view for database: ${title} (${databaseId})`);
-
-      res.json({
-        success: true,
-        view: newView,
-        databaseId: databaseId
-      });
-
-    } catch (error) {
-      console.error("Error adding database view:", error);
-      res.status(500).json({ 
-        message: "Failed to add database view",
         error: (error as Error).message 
       });
     }
