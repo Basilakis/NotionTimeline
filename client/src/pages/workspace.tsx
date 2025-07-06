@@ -13,7 +13,7 @@ import { useStatusNotification, createStatusChangeData } from "@/hooks/useStatus
 import { useAuth } from "@/hooks/useAuth";
 import TaskTimeline from "@/components/TaskTimeline";
 import KanbanBoard from "@/components/KanbanBoard";
-import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, RefreshCw, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard } from "lucide-react";
+import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, RefreshCw, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard, ShoppingCart } from "lucide-react";
 
 // Notion color mapping to Tailwind classes (matching KanbanBoard)
 const getNotionColorClasses = (notionColor: string): { badge: string; column: string } => {
@@ -253,9 +253,21 @@ export default function Workspace() {
     }
   });
 
-  // Fetch tasks from Notion
+  // Fetch regular tasks from Notion (excluding Αγορές)
   const { data: tasks, isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ['/api/tasks-from-notion'],
+    enabled: !!userEmail,
+    retry: false,
+    meta: {
+      headers: {
+        'x-user-email': userEmail
+      }
+    }
+  });
+
+  // Fetch purchase tasks (Αγορές) from Notion
+  const { data: purchaseTasks, isLoading: purchasesLoading } = useQuery<Task[]>({
+    queryKey: ['/api/purchases-from-notion'],
     enabled: !!userEmail,
     retry: false,
     meta: {
@@ -388,6 +400,11 @@ export default function Workspace() {
   ) || [];
 
   const filteredTasks = tasks?.filter((task: Task) =>
+    task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    task.description.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  const filteredPurchaseTasks = purchaseTasks?.filter((task: Task) =>
     task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     task.description.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
@@ -531,7 +548,7 @@ export default function Workspace() {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="projects">
             <Database className="h-4 w-4 mr-2" />
             Projects ({filteredProjects.length})
@@ -539,6 +556,10 @@ export default function Workspace() {
           <TabsTrigger value="tasks">
             <CheckCircle className="h-4 w-4 mr-2" />
             Tasks ({filteredTasks.length})
+          </TabsTrigger>
+          <TabsTrigger value="purchases">
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            Purchases ({(purchaseTasks || []).length})
           </TabsTrigger>
           <TabsTrigger value="analytics">
             <BarChart3 className="h-4 w-4 mr-2" />
@@ -910,6 +931,131 @@ export default function Workspace() {
                   onTaskClick={handleTaskClick}
                 />
               )}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Purchases Tab */}
+        <TabsContent value="purchases" className="space-y-4">
+          {purchasesLoading ? (
+            <Card>
+              <CardContent className="text-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                <p className="text-lg font-medium">Loading purchase tasks...</p>
+              </CardContent>
+            </Card>
+          ) : !purchaseTasks || purchaseTasks.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-8">
+                <ShoppingCart className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-lg font-medium text-gray-600">No purchase tasks found</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  No tasks containing "Αγορές" were found in your projects
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {/* Kanban View */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Purchase Tasks Overview</h3>
+                  <Badge variant="outline" className="px-3 py-1">
+                    {purchaseTasks.length} task{purchaseTasks.length !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+                
+                <KanbanBoard 
+                  tasks={purchaseTasks} 
+                  onTaskClick={(task) => {
+                    setSelectedTask(task);
+                    setIsTaskModalOpen(true);
+                  }} 
+                />
+              </div>
+
+              {/* Timeline View */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Purchase Timeline</h3>
+                <TaskTimeline 
+                  tasks={purchaseTasks} 
+                  onTaskClick={(task) => {
+                    setSelectedTask(task);
+                    setIsTaskModalOpen(true);
+                  }} 
+                />
+              </div>
+
+              {/* Purchase Tasks Details */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Purchase Tasks Details</h3>
+                <div className="grid gap-4">
+                  {purchaseTasks.map((task) => (
+                    <Card key={task.id} className="hover:shadow-md transition-shadow cursor-pointer" 
+                          onClick={() => {
+                            setSelectedTask(task);
+                            setIsTaskModalOpen(true);
+                          }}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{task.title}</CardTitle>
+                          <Badge 
+                            variant="outline" 
+                            className={`${getNotionColorClasses(task.statusColor || 'default').badge} px-3 py-1`}
+                          >
+                            {task.status}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {task.description && (
+                            <p className="text-sm text-gray-600">{task.description}</p>
+                          )}
+                          
+                          <div className="flex flex-wrap gap-2 text-sm text-gray-500">
+                            {task.priority && (
+                              <Badge variant="secondary">
+                                Priority: {task.priority}
+                              </Badge>
+                            )}
+                            {task.dueDate && (
+                              <Badge variant="secondary">
+                                <Calendar className="h-3 w-3 mr-1" />
+                                Due: {new Date(task.dueDate).toLocaleDateString()}
+                              </Badge>
+                            )}
+                            {task.projectName && (
+                              <Badge variant="secondary">
+                                Project: {task.projectName}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {task.subtasks && task.subtasks.length > 0 && (
+                            <div className="mt-3">
+                              <p className="text-sm font-medium mb-2">Subtasks ({task.subtasks.length}):</p>
+                              <div className="space-y-1">
+                                {task.subtasks.slice(0, 3).map((subtask, index) => (
+                                  <div key={index} className="flex items-center text-xs text-gray-600">
+                                    <CheckCircle className="h-3 w-3 mr-2 text-gray-400" />
+                                    {subtask.title}
+                                  </div>
+                                ))}
+                                {task.subtasks.length > 3 && (
+                                  <p className="text-xs text-gray-500">
+                                    +{task.subtasks.length - 3} more subtasks
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </TabsContent>

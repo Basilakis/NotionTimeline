@@ -262,18 +262,169 @@ export async function registerRoutes(app: Express): Promise<Server> {
             subtasks: subtasks
           };
 
-          tasks.push(task);
+          // Skip Αγορές tasks in the regular tasks endpoint
+          if (!title.toLowerCase().includes('αγορές') && !title.toLowerCase().includes('agores')) {
+            tasks.push(task);
+          }
         } catch (taskError) {
           console.log(`[Notion Tasks] Could not fetch task ${taskId}:`, taskError.message);
         }
       }
 
-      console.log(`[Notion Tasks] Successfully fetched ${tasks.length} tasks`);
+      console.log(`[Notion Tasks] Successfully fetched ${tasks.length} tasks (excluding Αγορές)`);
       res.json(tasks);
     } catch (error) {
       console.error("Error fetching tasks from Notion:", error);
       res.status(500).json({ 
         message: "Failed to fetch tasks from Notion",
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Get purchase tasks (Αγορές) with subtasks
+  app.get("/api/purchases-from-notion", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      // Get user's Notion configuration
+      let config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        config = await storage.getConfiguration('basiliskan@gmail.com');
+        if (!config) {
+          return res.status(404).json({ message: "Notion configuration not found" });
+        }
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      
+      // First, get all user's projects to extract task IDs
+      const databaseRecords = await getFilteredDatabaseRecords(notion, '07ede7dbc952491784e9c5022523e2e0', userEmail);
+      
+      const allTaskIds = new Set<string>();
+      for (const record of databaseRecords) {
+        const taskRelations = record.properties?.Tasks?.relation || [];
+        for (const taskRef of taskRelations) {
+          allTaskIds.add(taskRef.id);
+        }
+      }
+
+      console.log(`[Notion Purchases] Found ${allTaskIds.size} task IDs from user projects`);
+
+      // Fetch purchase tasks (those containing Αγορές)
+      const purchaseTasks = [];
+      for (const taskId of allTaskIds) {
+        try {
+          const page = await notion.pages.retrieve({ page_id: taskId });
+          const properties = (page as any).properties || {};
+
+          // Extract task title
+          const titleProperty = properties.title || properties.Title || properties.Name ||
+                               Object.values(properties).find((prop: any) => prop.type === 'title');
+          const title = extractTextFromProperty(titleProperty);
+          if (!title) continue;
+
+          // Only include Αγορές tasks
+          if (!title.toLowerCase().includes('αγορές') && !title.toLowerCase().includes('agores')) {
+            continue;
+          }
+
+          // Extract subtasks (same logic as regular tasks)
+          const subtasks = [];
+          try {
+            const taskBlocks = await notion.blocks.children.list({ block_id: taskId });
+            
+            for (const block of taskBlocks.results) {
+              if (block.type === 'child_page') {
+                try {
+                  const childPage = await notion.pages.retrieve({ page_id: block.id });
+                  const childProperties = (childPage as any).properties || {};
+                  
+                  const childTitleProperty = childProperties.title || childProperties.Title || childProperties.Name ||
+                                            Object.values(childProperties).find((prop: any) => prop.type === 'title');
+                  const childTitle = extractTextFromProperty(childTitleProperty) || block.child_page?.title || 'Untitled Subtask';
+                  
+                  subtasks.push({
+                    id: block.id,
+                    title: childTitle,
+                    status: childProperties.Status?.select?.name || childProperties.Status?.status?.name || 'No Status',
+                    type: 'child_page',
+                    lastEditedTime: (childPage as any).last_edited_time
+                  });
+                } catch (childError) {
+                  console.log(`[Purchase Subtask] Could not fetch child page ${block.id}:`, childError.message);
+                }
+              }
+            }
+          } catch (subtaskError) {
+            console.log(`[Purchase Subtask] Could not fetch subtasks for task ${taskId}:`, subtaskError.message);
+          }
+
+          // Extract status properly
+          const statusFieldKey = Object.keys(properties).find(key => 
+            key.includes('status') || 
+            key.includes('Status') || 
+            key === 'notion%3A%2F%2Ftasks%2Fstatus_property'
+          );
+          
+          const statusField = statusFieldKey ? properties[statusFieldKey] : null;
+          
+          let statusName = 'Not Started';
+          let statusColor = 'default';
+          
+          if (statusField) {
+            if (statusField.type === 'rollup' && statusField.rollup?.array?.[0]?.status) {
+              statusName = statusField.rollup.array[0].status.name;
+              statusColor = statusField.rollup.array[0].status.color;
+            } else if (statusField.status) {
+              statusName = statusField.status.name;
+              statusColor = statusField.status.color;
+            } else if (statusField.select) {
+              statusName = statusField.select.name;
+              statusColor = statusField.select.color;
+            }
+          }
+
+          const purchaseTask = {
+            id: taskId,
+            notionId: taskId,
+            title: title,
+            status: statusName,
+            mainStatus: mapNotionStatusToLocal(statusName, properties.Completed?.checkbox || false),
+            subStatus: statusName,
+            statusColor: statusColor,
+            priority: properties.Priority?.select?.name || null,
+            dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
+            description: '',
+            section: properties.Section?.select?.name || 'Purchases',
+            isCompleted: properties.Completed?.checkbox || false,
+            progress: statusName === 'Done' ? 100 : 
+                     statusName === 'In Progress' ? 50 : 0,
+            createdTime: (page as any).created_time,
+            lastEditedTime: (page as any).last_edited_time,
+            url: `https://notion.so/${taskId.replace(/-/g, "")}`,
+            userEmail: userEmail,
+            assignee: null,
+            projectName: extractProjectName(properties),
+            properties: properties,
+            subtasks: subtasks
+          };
+
+          purchaseTasks.push(purchaseTask);
+        } catch (taskError) {
+          console.log(`[Notion Purchases] Could not fetch task ${taskId}:`, taskError.message);
+        }
+      }
+
+      console.log(`[Notion Purchases] Successfully fetched ${purchaseTasks.length} purchase tasks`);
+      res.json(purchaseTasks);
+    } catch (error) {
+      console.error("Error fetching purchase tasks from Notion:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch purchase tasks from Notion",
         error: (error as Error).message 
       });
     }
@@ -1346,143 +1497,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Find all databases in the workspace including child databases
-  // Create Αγορές view directly with known database ID
-  app.post('/api/notion-views/create-agores-direct', async (req, res) => {
-    try {
-      const userEmail = req.headers['x-user-email'] as string;
-      
-      if (!userEmail) {
-        return res.status(400).json({ message: "User email is required" });
-      }
 
-      const config = await storage.getConfiguration(userEmail);
-      if (!config) {
-        return res.status(404).json({ message: "No Notion configuration found" });
-      }
 
-      const notion = createNotionClient(config.notionSecret);
-      const agoresDatabaseId = '22868d53-a05c-802f-b41d-f44b941c31a0';
-      
-      // Verify the database exists and get its details
-      try {
-        const agoresDatabase = await notion.databases.retrieve({ 
-          database_id: agoresDatabaseId 
-        });
 
-        const databaseTitle = agoresDatabase.title?.[0]?.plain_text || 'Αγορές';
-        console.log(`[Create Agores Direct] Found Αγορές database: "${databaseTitle}"`);
-
-        // Get parent page ID for the view
-        let parentPageId = extractPageIdFromUrl(config.notionPageUrl);
-        try {
-          const currentDb = await notion.databases.retrieve({ database_id: parentPageId });
-          if ('parent' in currentDb && currentDb.parent.type === 'page_id') {
-            parentPageId = currentDb.parent.page_id;
-          }
-        } catch (err) {
-          // Current ID is already a page
-        }
-
-        // Create or get existing Αγορές view
-        const existingView = await storage.getNotionViewByType(userEmail, 'αγορές');
-        if (!existingView) {
-          const newView = await storage.createNotionView({
-            userEmail: userEmail,
-            viewType: 'αγορές',
-            pageId: parentPageId,
-            databaseId: agoresDatabaseId,
-            title: 'Αγορές',
-            icon: '🛒',
-            isActive: true,
-            sortOrder: 3
-          });
-
-          console.log(`[Create Agores Direct] Created Αγορές view`);
-          return res.json({
-            success: true,
-            view: newView,
-            database: {
-              id: agoresDatabaseId,
-              title: databaseTitle
-            }
-          });
-        } else {
-          return res.json({
-            success: true,
-            view: existingView,
-            database: {
-              id: agoresDatabaseId,
-              title: databaseTitle
-            },
-            message: "Αγορές view already exists"
-          });
-        }
-
-      } catch (error) {
-        console.error(`[Create Agores Direct] Error accessing database ${agoresDatabaseId}:`, error);
-        return res.status(404).json({ 
-          message: "Αγορές database not accessible with the provided ID",
-          databaseId: agoresDatabaseId,
-          error: (error as Error).message 
-        });
-      }
-
-    } catch (error) {
-      console.error("Error creating Αγορές view:", error);
-      res.status(500).json({ 
-        message: "Failed to create Αγορές view",
-        error: (error as Error).message 
-      });
-    }
-  });
-
-  // Auto-create Αγορές tab during workspace discovery
-  // This will check for the known Αγορές database ID during normal discovery
-  const originalDiscoverLogic = async (userEmail: string) => {
-    // Existing discovery logic...
-    const agoresDatabaseId = '22868d53a05c802fb41df44b941c31a0';
-    
-    try {
-      const config = await storage.getConfiguration(userEmail);
-      if (!config) return;
-
-      const notion = createNotionClient(config.notionSecret);
-      
-      // Check if Αγορές database is accessible
-      const agoresDatabase = await notion.databases.retrieve({ 
-        database_id: agoresDatabaseId 
-      });
-
-      // Auto-create Αγορές view if it doesn't exist
-      const existingView = await storage.getNotionViewByType(userEmail, 'αγορές');
-      if (!existingView) {
-        let parentPageId = extractPageIdFromUrl(config.notionPageUrl);
-        try {
-          const currentDb = await notion.databases.retrieve({ database_id: parentPageId });
-          if ('parent' in currentDb && currentDb.parent.type === 'page_id') {
-            parentPageId = currentDb.parent.page_id;
-          }
-        } catch (err) {
-          // Current ID is already a page
-        }
-
-        await storage.createNotionView({
-          userEmail: userEmail,
-          viewType: 'αγορές',
-          pageId: parentPageId,
-          databaseId: agoresDatabaseId,
-          title: 'Αγορές',
-          icon: '🛒',
-          isActive: true,
-          sortOrder: 3
-        });
-
-        console.log(`[Auto Discovery] Created Αγορές view for user: ${userEmail}`);
-      }
-    } catch (error) {
-      console.log(`[Auto Discovery] Αγορές database not accessible for user: ${userEmail}`);
-    }
-  };
 
   // Quick search for Αγορές database only
   app.get('/api/notion-workspace/find-agores', async (req, res) => {
@@ -1772,39 +1789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const notion = createNotionClient(config.notionSecret);
       const pageId = extractPageIdFromUrl(config.notionPageUrl);
 
-      // Auto-check for Αγορές database and create view if accessible
-      const agoresDatabaseId = '22868d53-a05c-802f-b41d-f44b941c31a0';
-      try {
-        console.log(`[Discovery] Attempting to access Αγορές database: ${agoresDatabaseId}`);
-        const agoresDatabase = await notion.databases.retrieve({ 
-          database_id: agoresDatabaseId 
-        });
 
-        const databaseTitle = agoresDatabase.title?.[0]?.plain_text || 'Αγορές';
-        console.log(`[Discovery] Successfully accessed Αγορές database: "${databaseTitle}"`);
-
-        // Check if Αγορές view already exists
-        const existingAgoresView = await storage.getNotionViewByType(userEmail, 'αγορές');
-        if (!existingAgoresView) {
-          await storage.createNotionView({
-            userEmail: userEmail,
-            viewType: 'αγορές',
-            pageId: pageId,
-            databaseId: agoresDatabaseId,
-            title: 'Αγορές',
-            icon: '🛒',
-            isActive: true,
-            sortOrder: 3
-          });
-
-          console.log(`[Discovery] Auto-created Αγορές view for user: ${userEmail}`);
-          viewsCreated++;
-        } else {
-          console.log(`[Discovery] Αγορές view already exists for user: ${userEmail}`);
-        }
-      } catch (error: any) {
-        console.log(`[Discovery] Αγορές database not accessible for user: ${userEmail}, error: ${error.message}`);
-      }
 
       try {
         // First, try to determine if the provided URL is a database or page
