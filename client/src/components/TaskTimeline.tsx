@@ -52,23 +52,23 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const getStatusColor = useCallback((status: string | null, isCompleted: boolean) => {
-    if (isCompleted) return '#10b981'; // Green
+    if (isCompleted) return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Light green bg, darker border and progress
     switch (status?.toLowerCase()) {
       case 'in progress':
       case 'doing':
-        return '#3b82f6'; // Blue
+        return { bg: '#dbeafe', border: '#2563eb', progress: '#1d4ed8' }; // Light blue bg, darker border and progress
       case 'done':
       case 'completed':
-        return '#10b981'; // Green
+        return { bg: '#dcfce7', border: '#16a34a', progress: '#15803d' }; // Light green bg, darker border and progress
       case 'blocked':
       case 'stuck':
-        return '#ef4444'; // Red
+        return { bg: '#fee2e2', border: '#dc2626', progress: '#b91c1c' }; // Light red bg, darker border and progress
       case 'to do':
       case 'todo':
       case 'not started':
-        return '#6b7280'; // Gray
+        return { bg: '#f3f4f6', border: '#6b7280', progress: '#4b5563' }; // Light gray bg, darker border and progress
       default:
-        return '#8b5cf6'; // Purple
+        return { bg: '#f3e8ff', border: '#7c3aed', progress: '#6d28d9' }; // Light purple bg, darker border and progress
     }
   }, []);
 
@@ -107,29 +107,57 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
     const timeStart = minDate.clone().subtract(1, 'month').startOf('month');
     const timeEnd = maxDate.clone().add(2, 'months').endOf('month');
 
-    // Group tasks by project name
+    // Group tasks by project name - use a smarter approach based on task categories
     const projectGroups = tasks.reduce((groups, task) => {
-      let projectName = 'General Tasks';
+      let projectName = 'Uncategorized Tasks';
       
-      if (task.properties) {
-        // Try to find project name in various property formats
-        if (task.properties.Project && typeof task.properties.Project === 'string') {
-          projectName = task.properties.Project;
-        } else if (task.properties.project && typeof task.properties.project === 'string') {
-          projectName = task.properties.project;
-        } else if (task.properties.Project && task.properties.Project.select) {
-          projectName = task.properties.Project.select.name;
-        } else if (task.properties.project && task.properties.project.select) {
-          projectName = task.properties.project.select.name;
-        } else if (task.properties.Project && Array.isArray(task.properties.Project) && task.properties.Project.length > 0) {
-          projectName = task.properties.Project[0].name || task.properties.Project[0];
+      // Strategy 1: Use the task title itself to infer project
+      // Many Greek tasks belong to specific projects
+      const title = task.title.toLowerCase();
+      
+      if (title.includes('αποξηλώσ') || title.includes('υδραυλ') || title.includes('ηλεκτρολογ') || title.includes('θέρμανση')) {
+        projectName = 'Vertex Developments';
+      } else if (title.includes('ethos') || title.includes('ai') || title.includes('starter')) {
+        projectName = 'ethos';
+      } else if (title.includes('creative') || title.includes('design')) {
+        projectName = 'creativeG';
+      } else if (title.includes('template') || title.includes('example')) {
+        projectName = 'Project Template';
+      }
+      
+      // Strategy 2: Use section if it's not "Uncategorized"
+      if (projectName === 'Uncategorized Tasks' && task.section && task.section !== 'Uncategorized') {
+        projectName = task.section;
+      }
+      
+      // Strategy 3: Check URL patterns for project identification
+      if (projectName === 'Uncategorized Tasks' && task.url) {
+        const url = task.url.toLowerCase();
+        if (url.includes('vertex')) {
+          projectName = 'Vertex Developments';
+        } else if (url.includes('ethos')) {
+          projectName = 'ethos';
+        } else if (url.includes('creative')) {
+          projectName = 'creativeG';
         }
       }
       
-      // Fallback to section if no project found
-      if (projectName === 'General Tasks' && task.section) {
-        projectName = task.section;
+      // Strategy 4: Group by task type based on properties
+      if (projectName === 'Uncategorized Tasks' && task.properties) {
+        const hasTaskProgress = task.properties['Task Progress'];
+        const hasProjectStatus = task.properties['Project Status'];
+        
+        if (hasProjectStatus && hasProjectStatus.rollup && hasProjectStatus.rollup.array) {
+          // This indicates it's part of a project structure
+          if (title.includes('gmail') || title.includes('saas') || title.includes('ai')) {
+            projectName = 'ethos';
+          } else {
+            projectName = 'Development Tasks';
+          }
+        }
       }
+      
+      console.log('Assigned project name:', projectName, 'for task:', task.title);
       
       if (!groups[projectName]) {
         groups[projectName] = [];
@@ -177,7 +205,9 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
           stackItems: false
         });
 
-        // Add task item
+        const colors = getStatusColor(task.status, task.isCompleted);
+        
+        // Add task item with progress bar styling
         timelineItems.push({
           id: `item-${itemIndex}`,
           group: taskGroupId,
@@ -186,11 +216,16 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
           end_time: endTime,
           itemProps: {
             style: {
-              backgroundColor: getStatusColor(task.status, task.isCompleted),
-              border: task.priority === 'High' ? '2px solid #dc2626' : '1px solid rgba(255,255,255,0.5)',
-              borderRadius: '4px',
-              color: 'white',
-              fontSize: '12px'
+              backgroundColor: colors.bg,
+              border: `2px solid ${task.priority === 'High' ? '#dc2626' : colors.border}`,
+              borderRadius: '6px',
+              color: '#1f2937', // Dark text for readability
+              fontSize: '12px',
+              fontWeight: '500',
+              position: 'relative',
+              overflow: 'hidden',
+              // Add a subtle gradient for depth
+              background: `linear-gradient(to right, ${colors.progress} 0%, ${colors.progress} ${task.progress}%, ${colors.bg} ${task.progress}%, ${colors.bg} 100%)`
             }
           },
           task: task
@@ -210,7 +245,7 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
               stackItems: false
             });
 
-            // Add subtask item
+            // Add subtask item with improved styling
             timelineItems.push({
               id: `subitem-${itemIndex}-${subIndex}`,
               group: subtaskGroupId,
@@ -219,11 +254,12 @@ export default function TaskTimeline({ tasks, onTaskClick }: TaskTimelineProps) 
               end_time: startTime.clone().add(3, 'days'), // 3 days duration for subtasks
               itemProps: {
                 style: {
-                  backgroundColor: '#94a3b8',
-                  border: '1px solid rgba(255,255,255,0.5)',
-                  borderRadius: '2px',
-                  color: 'white',
-                  fontSize: '11px'
+                  backgroundColor: '#f1f5f9', // Light gray background
+                  border: '1px solid #64748b',
+                  borderRadius: '4px',
+                  color: '#1e293b', // Dark text for readability
+                  fontSize: '11px',
+                  fontWeight: '400'
                 }
               },
               task: subtask
