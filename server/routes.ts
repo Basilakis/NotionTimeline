@@ -200,26 +200,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`[Subtask] Could not fetch subtasks for task ${taskId}:`, subtaskError.message);
           }
 
+          // Extract status properly from Notion Status field 
+          // The actual status field key from Notion API is URL-encoded
+          const statusFieldKey = Object.keys(properties).find(key => 
+            key.includes('status') || 
+            key.includes('Status') || 
+            key === 'notion%3A%2F%2Ftasks%2Fstatus_property'
+          );
+          
+          const statusField = statusFieldKey ? properties[statusFieldKey] : null;
+          const statusName = statusField?.select?.name || statusField?.status?.name || 'Not Started';
+          const statusColor = statusField?.select?.color || statusField?.status?.color || 'default';
+          
+          // Debug log to see the actual structure (remove after testing)
+          if (statusField && title.includes('Αποξηλώσεις')) {
+            console.log(`[Task ${title}] Status: ${statusName}, Color: ${statusColor}`);
+            console.log(`[Task ${title}] Available properties:`, Object.keys(properties));
+          }
+
           const task = {
             id: taskId,
             notionId: taskId,
             title: title,
-            status: properties.Status?.select?.name || properties.Status?.status?.name || 'No Status',
-            mainStatus: mapNotionStatusToLocal(properties.Status?.select?.name || properties.Status?.status?.name || 'No Status', properties.Completed?.checkbox || false),
-            subStatus: properties.Status?.select?.name || properties.Status?.status?.name || 'No Status',
-            statusColor: properties.Status?.select?.color || properties.Status?.status?.color || 'default',
+            status: statusName,
+            mainStatus: mapNotionStatusToLocal(statusName, properties.Completed?.checkbox || false),
+            subStatus: statusName,
+            statusColor: statusColor,
             priority: properties.Priority?.select?.name || null,
             dueDate: properties['Due Date']?.date?.start || properties.Due?.date?.start || null,
             description: '', // Will be populated if needed
             section: properties.Section?.select?.name || 'Uncategorized',
             isCompleted: properties.Completed?.checkbox || false,
-            progress: properties.Status?.select?.name === 'Done' ? 100 : 
-                     properties.Status?.select?.name === 'In Progress' ? 50 : 0,
+            progress: statusName === 'Done' ? 100 : 
+                     statusName === 'In Progress' ? 50 : 0,
             createdTime: (page as any).created_time,
             lastEditedTime: (page as any).last_edited_time,
             url: (page as any).url,
-            assignee: extractTextFromProperty(properties.Assignee),
-            userEmail: extractEmailFromProperty(properties.Assignee),
+            assignee: extractTextFromProperty(properties.Assign),
+            userEmail: extractEmailFromProperty(properties.Assign),
             projectName: extractTextFromProperty(properties.Project) || 'Unknown Project',
             properties: properties,
             subtasks: subtasks

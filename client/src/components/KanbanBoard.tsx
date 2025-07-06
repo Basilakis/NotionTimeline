@@ -28,10 +28,17 @@ interface KanbanBoardProps {
   onTaskClick: (task: Task) => void;
 }
 
-const getStatusColor = (status: string): string => {
+const getStatusColor = (task: Task): string => {
+  // Use actual Notion color if available
+  if (task.statusColor && task.statusColor !== 'default') {
+    const notionColor = getNotionColorClass(task.statusColor);
+    return `bg-opacity-20 ${notionColor.replace('bg-', 'bg-')} text-gray-800 border-gray-300`;
+  }
+  
+  // Fallback to predefined colors based on status
   const statusColors: { [key: string]: string } = {
     'Planning': 'bg-purple-100 text-purple-800 border-purple-300',
-    'Not Started': 'bg-purple-100 text-purple-800 border-purple-300',
+    'Not Started': 'bg-gray-100 text-gray-800 border-gray-300',
     'To Do': 'bg-purple-100 text-purple-800 border-purple-300',
     'Todo': 'bg-purple-100 text-purple-800 border-purple-300',
     'Backlog': 'bg-purple-100 text-purple-800 border-purple-300',
@@ -47,7 +54,7 @@ const getStatusColor = (status: string): string => {
     'Canceled': 'bg-red-100 text-red-800 border-red-300',
     'Paused': 'bg-yellow-100 text-yellow-800 border-yellow-300'
   };
-  return statusColors[status] || 'bg-gray-100 text-gray-800 border-gray-300';
+  return statusColors[task.status] || 'bg-gray-100 text-gray-800 border-gray-300';
 };
 
 const getPriorityColor = (priority: string | null): string => {
@@ -91,56 +98,76 @@ const mapStatusToColumn = (status: string): string => {
 
 // Extract all unique properties from tasks
 const extractTaskProperties = (tasks: Task[]): any[] => {
-  const allProperties = new Set<string>();
   const propertyDetails: { [key: string]: any } = {};
   
   tasks.forEach(task => {
     if (task.properties) {
       Object.keys(task.properties).forEach(propKey => {
-        allProperties.add(propKey);
         const prop = task.properties[propKey];
         
-        if (!propertyDetails[propKey]) {
-          propertyDetails[propKey] = {
-            name: propKey,
+        // Skip certain system properties
+        if (propKey.includes('formula') || propKey.includes('rollup') || propKey === 'title') {
+          return;
+        }
+        
+        // Clean up property names for display
+        const displayName = propKey.includes('%') ? 
+          decodeURIComponent(propKey).replace(/notion:\/\/tasks\/|_property/g, '') : 
+          propKey;
+        
+        if (!propertyDetails[displayName]) {
+          propertyDetails[displayName] = {
+            name: displayName,
             type: prop?.type || 'unknown',
             options: new Set(),
             colors: new Set()
           };
         }
         
-        // Extract options and colors for select/multi-select properties
-        if (prop?.select) {
-          propertyDetails[propKey].options.add(prop.select.name);
+        // Extract options and colors based on property type
+        if (prop?.type === 'select' && prop.select) {
+          propertyDetails[displayName].options.add(prop.select.name);
           if (prop.select.color) {
-            propertyDetails[propKey].colors.add(prop.select.color);
+            propertyDetails[displayName].colors.add(prop.select.color);
           }
         }
         
-        if (prop?.multi_select) {
+        if (prop?.type === 'multi_select' && prop.multi_select) {
           prop.multi_select.forEach((option: any) => {
-            propertyDetails[propKey].options.add(option.name);
+            propertyDetails[displayName].options.add(option.name);
             if (option.color) {
-              propertyDetails[propKey].colors.add(option.color);
+              propertyDetails[displayName].colors.add(option.color);
             }
           });
         }
         
-        if (prop?.status) {
-          propertyDetails[propKey].options.add(prop.status.name);
+        if (prop?.type === 'status' && prop.status) {
+          propertyDetails[displayName].options.add(prop.status.name);
           if (prop.status.color) {
-            propertyDetails[propKey].colors.add(prop.status.color);
+            propertyDetails[displayName].colors.add(prop.status.color);
           }
+        }
+        
+        // Handle people/relation properties
+        if (prop?.type === 'people' && prop.people && prop.people.length > 0) {
+          prop.people.forEach((person: any) => {
+            if (person.name) {
+              propertyDetails[displayName].options.add(person.name);
+            }
+          });
         }
       });
     }
   });
   
-  return Array.from(allProperties).map(key => ({
-    ...propertyDetails[key],
-    options: Array.from(propertyDetails[key].options),
-    colors: Array.from(propertyDetails[key].colors)
-  }));
+  return Object.keys(propertyDetails)
+    .filter(key => propertyDetails[key].options.size > 0)
+    .map(key => ({
+      ...propertyDetails[key],
+      options: Array.from(propertyDetails[key].options),
+      colors: Array.from(propertyDetails[key].colors)
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 };
 
 // Get Notion color CSS class
@@ -174,85 +201,35 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
 
   return (
     <div className="space-y-6">
-      {/* Task Summary and Properties */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Properties List */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Tasks ({tasks.length}) - Properties
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {taskProperties.map((property) => (
-              <div key={property.name} className="space-y-2">
-                <div className="text-sm font-medium text-gray-800">{property.name}</div>
-                <div className="flex flex-wrap gap-2">
-                  {property.options.map((option: string, idx: number) => (
-                    <div key={option} className="flex items-center gap-2 text-xs">
-                      <div 
-                        className={`w-3 h-3 rounded-full ${
-                          property.colors[idx % property.colors.length] ? 
-                            getNotionColorClass(property.colors[idx % property.colors.length]) : 
-                            'bg-gray-400'
-                        }`}
-                      />
-                      <span className="text-gray-600">{option}</span>
-                    </div>
-                  ))}
-                </div>
+      {/* Properties Panel */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-gray-600">
+            Tasks ({tasks.length}) - All Properties
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {taskProperties.map((property) => (
+            <div key={property.name} className="space-y-2">
+              <div className="text-sm font-medium text-gray-800">{property.name}</div>
+              <div className="flex flex-wrap gap-2">
+                {property.options.map((option: string, idx: number) => (
+                  <div key={option} className="flex items-center gap-2 text-xs">
+                    <div 
+                      className={`w-3 h-3 rounded-full ${
+                        property.colors[idx % property.colors.length] ? 
+                          getNotionColorClass(property.colors[idx % property.colors.length]) : 
+                          'bg-gray-400'
+                      }`}
+                    />
+                    <span className="text-gray-600">{option}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </CardContent>
-        </Card>
-        
-        {/* Status Summary */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Planning</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">
-                {tasksByStatus['Planning']?.length || 0}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">In Progress</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                {tasksByStatus['In Progress']?.length || 0}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Done</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {tasksByStatus['Done']?.length || 0}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Cancelled</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {tasksByStatus['Cancelled']?.length || 0}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       {/* Kanban Columns */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -277,7 +254,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                     <div className="mb-2">
                       <Badge 
                         variant="outline" 
-                        className={`text-xs ${getStatusColor(task.status)}`}
+                        className={`text-xs ${getStatusColor(task)}`}
                       >
                         {task.status}
                       </Badge>
