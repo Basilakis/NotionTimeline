@@ -53,7 +53,12 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
   const { data: chats = [], refetch: refetchChats } = useQuery({
     queryKey: ['/api/chats'],
     staleTime: 0,
-    cacheTime: 0
+    cacheTime: 0,
+    meta: {
+      headers: {
+        'x-user-email': userEmail
+      }
+    }
   });
 
   // Fetch messages for selected chat
@@ -61,7 +66,12 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
     queryKey: ['/api/chats', selectedChatId, 'messages'],
     enabled: !!selectedChatId,
     staleTime: 0,
-    cacheTime: 0
+    cacheTime: 0,
+    meta: {
+      headers: {
+        'x-user-email': userEmail
+      }
+    }
   });
 
   // Auto-scroll to bottom when messages change
@@ -79,7 +89,7 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
       setCommandType('request');
       setMessage(trimmedMessage.substring(9));
     }
-  }, []);
+  }, [message]);
 
   // Send message mutation
   const sendMessageMutation = useMutation({
@@ -121,29 +131,51 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
 
     setIsLoading(true);
     try {
-      // If no chat selected, send to legacy API for backward compatibility
       if (!selectedChatId) {
-        const response = await apiRequest('/api/requests', {
+        // Create new chat with first message
+        const response = await apiRequest('/api/chats', {
           method: 'POST',
           body: {
-            content: message,
-            requestType: commandType === 'request' ? '/request' : '/ai'
+            message: message,
+            type: commandType
+          },
+          headers: {
+            'x-user-email': userEmail
           }
         });
 
-        if (response.chatId) {
-          setSelectedChatId(response.chatId);
+        if (response.chat) {
+          setSelectedChatId(response.chat.id);
         }
         
         refetchChats();
+        refetchMessages();
         setMessage('');
       } else {
         // Send to existing chat
-        await sendMessageMutation.mutateAsync({
-          message,
-          type: commandType,
-          chatId: selectedChatId
+        await apiRequest(`/api/chats/${selectedChatId}/messages`, {
+          method: 'POST',
+          body: {
+            message: message,
+            isFromUser: true
+          },
+          headers: {
+            'x-user-email': userEmail
+          }
         });
+
+        setMessage('');
+        // Wait a moment for AI response if this is an AI chat
+        const currentChat = chats.find((c: Chat) => c.id === selectedChatId);
+        if (currentChat?.type === 'ai') {
+          setTimeout(() => {
+            refetchMessages();
+            refetchChats();
+          }, 2000); // Give AI time to respond
+        } else {
+          refetchMessages();
+          refetchChats();
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);

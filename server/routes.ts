@@ -11,6 +11,7 @@ import { requestDB } from "./requestDatabase";
 import { chatDB } from "./chatDatabase";
 import { emailService, smsService } from "./communications";
 import { statusNotificationService } from "./statusNotifications";
+import { aiService } from "./aiService";
 
 // Helper function to get admin configuration
 async function getAdminConfiguration(): Promise<Configuration> {
@@ -3515,6 +3516,27 @@ Don't forget to update your task progress!`
       // Add the first message
       const firstMessage = await chatDB.createMessage(chat.id, userEmail, message, type, true);
 
+      // If this is an AI chat, generate AI response immediately
+      if (type === 'ai') {
+        try {
+          console.log(`[AI Chat] Generating response for user: ${userEmail}`);
+          const aiResponse = await aiService.generateResponse(userEmail, message);
+          
+          // Add AI response as a message
+          await chatDB.createMessage(chat.id, userEmail, aiResponse, type, false);
+          
+          // Update chat activity with AI response
+          await chatDB.updateChatActivity(chat.id, aiResponse.substring(0, 100) + '...');
+          
+          console.log(`[AI Chat] Generated response for chat ${chat.id}`);
+        } catch (aiError) {
+          console.error("Error generating AI response:", aiError);
+          // Still return success for chat creation even if AI fails
+          const errorMessage = "I'm having trouble accessing your Notion data right now. Please ensure your Notion integration is properly configured in Settings.";
+          await chatDB.createMessage(chat.id, userEmail, errorMessage, type, false);
+        }
+      }
+
       res.status(201).json({ chat, message: firstMessage });
     } catch (error) {
       console.error("Error creating chat:", error);
@@ -3543,8 +3565,29 @@ Don't forget to update your task progress!`
         return res.status(404).json({ message: "Chat not found" });
       }
 
-      // Add the message
+      // Add the user message
       const newMessage = await chatDB.createMessage(chatId, userEmail, message, chat.type, isFromUser);
+
+      // If this is a user message to an AI chat, generate AI response
+      if (isFromUser && chat.type === 'ai') {
+        try {
+          console.log(`[AI Chat] Generating response for message in chat: ${chatId}`);
+          const aiResponse = await aiService.generateResponse(userEmail, message);
+          
+          // Add AI response as a message
+          await chatDB.createMessage(chatId, userEmail, aiResponse, chat.type, false);
+          
+          // Update chat activity with AI response
+          await chatDB.updateChatActivity(chatId, aiResponse.substring(0, 100) + '...');
+          
+          console.log(`[AI Chat] Generated response for existing chat ${chatId}`);
+        } catch (aiError) {
+          console.error("Error generating AI response:", aiError);
+          // Still return success for message addition even if AI fails
+          const errorMessage = "I'm having trouble accessing your Notion data right now. Please ensure your Notion integration is properly configured in Settings.";
+          await chatDB.createMessage(chatId, userEmail, errorMessage, chat.type, false);
+        }
+      }
 
       res.status(201).json(newMessage);
     } catch (error) {
