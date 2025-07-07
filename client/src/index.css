@@ -44,6 +44,45 @@
   --material-grey-900: hsl(0, 0%, 13%);
 }
 
+/* Chat Markdown Table Styles */
+.prose table {
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.prose th {
+  background-color: hsl(var(--muted));
+  font-weight: 600;
+  text-align: left;
+  padding: 0.5rem;
+  border: 1px solid hsl(var(--border));
+}
+
+.prose td {
+  padding: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  vertical-align: top;
+}
+
+.prose tr:nth-child(even) {
+  background-color: hsl(var(--muted) / 0.3);
+}
+
+/* Dark mode table styles */
+.dark .prose th {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.dark .prose td {
+  border-color: hsl(var(--border));
+}
+
+.dark .prose tr:nth-child(even) {
+  background-color: hsl(var(--muted) / 0.5);
+}
+
 .dark {
   --background: hsl(144, 85%, 4%);
   --foreground: hsl(145, 25%, 95%);

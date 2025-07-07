@@ -11,6 +11,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { MessageCircle, Plus, Send, Bot, User, Trash2, Search } from 'lucide-react';
 import { format } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 interface Chat {
   id: string;
@@ -342,10 +345,64 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
                           })()}
                         </span>
                       </div>
-                      <p className="text-sm">{msg.message}</p>
+                      <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          rehypePlugins={[rehypeRaw]}
+                          components={{
+                            table: ({ children }) => (
+                              <table className="w-full border-collapse border border-border text-sm">
+                                {children}
+                              </table>
+                            ),
+                            th: ({ children }) => (
+                              <th className="border border-border px-2 py-1 bg-muted font-medium text-left">
+                                {children}
+                              </th>
+                            ),
+                            td: ({ children }) => (
+                              <td className="border border-border px-2 py-1">
+                                {children}
+                              </td>
+                            ),
+                            p: ({ children }) => (
+                              <p className="mb-2 last:mb-0">{children}</p>
+                            )
+                          }}
+                        >
+                          {msg.message}
+                        </ReactMarkdown>
+                      </div>
                       {msg.response && (
                         <div className="mt-2 pt-2 border-t border-muted-foreground/20">
-                          <p className="text-sm">{msg.response}</p>
+                          <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              rehypePlugins={[rehypeRaw]}
+                              components={{
+                                table: ({ children }) => (
+                                  <table className="w-full border-collapse border border-border text-sm">
+                                    {children}
+                                  </table>
+                                ),
+                                th: ({ children }) => (
+                                  <th className="border border-border px-2 py-1 bg-muted font-medium text-left">
+                                    {children}
+                                  </th>
+                                ),
+                                td: ({ children }) => (
+                                  <td className="border border-border px-2 py-1">
+                                    {children}
+                                  </td>
+                                ),
+                                p: ({ children }) => (
+                                  <p className="mb-2 last:mb-0">{children}</p>
+                                )
+                              }}
+                            >
+                              {msg.response}
+                            </ReactMarkdown>
+                          </div>
                         </div>
                       )}
                     </div>

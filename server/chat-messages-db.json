@@ -338,5 +338,25 @@
     "timestamp": "2025-07-07T08:44:57.017Z",
     "isFromUser": false,
     "createdAt": "2025-07-07T08:44:57.017Z"
+  },
+  {
+    "id": "9983ed43-f1a8-48d3-a6da-4bd6473e4787",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Ποιες εργασίες είναι δεν έχουν ξεκινήσει;",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:57:08.356Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:57:08.356Z"
+  },
+  {
+    "id": "655e7d43-67c2-43fd-ac71-ec4fe7047421",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "| Α/Α | Εργασία | Κατάσταση | Έργο |\n|-----|---------|-----------|------|\n| 2   | Υδραυλικές Εργασίες | Not Started | Project TemplateProject tasks |\n| 3   | Ηλεκτρολογικές Εργασίες | Not Started | Project TemplateProject tasks |\n| 4   | Θέρμανση | Not Started | Project TemplateProject tasks |\n| 5   | Θωρακισμένη Πόρτα | Not Started | Vertex Developments |\n| 6   | Content for Web Site ( SEO ) | Not Started | Vertex Developments |\n| 7   | Untitled Task | Not Started | Vertex Developments |\n| 9   | Signup as Mentor | Not Started | creativeG |\n| 10  | zohomails add to gmail | Not Started | creativeG |\n| 11  | Saas Starter Kits | Not Started | creativeG |\n| 12  | AI Lists | Not Started | creativeG |\n| 13  | AI Page | Not Started | creativeG |\n| 14  | Πλακάκια | Not started | Project TemplateProject tasks |\n| 15  | Εσωτερικά Κουφώματα | Not started | Project TemplateProject tasks |\n| 16  | Εξωτερικά Κουφώματα | Not started | Project TemplateProject tasks |\n| 17  | Θωρακισμένη Πόρτα | Not started | Project TemplateProject tasks |",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:57:30.599Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:57:30.599Z"
   }
 ]
