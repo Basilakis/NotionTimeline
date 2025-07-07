@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "id": "7d830ce8-15a0-4b7d-b63f-fd626b960ea3",
+    "userEmail": "test@example.com",
+    "message": "I need help setting up my Notion workspace integration. The tasks are not loading properly and I cannot see my databases.",
+    "timestamp": "2025-07-07T17:47:57.063Z",
+    "status": "open",
+    "createdAt": "2025-07-07T17:47:57.063Z",
+    "updatedAt": "2025-07-07T17:47:57.063Z"
+  },
+  {
+    "id": "25568f72-88ba-48d6-bd03-9954c2930dd1",
+    "userEmail": "demo@example.com",
+    "message": "The email notifications are not working correctly. I am not receiving status update emails when tasks change.",
+    "timestamp": "2025-07-07T17:48:03.226Z",
+    "status": "open",
+    "createdAt": "2025-07-07T17:48:03.226Z",
+    "updatedAt": "2025-07-07T17:48:03.226Z"
+  }
+]

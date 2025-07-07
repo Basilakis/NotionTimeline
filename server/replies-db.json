@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "id": "51249032-0a7f-45e3-8cde-fa44162085ea",
+    "requestId": "7d830ce8-15a0-4b7d-b63f-fd626b960ea3",
+    "message": "Hi there! I can help you with the Notion integration. Please make sure you have:\n\n1. Created a Notion integration in your Notion settings\n2. Added your integration secret to the app settings\n3. Connected your Notion page URL\n\nOnce you complete these steps, the workspace discovery should find your databases automatically. Let me know if you need help with any of these steps!",
+    "timestamp": "2025-07-07T17:49:49.433Z",
+    "isAdmin": true,
+    "senderEmail": "basiliskan@gmail.com",
+    "createdAt": "2025-07-07T17:49:49.433Z"
+  }
+]

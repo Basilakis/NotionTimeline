@@ -1,0 +1,26 @@
+[
+  {
+    "id": "e815344e-0523-435e-9dc1-8eb4efd45a45",
+    "userEmail": "test@example.com",
+    "action": "Request Created",
+    "details": "Created request: \"I need help setting up my Notion workspace integra...\"",
+    "timestamp": "2025-07-07T17:47:57.067Z",
+    "type": "request"
+  },
+  {
+    "id": "9fca9c90-449d-4264-b144-44c3e195aec3",
+    "userEmail": "demo@example.com",
+    "action": "Request Created",
+    "details": "Created request: \"The email notifications are not working correctly....\"",
+    "timestamp": "2025-07-07T17:48:03.227Z",
+    "type": "request"
+  },
+  {
+    "id": "af14217f-4284-4595-9323-c33ada1ed7c1",
+    "userEmail": "basiliskan@gmail.com",
+    "action": "Admin Reply",
+    "details": "Replied to request: \"Hi there! I can help you with the Notion integrati...\"",
+    "timestamp": "2025-07-07T17:49:49.435Z",
+    "type": "request"
+  }
+]

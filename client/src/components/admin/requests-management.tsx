@@ -34,6 +34,7 @@ import {
   RefreshCw,
   Search,
   Filter,
+  X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -350,16 +351,26 @@ export function RequestsManagement() {
         )}
       </div>
 
-      {/* Request Detail Sheet */}
+      {/* Request Detail Side Sheet */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="w-[600px] sm:w-[700px] overflow-y-auto">
+        <SheetContent side="right" className="w-[600px] sm:w-[700px] overflow-y-auto">
           {selectedRequest && (
             <>
               <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Request Details
-                </SheetTitle>
+                <div className="flex items-center justify-between">
+                  <SheetTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Request Details
+                  </SheetTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsSheetOpen(false)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </SheetHeader>
               
               <div className="space-y-6 mt-6">
@@ -376,22 +387,28 @@ export function RequestsManagement() {
                       <span className="text-sm text-gray-600">{selectedRequest.userEmail}</span>
                     </div>
                     <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant={selectedRequest.status === 'open' ? 'default' : 'outline'}
-                        onClick={() => handleStatusChange('open')}
-                        disabled={updateStatusMutation.isPending}
-                      >
-                        Mark Open
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={selectedRequest.status === 'resolved' ? 'default' : 'outline'}
-                        onClick={() => handleStatusChange('resolved')}
-                        disabled={updateStatusMutation.isPending}
-                      >
-                        Mark Resolved
-                      </Button>
+                      {selectedRequest.status === 'open' ? (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleStatusChange('resolved')}
+                          disabled={updateStatusMutation.isPending}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Mark as Solved
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleStatusChange('open')}
+                          disabled={updateStatusMutation.isPending}
+                        >
+                          <Clock className="h-4 w-4 mr-1" />
+                          Reopen Request
+                        </Button>
+                      )}
                     </div>
                   </div>
                   
@@ -409,35 +426,48 @@ export function RequestsManagement() {
 
                 {/* Conversation */}
                 <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Conversation</h3>
+                  <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Conversation ({selectedRequest.replies.length})
+                  </h3>
                   
                   {selectedRequest.replies.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      No replies yet. Be the first to respond!
-                    </p>
+                    <div className="text-center py-8 bg-gray-50 rounded-lg">
+                      <MessageSquare className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">
+                        No replies yet. Be the first to respond!
+                      </p>
+                    </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
                       {selectedRequest.replies.map((reply) => (
                         <div
                           key={reply.id}
                           className={`flex ${reply.isAdmin ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`max-w-[80%] p-3 rounded-lg ${
+                            className={`max-w-[85%] p-4 rounded-lg shadow-sm ${
                               reply.isAdmin
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-gray-100 text-gray-900'
+                                ? 'bg-[#003319] text-white'
+                                : 'bg-white border border-gray-200 text-gray-900'
                             }`}
                           >
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs opacity-70">
-                                {reply.isAdmin ? 'Admin' : 'User'}
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`w-2 h-2 rounded-full ${
+                                reply.isAdmin ? 'bg-white/30' : 'bg-[#003319]'
+                              }`} />
+                              <span className={`text-xs font-medium ${
+                                reply.isAdmin ? 'text-white/70' : 'text-gray-600'
+                              }`}>
+                                {reply.isAdmin ? 'Admin' : reply.senderEmail}
                               </span>
-                              <span className="text-xs opacity-70">
-                                {format(new Date(reply.createdAt), 'MMM dd, HH:mm')}
+                              <span className={`text-xs ${
+                                reply.isAdmin ? 'text-white/50' : 'text-gray-400'
+                              }`}>
+                                {format(new Date(reply.createdAt), 'MMM dd, yyyy HH:mm')}
                               </span>
                             </div>
-                            <p className="text-sm whitespace-pre-wrap">
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">
                               {reply.message}
                             </p>
                           </div>
@@ -448,22 +478,39 @@ export function RequestsManagement() {
                 </div>
 
                 {/* Reply Form */}
-                <div className="space-y-3 border-t pt-4">
-                  <h4 className="font-medium text-gray-900">Send Reply</h4>
-                  <Textarea
-                    placeholder="Type your reply..."
-                    value={replyMessage}
-                    onChange={(e) => setReplyMessage(e.target.value)}
-                    rows={4}
-                  />
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={handleSendReply}
-                      disabled={!replyMessage.trim() || replyMutation.isPending}
-                    >
-                      <Send className="h-4 w-4 mr-2" />
-                      {replyMutation.isPending ? 'Sending...' : 'Send Reply'}
-                    </Button>
+                <div className="space-y-4 border-t pt-6 bg-gray-50 -mx-6 px-6 pb-6">
+                  <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                    <Send className="h-4 w-4" />
+                    Send Reply
+                  </h4>
+                  <div className="space-y-3">
+                    <Textarea
+                      placeholder="Type your reply to help the user..."
+                      value={replyMessage}
+                      onChange={(e) => setReplyMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && replyMessage.trim()) {
+                          e.preventDefault();
+                          handleSendReply();
+                        }
+                      }}
+                      rows={4}
+                      className="bg-white border-gray-200 focus:border-[#003319] focus:ring-[#003319]"
+                      autoFocus
+                    />
+                    <div className="flex justify-between items-center">
+                      <div className="text-xs text-gray-500">
+                        {replyMessage.length}/1000 characters • Press Ctrl+Enter to send
+                      </div>
+                      <Button
+                        onClick={handleSendReply}
+                        disabled={!replyMessage.trim() || replyMutation.isPending}
+                        className="bg-[#003319] hover:bg-[#003319]/90"
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        {replyMutation.isPending ? 'Sending...' : 'Send Reply'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
