@@ -348,5 +348,15 @@
     "timestamp": "2025-07-07T09:19:52.648Z",
     "isFromUser": false,
     "createdAt": "2025-07-07T09:19:52.648Z"
+  },
+  {
+    "id": "2f651719-731d-47df-a91b-40d0763c4f05",
+    "chatId": "23b58e63-b16d-42ad-91c0-31dd94c2c0b7",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "This is a new request just so we can review what is happening on the backend",
+    "type": "request",
+    "timestamp": "2025-07-07T17:26:46.647Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T17:26:46.647Z"
   }
 ]

@@ -18,8 +18,215 @@ import ProfessionalTimeline from "@/components/timeline/ProfessionalTimeline";
 import KanbanBoardNew from "@/components/kanban/KanbanBoard";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { RequestsInterface } from "@/components/user/requests-interface";
-import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard, ShoppingCart, Send, Bot, User, MessageSquare } from "lucide-react";
+import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard, ShoppingCart, Send, Bot, User, MessageSquare, Check, X } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 import vertexLogo from "@assets/VertexDevelopments_1751826186443.png";
+
+// Approval Badge Component
+const ApprovalBadge = ({ task }: { task: any }) => {
+  if (task.approvalStatus === 'Yes') {
+    return (
+      <Badge className="bg-green-100 text-green-800 border-green-200">
+        <Check className="h-3 w-3 mr-1" />
+        Approved
+      </Badge>
+    );
+  }
+  
+  if (task.approvalStatus === 'No') {
+    return (
+      <Badge className="bg-red-100 text-red-800 border-red-200">
+        <X className="h-3 w-3 mr-1" />
+        Rejected
+      </Badge>
+    );
+  }
+  
+  // needsApproval is true when approval field is empty
+  if (task.needsApproval) {
+    return (
+      <Badge className="bg-orange-100 text-orange-800 border-orange-200">
+        <AlertCircle className="h-3 w-3 mr-1" />
+        Pending
+      </Badge>
+    );
+  }
+  
+  return (
+    <Badge variant="outline" className="text-gray-500">
+      N/A
+    </Badge>
+  );
+};
+
+// Purchase Item Row Component
+const PurchaseItemRow = ({ task }: { task: any }) => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const approvalMutation = useMutation({
+    mutationFn: async ({ itemId, approvalStatus }: { itemId: string; approvalStatus: 'Yes' | 'No' }) => {
+      return await apiRequest(`/api/purchases/${itemId}/approval`, {
+        method: 'PATCH',
+        headers: {
+          'x-user-email': localStorage.getItem('userEmail') || ''
+        },
+        body: JSON.stringify({ approvalStatus })
+      });
+    },
+    onSuccess: (data, variables) => {
+      toast({
+        title: "Approval Updated",
+        description: `Item ${variables.approvalStatus === 'Yes' ? 'approved' : 'rejected'} successfully`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/purchases-from-notion'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update approval status",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleApproval = (approvalStatus: 'Yes' | 'No') => {
+    approvalMutation.mutate({ itemId: task.id, approvalStatus });
+  };
+
+  return (
+    <tr className="border-b hover:bg-gray-50">
+      <td className="p-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-3 h-3 rounded-full ${
+            task.status === 'Done' ? 'bg-green-500' : 
+            task.status === 'In Progress' ? 'bg-yellow-500' : 
+            task.status === 'Planning' ? 'bg-blue-500' :
+            'bg-gray-300'
+          }`} />
+          <div>
+            <h4 className="font-medium text-gray-900">{task.title}</h4>
+            {task.description && (
+              <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+            )}
+          </div>
+        </div>
+      </td>
+      
+      <td className="p-4">
+        <Badge 
+          variant="outline" 
+          className={`${getNotionColorClasses(task.statusColor || 'default').badge} px-2 py-1 text-xs`}
+        >
+          {formatStatusDisplay(task.status)}
+        </Badge>
+      </td>
+      
+      <td className="p-4">
+        <div className="flex items-center gap-2">
+          <ApprovalBadge task={task} />
+          {task.needsApproval && (
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleApproval('Yes')}
+                disabled={approvalMutation.isPending}
+                className="h-7 px-2 text-green-700 border-green-200 hover:bg-green-50"
+              >
+                <Check className="h-3 w-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleApproval('No')}
+                disabled={approvalMutation.isPending}
+                className="h-7 px-2 text-red-700 border-red-200 hover:bg-red-50"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </td>
+      
+      <td className="p-4">
+        <span className="text-sm text-gray-600">
+          {task.projectName || 'Unknown Project'}
+        </span>
+      </td>
+      
+      <td className="p-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => window.open(task.url, '_blank')}
+          className="h-8 w-8 p-0"
+        >
+          <ExternalLink className="h-4 w-4" />
+        </Button>
+      </td>
+    </tr>
+  );
+};
+
+// Approval Buttons Component for bulk actions
+const ApprovalButtons = ({ tasks, onApprovalUpdate }: { tasks: any[]; onApprovalUpdate: () => void }) => {
+  const { toast } = useToast();
+  
+  const bulkApprovalMutation = useMutation({
+    mutationFn: async (approvalStatus: 'Yes' | 'No') => {
+      const promises = tasks.map(task => 
+        apiRequest(`/api/purchases/${task.id}/approval`, {
+          method: 'PATCH',
+          headers: {
+            'x-user-email': localStorage.getItem('userEmail') || ''
+          },
+          body: JSON.stringify({ approvalStatus })
+        })
+      );
+      return await Promise.all(promises);
+    },
+    onSuccess: (data, approvalStatus) => {
+      toast({
+        title: "Bulk Approval Complete",
+        description: `All items ${approvalStatus === 'Yes' ? 'approved' : 'rejected'} successfully`,
+      });
+      onApprovalUpdate();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update approval status",
+        variant: "destructive"
+      });
+    }
+  });
+
+  return (
+    <>
+      <Button
+        size="sm"
+        onClick={() => bulkApprovalMutation.mutate('Yes')}
+        disabled={bulkApprovalMutation.isPending}
+        className="bg-green-600 hover:bg-green-700 text-white"
+      >
+        <Check className="h-4 w-4 mr-1" />
+        Approve All
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => bulkApprovalMutation.mutate('No')}
+        disabled={bulkApprovalMutation.isPending}
+        className="border-red-200 text-red-700 hover:bg-red-50"
+      >
+        <X className="h-4 w-4 mr-1" />
+        Reject All
+      </Button>
+    </>
+  );
+};
 
 // Notion color mapping to Tailwind classes (matching KanbanBoard)
 const getNotionColorClasses = (notionColor: string): { badge: string; column: string } => {
@@ -1056,60 +1263,61 @@ export default function Workspace() {
                 </Badge>
               </div>
               
-              <div className="space-y-3">
-                {purchaseTasks.map((task) => (
-                  <Card key={task.id} className="hover:shadow-sm transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full ${
-                            task.status === 'Done' ? 'bg-green-500' : 
-                            task.status === 'In Progress' ? 'bg-yellow-500' : 
-                            task.status === 'Planning' ? 'bg-blue-500' :
-                            'bg-gray-300'
-                          }`} />
-                          <h4 className="font-medium">{task.title}</h4>
+              {/* Purchase Items Table */}
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="border-b bg-gray-50">
+                        <tr>
+                          <th className="text-left p-4 font-medium text-gray-900">Item</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Status</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Approval</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Project</th>
+                          <th className="text-left p-4 font-medium text-gray-900">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {purchaseTasks.map((task) => (
+                          <PurchaseItemRow key={task.id} task={task} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Approval Request Panel - Show if any item needs approval */}
+              {(() => {
+                const needsApprovalTasks = purchaseTasks.filter((task: any) => task.needsApproval);
+                if (needsApprovalTasks.length > 0) {
+                  return (
+                    <Card className="border-orange-200 bg-orange-50">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-orange-900 mb-1">
+                              Παρακαλώ αποδεχτείτε ή όχι την προσφορά
+                            </h4>
+                            <p className="text-sm text-orange-700">
+                              {needsApprovalTasks.length} item{needsApprovalTasks.length !== 1 ? 's' : ''} pending approval
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <ApprovalButtons 
+                              tasks={needsApprovalTasks}
+                              onApprovalUpdate={() => {
+                                // Will trigger refetch in ApprovalButtons component
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge 
-                            variant="outline" 
-                            className={`${getNotionColorClasses(task.statusColor || 'default').badge} px-2 py-1 text-xs`}
-                          >
-                            {formatStatusDisplay(task.status)}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open(task.url, '_blank')}
-                            className="h-6 w-6 p-0"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      {task.description && (
-                        <p className="text-sm text-gray-600 mt-2">{task.description}</p>
-                      )}
-                      
-                      <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-3">
-                        {task.projectName && (
-                          <span>Project: {task.projectName}</span>
-                        )}
-                        {task.priority && (
-                          <span>Priority: {task.priority}</span>
-                        )}
-                        {task.dueDate && (
-                          <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
-                        )}
-                        {task.assignee && (
-                          <span>Assignee: {task.assignee}</span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+                return null;
+              })()}
             </div>
           )}
         </TabsContent>

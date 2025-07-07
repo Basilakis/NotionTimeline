@@ -325,6 +325,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Αγορές database schema including Approved column
+  app.get("/api/purchases/schema", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      // Get user's Notion configuration
+      let config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        config = await getAdminConfiguration();
+        if (!config) {
+          return res.status(404).json({ message: "Notion configuration not found" });
+        }
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+      
+      // Find the Αγορές database using the known ID
+      const agoresDatabaseId = "22868d53a05c802fb41df44b941c31a0";
+      
+      try {
+        const database = await notion.databases.retrieve({ database_id: agoresDatabaseId });
+        const properties = (database as any).properties || {};
+        
+        // Extract Approved column schema
+        const approvedProperty = properties.Approved || properties.approved;
+        let approvedOptions = [];
+        
+        if (approvedProperty && approvedProperty.type === 'select') {
+          approvedOptions = approvedProperty.select?.options || [];
+        }
+        
+        console.log(`[Purchases Schema] Found Approved column with ${approvedOptions.length} options`);
+        approvedOptions.forEach(option => {
+          console.log(`[Purchases Schema] - ${option.name}: ${option.color}`);
+        });
+        
+        res.json({
+          databaseId: agoresDatabaseId,
+          approvedColumn: {
+            exists: !!approvedProperty,
+            type: approvedProperty?.type || null,
+            options: approvedOptions
+          },
+          schema: properties
+        });
+      } catch (error) {
+        console.error("Error fetching Αγορές database schema:", error);
+        res.status(500).json({ message: "Failed to fetch database schema" });
+      }
+    } catch (error) {
+      console.error("Error getting purchases schema:", error);
+      res.status(500).json({ message: "Failed to get schema" });
+    }
+  });
+
+  // Update approval status for a purchase item
+  app.patch("/api/purchases/:itemId/approval", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      const { itemId } = req.params;
+      const { approvalStatus } = req.body;
+
+      if (!approvalStatus || !['Yes', 'No'].includes(approvalStatus)) {
+        return res.status(400).json({ message: "Valid approval status is required (Yes or No)" });
+      }
+
+      // Get user's Notion configuration
+      let config = await storage.getConfiguration(userEmail);
+      if (!config) {
+        config = await getAdminConfiguration();
+        if (!config) {
+          return res.status(404).json({ message: "Notion configuration not found" });
+        }
+      }
+
+      const notion = createNotionClient(config.notionSecret);
+
+      try {
+        // Update the page property in Notion
+        const response = await notion.pages.update({
+          page_id: itemId,
+          properties: {
+            Approved: {
+              select: {
+                name: approvalStatus
+              }
+            }
+          }
+        });
+
+        console.log(`[Purchases Approval] Updated "${itemId}" approval to: ${approvalStatus}`);
+        
+        res.json({
+          message: "Approval status updated successfully",
+          itemId: itemId,
+          approvalStatus: approvalStatus,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (notionError) {
+        console.error("Error updating Notion page:", notionError);
+        res.status(500).json({ message: "Failed to update approval in Notion" });
+      }
+    } catch (error) {
+      console.error("Error updating approval status:", error);
+      res.status(500).json({ message: "Failed to update approval status" });
+    }
+  });
+
   // Get purchase tasks (Αγορές) with subtasks
   app.get("/api/purchases-from-notion", async (req, res) => {
     try {
@@ -458,6 +573,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 // Create purchase item from child page
                 const { statusName: childStatusName, statusColor: childStatusColor } = extractNotionStatus(childProperties);
                 
+                // Extract approval status
+                const approvedProperty = childProperties.Approved || childProperties.approved;
+                const approvalStatus = approvedProperty?.select?.name || null;
+                const approvalColor = approvedProperty?.select?.color || null;
+                
+                console.log(`[Notion Purchases] Child page "${childTitle}" approval: ${approvalStatus} (${approvalColor})`);
+                
                 const purchaseItem = {
                   id: block.id,
                   notionId: block.id,
@@ -480,7 +602,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   projectName: currentProjectName,
                   properties: childProperties || {},
                   subtasks: [],
-                  type: 'child_page'
+                  type: 'child_page',
+                  // Approval fields
+                  approvalStatus: approvalStatus,
+                  approvalColor: approvalColor,
+                  needsApproval: !approvalStatus // true if approval field is empty
                 };
 
                 console.log(`[Notion Purchases] Added child page item: "${childTitle}"`);
@@ -504,6 +630,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   // Create purchase item from database record
                   const { statusName: recordStatusName, statusColor: recordStatusColor } = extractNotionStatus(recordProperties);
                   
+                  // Extract approval status
+                  const approvedProperty = recordProperties.Approved || recordProperties.approved;
+                  const approvalStatus = approvedProperty?.select?.name || null;
+                  const approvalColor = approvedProperty?.select?.color || null;
+                  
+                  console.log(`[Notion Purchases] Database record "${recordTitle}" approval: ${approvalStatus} (${approvalColor})`);
+                  
                   const purchaseItem = {
                     id: record.id,
                     notionId: record.id,
@@ -526,7 +659,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     projectName: currentProjectName,
                     properties: recordProperties || {},
                     subtasks: [],
-                    type: 'database_record'
+                    type: 'database_record',
+                    // Approval fields
+                    approvalStatus: approvalStatus,
+                    approvalColor: approvalColor,
+                    needsApproval: !approvalStatus // true if approval field is empty
                   };
 
                   console.log(`[Notion Purchases] Added database record item: "${recordTitle}"`);

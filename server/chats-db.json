@@ -75,5 +75,16 @@
     "messageCount": 19,
     "createdAt": "2025-07-07T08:32:39.763Z",
     "updatedAt": "2025-07-07T09:19:52.650Z"
+  },
+  {
+    "id": "23b58e63-b16d-42ad-91c0-31dd94c2c0b7",
+    "userEmail": "basiliskan@gmail.com",
+    "title": "This is a new request just so we can review wha...",
+    "type": "request",
+    "lastMessage": "This is a new request just so we can review what is happening on the backend",
+    "lastActivity": "2025-07-07T17:26:46.655Z",
+    "messageCount": 2,
+    "createdAt": "2025-07-07T17:26:46.642Z",
+    "updatedAt": "2025-07-07T17:26:46.655Z"
   }
 ]
