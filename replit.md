@@ -164,9 +164,22 @@ interface NotionView {
   - AI now fetches data from `/api/tasks-from-notion` and `/api/purchases-from-notion` endpoints
   - Added comprehensive logging to show actual task names being processed
   - Fixed fallback responses to use real task status information
+  - Eliminated duplicate context gathering methods causing data loss
 - **Results**: AI now correctly identifies "Αποξηλώσεις" as "In Progress" using actual Notion data
-- **User Experience**: Instant AI responses with real workspace information instead of placeholder data
+- **User Experience**: AI responds in Greek when asked in Greek, with proper table formatting for task lists
 - **Status**: ✅ FULLY OPERATIONAL - AI agent provides authentic responses using real Notion task data
+
+#### Chat Interface Fixes: Continuation & Delete Functionality (COMPLETED)
+- **Problem Solved**: Chat interface was creating new conversations instead of continuing existing ones, and delete buttons were not visible
+- **Solution**: Fixed chat continuation logic and improved delete button visibility with proper z-index handling
+- **Implementation**: 
+  - Fixed handleSendMessage to properly continue existing chats instead of always creating new ones
+  - Added z-index fixes (`relative z-20`) to ensure delete buttons appear above other elements
+  - Enhanced delete button styling with red hover state and smooth transitions
+  - Added tooltips and improved button sizing for better user experience
+- **Results**: Users can now continue conversations seamlessly and delete chats with visible, intuitive controls
+- **User Experience**: Proper ChatGPT-like conversation flow with persistent chat history and easy chat management
+- **Status**: ✅ FULLY OPERATIONAL - Chat continuation and deletion work perfectly
 
 #### Direct Αγορές Database Integration with Known ID
 - **Problem Solved**: User provided specific database ID for Αγορές: `22868d53a05c802fb41df44b941c31a0`

@@ -228,11 +228,11 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
 
         {/* Chat List */}
         <ScrollArea className="flex-1">
-          <div className="p-2">
+          <div className="p-2 relative z-0">
             {filteredChats.map((chat: Chat) => (
               <div
                 key={chat.id}
-                className={`p-3 rounded-lg cursor-pointer mb-2 group hover:bg-muted/50 ${
+                className={`p-3 rounded-lg cursor-pointer mb-2 group hover:bg-muted/50 relative ${
                   selectedChatId === chat.id ? 'bg-muted' : ''
                 }`}
                 onClick={() => setSelectedChatId(chat.id)}
@@ -258,13 +258,14 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="opacity-0 group-hover:opacity-100 ml-2"
+                    className="opacity-0 group-hover:opacity-100 ml-2 relative z-20 hover:bg-destructive hover:text-destructive-foreground transition-all duration-200 h-8 w-8 p-0"
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteChatMutation.mutate(chat.id);
                     }}
+                    title="Delete this chat"
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

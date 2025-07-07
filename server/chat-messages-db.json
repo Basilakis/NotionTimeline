@@ -278,5 +278,25 @@
     "timestamp": "2025-07-07T08:33:00.108Z",
     "isFromUser": false,
     "createdAt": "2025-07-07T08:33:00.108Z"
+  },
+  {
+    "id": "bfa55dce-d69e-482c-ae9a-4f557bf6edf2",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "τι υλικά είναι να αγοράσουμε και περιμένουμε ακόμα;",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:41:07.065Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:41:07.065Z"
+  },
+  {
+    "id": "a2964c29-aa66-421f-b07d-d074c0c1b9d1",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Based on the data provided, there is only one task that is currently \"In Progress,\" which is \"Αποξηλώσεις\" under the project \"Project TemplateProject tasks.\" If you are waiting on materials for tasks that are in progress, you should check the status of materials related to this task. All other tasks are either \"Not Started\" or \"Done,\" so they would not currently require materials to be purchased.",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:41:28.900Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:41:28.900Z"
   }
 ]
