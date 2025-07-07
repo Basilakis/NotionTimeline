@@ -348,7 +348,9 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
                           })()}
                         </span>
                       </div>
-                      <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                      <div className={`text-sm prose prose-sm max-w-none dark:prose-invert ${
+                        msg.isFromUser ? 'text-white prose-white' : ''
+                      }`}>
                         <ReactMarkdown 
                           remarkPlugins={[remarkGfm]}
                           rehypePlugins={[rehypeRaw]}

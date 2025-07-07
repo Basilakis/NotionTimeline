@@ -233,6 +233,19 @@ interface NotionView {
 - **User Experience**: Intuitive chat deletion with visible delete icons that don't require hover discovery
 - **Status**: ✅ FULLY VISIBLE - Delete buttons positioned before chat names, always visible
 
+#### User Message Text Color Fix (COMPLETED)
+- **Problem Solved**: User message text not visible (not white) inside green chat bubbles
+- **Solution**: Added explicit white text styling for user messages with proper CSS overrides
+- **Implementation**: 
+  - Added conditional `text-white prose-white` classes for user messages only
+  - Created comprehensive CSS overrides with `!important` declarations to ensure white text
+  - Applied white styling to all text elements: paragraphs, divs, spans, list items, table content
+  - Enhanced table styling with white borders and semi-transparent backgrounds for user messages
+  - Preserved normal styling for AI messages (dark text on light background)
+- **Results**: User messages now display white text inside green primary-colored bubbles
+- **User Experience**: Clear text readability in user chat bubbles with proper contrast
+- **Status**: ✅ PERFECT CONTRAST - White text in user messages, dark text in AI messages
+
 #### Direct Αγορές Database Integration with Known ID
 - **Problem Solved**: User provided specific database ID for Αγορές: `22868d53a05c802fb41df44b941c31a0`
 - **Solution**: Direct integration using the exact database ID instead of complex search
