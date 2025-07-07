@@ -26,8 +26,8 @@ interface Project {
 }
 
 interface SidebarProps {
-  activeView: 'dashboard' | 'settings' | 'crm' | 'notifications' | 'requests';
-  onViewChange: (view: 'dashboard' | 'settings' | 'crm' | 'notifications' | 'requests') => void;
+  activeView: 'dashboard' | 'settings' | 'crm' | 'notifications';
+  onViewChange: (view: 'dashboard' | 'settings' | 'crm' | 'notifications') => void;
   onProjectSelect: (project: Project) => void;
   selectedProject?: Project;
 }
@@ -102,14 +102,7 @@ export function AdminSidebar({ activeView, onViewChange, onProjectSelect, select
             <Mail className="h-4 w-4 mr-2" />
             Notifications
           </Button>
-          <Button
-            variant={activeView === 'requests' ? 'default' : 'ghost'}
-            className="w-full justify-start"
-            onClick={() => onViewChange('requests')}
-          >
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Requests
-          </Button>
+
         </div>
       </div>
 
