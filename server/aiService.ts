@@ -61,13 +61,14 @@ class CrewAIAgent {
     // Detect if question is in Greek to ensure response matches language
     const isGreek = /[α-ωΑ-Ωάέήίόύώ]/.test(question);
     
-    const languageInstruction = isGreek ? 
-      "CRITICAL: The user question is in GREEK. You MUST respond ONLY in Greek language (Ελληνικά). Use Greek table headers: | Α/Α | Εργασία | Κατάσταση | Έργο |" :
-      "Respond in English with clear formatting.";
-    
-    const prompt = `You are an AI assistant helping analyze a user's Notion workspace. Use the REAL data provided below to answer their question accurately.
+    const prompt = `System: Follow these five instructions below in all your responses:
+System: 1. Use Greek language only;
+System: 2. Use Greek alphabet whenever possible;
+System: 3. Do not use English except in programming languages if any;
+System: 4. Avoid the Latin alphabet whenever possible;
+System: 5. Translate any other language to the Greek language whenever possible.
 
-${languageInstruction}
+You are an AI assistant helping analyze a user's Notion workspace. Use the REAL data provided below to answer their question accurately.
 
 REAL WORKSPACE DATA:
 ${contextSummary}
@@ -75,15 +76,16 @@ ${contextSummary}
 USER QUESTION: ${question}
 
 INSTRUCTIONS:
+- ΑΠΑΝΤΗΣΕ ΜΟΝΟ ΣΤΑ ΕΛΛΗΝΙΚΑ! (Answer ONLY in Greek!)
 - Use ONLY the real data provided above
-- ${isGreek ? 'ΑΠΑΝΤΗΣΕ ΜΟΝΟ ΣΤΑ ΕΛΛΗΝΙΚΑ!' : 'Respond in English'}
 - IMPORTANT: For material/purchase questions (υλικά, αγορά), focus on the Purchases database items like "Πλακάκια", "Εσωτερικά Κουφώματα", "Εξωτερικά Κουφώματα", "Θωρακισμένη Πόρτα"
 - Be specific and mention actual task names, statuses, and projects 
 - If asking about tasks "In Progress", list the actual task names with that status
 - If asking about projects, mention the real project names
-- ${isGreek ? 'Χρησιμοποίησε πίνακα: | Α/Α | Εργασία | Κατάσταση | Έργο |' : 'Use table format when listing multiple items'}
+- Χρησιμοποίησε πίνακα: | Α/Α | Εργασία | Κατάσταση | Έργο |
 - Provide actionable insights based on the actual data
 - Keep responses concise and helpful
+- ΟΛΕΣ ΟΙ ΑΠΑΝΤΗΣΕΙΣ ΣΤΑ ΕΛΛΗΝΙΚΑ! (ALL RESPONSES IN GREEK!)
 
 Answer the user's question using their real Notion data:`;
 
@@ -185,11 +187,12 @@ Answer the user's question using their real Notion data:`;
             response += `| ${index + 1} | "${task.title}" | ${task.projectName || 'Άγνωστο Έργο'} |\n`;
           });
         } else {
-          response = `Tasks that haven't started yet:\n\n`;
-          response += `| # | Task | Project |\n`;
-          response += `|---|------|----------|\n`;
+          // Always respond in Greek - no English fallback
+          response = `Οι εργασίες που δεν έχουν ξεκινήσει είναι οι εξής:\n\n`;
+          response += `| Α/Α | Εργασία | Έργο |\n`;
+          response += `|-----|---------|-------|\n`;
           notStartedTasks.forEach((task, index) => {
-            response += `| ${index + 1} | "${task.title}" | ${task.projectName || 'Unknown Project'} |\n`;
+            response += `| ${index + 1} | "${task.title}" | ${task.projectName || 'Άγνωστο Έργο'} |\n`;
           });
         }
         return response;
@@ -688,20 +691,29 @@ export class AIService {
     // Create context summary for OpenAI
     const contextSummary = this.createContextSummary(context);
     
-    const prompt = `You are an AI assistant helping analyze a user's Notion workspace. 
+    const prompt = `System: Follow these five instructions below in all your responses:
+System: 1. Use Greek language only;
+System: 2. Use Greek alphabet whenever possible;
+System: 3. Do not use English except in programming languages if any;
+System: 4. Avoid the Latin alphabet whenever possible;
+System: 5. Translate any other language to the Greek language whenever possible.
+
+You are an AI assistant helping analyze a user's Notion workspace. 
 
 User's Question: ${question}
 
 User's Workspace Context:
 ${contextSummary}
 
-Please provide a helpful, specific response based on their actual workspace data. If the user asks about tasks, projects, or data, reference their specific information. Be conversational and practical.`;
+ΟΛΕΣ ΟΙ ΑΠΑΝΤΗΣΕΙΣ ΣΤΑ ΕΛΛΗΝΙΚΑ! (ALL RESPONSES IN GREEK!)
+Please provide a helpful, specific response based on their actual workspace data. If the user asks about tasks, projects, or data, reference their specific information. Be conversational and practical.
+ΑΠΑΝΤΗΣΕ ΜΟΝΟ ΣΤΑ ΕΛΛΗΝΙΚΑ! (Answer ONLY in Greek!)`;
 
     try {
       const response = await this.openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
-          { role: "system", content: "You are a helpful assistant that analyzes Notion workspace data and provides insights." },
+          { role: "system", content: "Follow these five instructions in all responses: 1. Use Greek language only; 2. Use Greek alphabet whenever possible; 3. Do not use English except in programming languages; 4. Avoid Latin alphabet whenever possible; 5. Translate any other language to Greek. ΑΠΑΝΤΗΣΕ ΜΟΝΟ ΣΤΑ ΕΛΛΗΝΙΚΑ! You analyze Notion workspace data and provide insights." },
           { role: "user", content: prompt }
         ],
         max_tokens: 500,

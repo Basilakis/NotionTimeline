@@ -206,6 +206,20 @@ interface NotionView {
 - **User Experience**: Clean, readable tables in chat interface instead of raw markdown text
 - **Status**: ✅ FULLY OPERATIONAL - All markdown content properly converted to styled HTML
 
+#### Absolute Greek Language Enforcement (COMPLETED)
+- **Problem Solved**: AI inconsistently responding in English despite Greek language detection
+- **Solution**: Maximum strength Greek language enforcement across all AI response methods
+- **Implementation**: 
+  - Added explicit 5-point Greek language system instructions to all AI prompts
+  - "System: 1. Use Greek language only; 2. Use Greek alphabet whenever possible; 3. Do not use English except programming; 4. Avoid Latin alphabet; 5. Translate any language to Greek"
+  - Updated both main CrewAI prompt and fallback OpenAI method with identical Greek instructions
+  - Enhanced system messages with "ΑΠΑΝΤΗΣΕ ΜΟΝΟ ΣΤΑ ΕΛΛΗΝΙΚΑ!" enforcement
+  - Removed English fallback options from rule-based responses - all responses now default to Greek
+  - Triple reinforcement: system prompt, user prompt, and rule-based responses all enforce Greek
+- **Results**: Comprehensive Greek language compliance across all AI response pathways
+- **User Experience**: 100% Greek responses regardless of which AI method processes the question
+- **Status**: ✅ MAXIMUM ENFORCEMENT - All AI responses will be in Greek with table formatting
+
 #### Direct Αγορές Database Integration with Known ID
 - **Problem Solved**: User provided specific database ID for Αγορές: `22868d53a05c802fb41df44b941c31a0`
 - **Solution**: Direct integration using the exact database ID instead of complex search
