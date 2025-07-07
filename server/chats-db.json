@@ -86,5 +86,16 @@
     "messageCount": 2,
     "createdAt": "2025-07-07T17:26:46.642Z",
     "updatedAt": "2025-07-07T17:26:46.655Z"
+  },
+  {
+    "id": "030cf9c4-3dc3-42ec-b3e0-01824d5c4d26",
+    "userEmail": "basiliskan@gmail.com",
+    "title": "A new Support Request",
+    "type": "request",
+    "lastMessage": "A new Support Request",
+    "lastActivity": "2025-07-07T18:43:45.870Z",
+    "messageCount": 2,
+    "createdAt": "2025-07-07T18:43:45.858Z",
+    "updatedAt": "2025-07-07T18:43:45.870Z"
   }
 ]

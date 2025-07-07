@@ -22,5 +22,13 @@
     "details": "Replied to request: \"Hi there! I can help you with the Notion integrati...\"",
     "timestamp": "2025-07-07T17:49:49.435Z",
     "type": "request"
+  },
+  {
+    "id": "dea837cd-da4b-4ddd-baa6-6002d3ee5482",
+    "userEmail": "basiliskan@gmail.com",
+    "action": "Request Created",
+    "details": "Created request: \"A new Support Request...\"",
+    "timestamp": "2025-07-07T18:43:45.872Z",
+    "type": "request"
   }
 ]

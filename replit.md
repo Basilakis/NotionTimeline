@@ -156,6 +156,18 @@ interface NotionView {
 
 ### 🔄 Recent Changes (Last Updated: July 7, 2025)
 
+#### Sheet Component UI Improvement (COMPLETED)
+- **Problem Solved**: Sheet components taking too much screen space and not looking visually balanced
+- **Solution**: Updated Sheet component to use 1/3 of viewport width with responsive constraints
+- **Implementation**: 
+  - Changed admin user modal Sheet from fixed width (800px-900px) to `w-[33vw]`
+  - Added responsive constraints: `min-w-[400px] max-w-[600px]` for better scaling
+  - Ensures consistent 1/3 screen usage across different screen sizes
+  - Maintains usability on smaller screens with minimum width constraint
+- **Results**: Better visual balance and more screen real estate for main content
+- **User Experience**: More professional appearance with better proportions
+- **Status**: ✅ COMPLETED - Sheet components now use 1/3 of screen width
+
 #### CRITICAL FIX: AI Agent Now Uses Real Notion Data (COMPLETED)
 - **Problem Solved**: AI agent was providing fake/hardcoded responses instead of using real Notion workspace data
 - **Solution**: Complete rewrite of AI context gathering to use working API endpoints directly

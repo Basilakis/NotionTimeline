@@ -358,5 +358,15 @@
     "timestamp": "2025-07-07T17:26:46.647Z",
     "isFromUser": true,
     "createdAt": "2025-07-07T17:26:46.647Z"
+  },
+  {
+    "id": "be543c12-7ae3-4561-9989-e3f58c1cde57",
+    "chatId": "030cf9c4-3dc3-42ec-b3e0-01824d5c4d26",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "A new Support Request",
+    "type": "request",
+    "timestamp": "2025-07-07T18:43:45.864Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T18:43:45.864Z"
   }
 ]

@@ -16,5 +16,14 @@
     "status": "open",
     "createdAt": "2025-07-07T17:48:03.226Z",
     "updatedAt": "2025-07-07T17:48:03.226Z"
+  },
+  {
+    "id": "fbeaabbc-0993-410c-8ee4-a37ed7fcfa05",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "A new Support Request",
+    "timestamp": "2025-07-07T18:43:45.871Z",
+    "status": "open",
+    "createdAt": "2025-07-07T18:43:45.871Z",
+    "updatedAt": "2025-07-07T18:43:45.871Z"
   }
 ]

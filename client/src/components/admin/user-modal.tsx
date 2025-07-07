@@ -214,7 +214,7 @@ export function UserModal({ user, isOpen, onClose }: UserModalProps) {
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="right" className="w-[800px] sm:w-[900px] overflow-y-auto">
+      <SheetContent side="right" className="w-[33vw] min-w-[400px] max-w-[600px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
