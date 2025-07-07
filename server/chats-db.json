@@ -16,9 +16,20 @@
     "title": "Πες μου ποια task είναι In Porgress",
     "type": "ai",
     "lastMessage": "Based on your workspace with 17 tasks and 0 projects, I can help you with:\n\n• Task management and pr...",
-    "lastActivity": "2025-07-07T03:54:53.613Z",
-    "messageCount": 10,
+    "lastActivity": "2025-07-07T07:55:31.975Z",
+    "messageCount": 13,
     "createdAt": "2025-07-07T03:31:26.218Z",
-    "updatedAt": "2025-07-07T03:54:53.613Z"
+    "updatedAt": "2025-07-07T07:55:31.975Z"
+  },
+  {
+    "id": "d34bbf34-babb-4cab-9cce-9138a8e48056",
+    "userEmail": "basiliskan@gmail.com",
+    "title": "what tasks do I have in progress?",
+    "type": "ai",
+    "lastMessage": "You have one task that is currently \"In Progress\": \n\n1. \"Αποξηλώσεις\" - Project: Project TemplatePro...",
+    "lastActivity": "2025-07-07T08:19:39.131Z",
+    "messageCount": 4,
+    "createdAt": "2025-07-07T08:19:17.622Z",
+    "updatedAt": "2025-07-07T08:19:39.131Z"
   }
 ]

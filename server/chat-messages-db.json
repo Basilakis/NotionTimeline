@@ -88,5 +88,45 @@
     "timestamp": "2025-07-07T03:54:53.610Z",
     "isFromUser": false,
     "createdAt": "2025-07-07T03:54:53.610Z"
+  },
+  {
+    "id": "833a1082-40a6-4a6b-8615-e3e7bb93c30a",
+    "chatId": "b942bdff-d275-44cc-b199-14bf23dabba4",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "try again",
+    "type": "ai",
+    "timestamp": "2025-07-07T07:55:02.588Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T07:55:02.588Z"
+  },
+  {
+    "id": "a15f40e9-fd17-41fd-8b4a-d57cac377015",
+    "chatId": "b942bdff-d275-44cc-b199-14bf23dabba4",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Based on your workspace with 17 tasks and 0 projects, I can help you with:\n\n• Task management and prioritization\n• Project status tracking\n• Workflow optimization\n• Data organization insights\n\nWhat specific aspect would you like to explore?",
+    "type": "ai",
+    "timestamp": "2025-07-07T07:55:31.970Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T07:55:31.970Z"
+  },
+  {
+    "id": "2007cb91-b567-4b52-8d34-d2d266923606",
+    "chatId": "d34bbf34-babb-4cab-9cce-9138a8e48056",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "what tasks do I have in progress?",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:19:17.632Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:19:17.632Z"
+  },
+  {
+    "id": "72d5d725-71b1-4644-ab71-48a82dda3fb5",
+    "chatId": "d34bbf34-babb-4cab-9cce-9138a8e48056",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "You have one task that is currently \"In Progress\": \n\n1. \"Αποξηλώσεις\" - Project: Project TemplateProject tasks",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:19:39.130Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:19:39.130Z"
   }
 ]

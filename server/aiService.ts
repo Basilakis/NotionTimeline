@@ -413,34 +413,60 @@ export class AIService {
    */
   async gatherUserContext(userEmail: string): Promise<UserNotionContext> {
     try {
-      // Get user's Notion configuration
-      const { storage } = await import('./storage');
-      const config = await storage.getConfiguration(userEmail);
-      if (!config || !config.notionSecret || !config.notionPageUrl) {
-        throw new Error("User does not have Notion configuration");
-      }
-
-      const notion = new Client({ auth: config.notionSecret });
-      const pageId = this.extractPageIdFromUrl(config.notionPageUrl);
-
-      console.log(`[AI Context] Gathering context for user ${userEmail}`);
-
-      // Gather all user data in parallel
-      const [workspaceData, userTasks] = await Promise.all([
-        this.gatherWorkspaceData(notion, pageId, userEmail),
-        this.gatherUserTasks(notion, userEmail)
-      ]);
-
+      console.log(`[AI Context] Using working API endpoints for user: ${userEmail}`);
+      
+      // Use the exact same API endpoints that the frontend uses
+      const fetch = await import('node-fetch').then(m => m.default);
+      
+      // Fetch tasks using the working API endpoint
+      const tasksResponse = await fetch('http://localhost:5000/api/tasks-from-notion', {
+        headers: {
+          'X-User-Email': userEmail
+        }
+      });
+      
+      const tasks = tasksResponse.ok ? await tasksResponse.json() : [];
+      console.log(`[AI Context] Fetched ${tasks.length} real tasks from API: ${tasks.map(t => t.title).join(', ')}`);
+      
+      // Fetch projects using the working API endpoint
+      const projectsResponse = await fetch('http://localhost:5000/api/projects-from-notion', {
+        headers: {
+          'X-User-Email': userEmail
+        }
+      });
+      
+      const projects = projectsResponse.ok ? await projectsResponse.json() : [];
+      console.log(`[AI Context] Fetched ${projects.length} projects from API`);
+      
+      // Fetch purchases using the working API endpoint
+      const purchasesResponse = await fetch('http://localhost:5000/api/purchases-from-notion', {
+        headers: {
+          'X-User-Email': userEmail
+        }
+      });
+      
+      const purchases = purchasesResponse.ok ? await purchasesResponse.json() : [];
+      console.log(`[AI Context] Fetched ${purchases.length} purchases from API`);
+      
+      // Combine all tasks (regular + purchases)
+      const allTasks = [...tasks, ...purchases];
+      console.log(`[AI Context] Total tasks available: ${allTasks.length}`);
+      
       return {
-        tasks: userTasks,
-        projects: workspaceData.projects,
-        databases: workspaceData.databases,
-        recentActivity: workspaceData.recentActivity
+        tasks: allTasks,
+        projects: projects,
+        databases: [],
+        recentActivity: []
       };
-
     } catch (error) {
       console.error(`[AI Context] Error gathering context for ${userEmail}:`, error);
-      throw error;
+      // Return empty data rather than throwing - let AI handle gracefully
+      return {
+        tasks: [],
+        projects: [],
+        databases: [],
+        recentActivity: []
+      };
     }
   }
 
