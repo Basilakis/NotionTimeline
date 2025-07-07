@@ -298,5 +298,45 @@
     "timestamp": "2025-07-07T08:41:28.900Z",
     "isFromUser": false,
     "createdAt": "2025-07-07T08:41:28.900Z"
+  },
+  {
+    "id": "f16d59c1-30b9-47b1-9830-dd0543761dc2",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Ποιες εργασίες είναι σε εξέλιξη;",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:43:38.211Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:43:38.211Z"
+  },
+  {
+    "id": "08ffeaf0-cd40-4464-9786-9d81bfbfe955",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "The task that is currently \"In Progress\" is \"Αποξηλώσεις\" under the project \"Project TemplateProject tasks.\"",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:44:06.766Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:44:06.766Z"
+  },
+  {
+    "id": "a308ebfa-6b69-4661-a0db-5c55a12dc939",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Ποιες εργασίες είναι δεν έχουν ξεκινήσει;",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:44:26.825Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:44:26.825Z"
+  },
+  {
+    "id": "9603ed54-e02e-4897-a97f-f3eb2f57f4f0",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Οι εργασίες που δεν έχουν ξεκινήσει είναι οι εξής:\n\n1. \"Υδραυλικές Εργασίες\" - Project: Project TemplateProject tasks\n2. \"Ηλεκτρολογικές Εργασίες\" - Project: Project TemplateProject tasks\n3. \"Θέρμανση\" - Project: Project TemplateProject tasks\n4. \"Θωρακισμένη Πόρτα\" - Project: Vertex Developments\n5. \"Content for Web Site ( SEO )\" - Project: Vertex Developments\n6. \"Untitled Task\" - Project: Vertex Developments\n7. \"Signup as Mentor\" - Project: creativeG\n8. \"zohomails add to gmail\" - Project: creativeG\n9. \"Saas Starter Kits\" - Project: creativeG\n10. \"AI Lists\" - Project: creativeG\n11. \"AI Page\" - Project: creativeG\n12. \"Πλακάκια\" - Project: Project TemplateProject tasks\n13. \"Εσωτερικά Κουφώματα\" - Project: Project TemplateProject tasks\n14. \"Εξωτερικά Κουφώματα\" - Project: Project TemplateProject tasks\n15. \"Θωρακισμένη Πόρτα\" - Project: Project TemplateProject tasks",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:44:57.017Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:44:57.017Z"
   }
 ]

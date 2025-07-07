@@ -81,10 +81,10 @@
     "userEmail": "basiliskan@gmail.com",
     "title": "Ποιες εργασίες είναι σε εξέλιξη;",
     "type": "ai",
-    "lastMessage": "Based on the data provided, there is only one task that is currently \"In Progress,\" which is \"Αποξηλ...",
-    "lastActivity": "2025-07-07T08:41:28.902Z",
-    "messageCount": 7,
+    "lastMessage": "Οι εργασίες που δεν έχουν ξεκινήσει είναι οι εξής:\n\n1. \"Υδραυλικές Εργασίες\" - Project: Project Temp...",
+    "lastActivity": "2025-07-07T08:44:57.020Z",
+    "messageCount": 13,
     "createdAt": "2025-07-07T08:32:39.763Z",
-    "updatedAt": "2025-07-07T08:41:28.902Z"
+    "updatedAt": "2025-07-07T08:44:57.020Z"
   }
 ]

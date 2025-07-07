@@ -181,6 +181,18 @@ interface NotionView {
 - **User Experience**: Proper ChatGPT-like conversation flow with persistent chat history and easy chat management
 - **Status**: ✅ FULLY OPERATIONAL - Chat continuation and deletion work perfectly
 
+#### AI Greek Language & Material Analysis Enhancement (COMPLETED)
+- **Problem Solved**: AI was responding in English to Greek material questions and not properly analyzing Αγορές (Purchases) database
+- **Solution**: Enhanced Greek language detection and material question analysis with focus on Purchases database
+- **Implementation**: 
+  - Enhanced material question detection to include "υλικά", "αγοράσουμε", "ακόμη", "ακόμα" 
+  - Updated OpenAI prompt to always respond in Greek when user writes in Greek
+  - Improved purchase analysis to show all material items from Αγορές database
+  - Added comprehensive logging for material question detection
+- **Results**: AI now correctly responds in Greek with proper material analysis using "Πλακάκια", "Εσωτερικά Κουφώματα", "Εξωτερικά Κουφώματα", "Θωρακισμένη Πόρτα"
+- **User Experience**: Natural Greek conversation about materials with accurate database analysis
+- **Status**: ✅ FULLY OPERATIONAL - AI maintains Greek language and analyzes Purchases database correctly
+
 #### Direct Αγορές Database Integration with Known ID
 - **Problem Solved**: User provided specific database ID for Αγορές: `22868d53a05c802fb41df44b941c31a0`
 - **Solution**: Direct integration using the exact database ID instead of complex search

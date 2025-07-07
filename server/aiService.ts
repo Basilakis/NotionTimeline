@@ -58,6 +58,9 @@ class CrewAIAgent {
   private async generateAIResponse(question: string, context: UserNotionContext): Promise<string> {
     const contextSummary = this.createDetailedContextSummary(context);
     
+    // Detect if question is in Greek to ensure response matches language
+    const isGreek = /[α-ωΑ-Ωάέήίόύώ]/.test(question);
+    
     const prompt = `You are an AI assistant helping analyze a user's Notion workspace. Use the REAL data provided below to answer their question accurately.
 
 REAL WORKSPACE DATA:
@@ -67,9 +70,12 @@ USER QUESTION: ${question}
 
 INSTRUCTIONS:
 - Use ONLY the real data provided above
+- IMPORTANT: If the user question is in Greek, respond ONLY in Greek language
+- IMPORTANT: For material/purchase questions (υλικά, αγορά), focus on the Purchases database items like "Πλακάκια", "Εσωτερικά Κουφώματα", "Εξωτερικά Κουφώματα", "Θωρακισμένη Πόρτα"
 - Be specific and mention actual task names, statuses, and projects 
 - If asking about tasks "In Progress", list the actual task names with that status
 - If asking about projects, mention the real project names
+- For Greek responses, use table format: | Α/Α | Υλικό | Κατάσταση | Έργο |
 - Provide actionable insights based on the actual data
 - Keep responses concise and helpful
 
@@ -168,9 +174,12 @@ Answer the user's question using their real Notion data:`;
       return this.analyzeRealProjectData(question, context.projects, isGreek);
     }
     
-    // Purchase-related questions (Greek and English)
+    // Purchase/material-related questions (Greek and English) - ALWAYS prioritize for material questions
     if (lowerQuestion.includes('purchase') || lowerQuestion.includes('buy') || lowerQuestion.includes('pending') ||
-        lowerQuestion.includes('αγορά') || lowerQuestion.includes('αγορές') || lowerQuestion.includes('εκκρεμούν')) {
+        lowerQuestion.includes('αγορά') || lowerQuestion.includes('αγορές') || lowerQuestion.includes('εκκρεμούν') ||
+        lowerQuestion.includes('υλικά') || lowerQuestion.includes('αγοράσουμε') || lowerQuestion.includes('αγοράσω') ||
+        lowerQuestion.includes('materials') || lowerQuestion.includes('ακόμη') || lowerQuestion.includes('ακόμα')) {
+      console.log(`[AI] Material/purchase question detected: ${question}`);
       return this.analyzePurchaseData(question, context.tasks, isGreek);
     }
     
@@ -262,26 +271,57 @@ Answer the user's question using their real Notion data:`;
   }
 
   private analyzePurchaseData(question: string, tasks: any[], isGreek: boolean = false): string {
+    console.log(`[AI Purchase Analysis] Looking for purchase/material data in ${tasks.length} tasks`);
+    
+    // Look for all purchase-related items including the αγορές database items
     const purchaseTasks = tasks.filter(task => 
-      task.title && (task.title.includes('Αγορές') || task.title.includes('Purchase') || task.title.includes('Πλακάκια') || task.title.includes('Κουφώματα'))
+      task.title && (
+        task.title.includes('Αγορές') || 
+        task.title.includes('Purchase') || 
+        task.title.includes('Πλακάκια') || 
+        task.title.includes('Κουφώματα') ||
+        task.title.includes('Εσωτερικά') ||
+        task.title.includes('Εξωτερικά') ||
+        task.title.includes('Θωρακισμένη') ||
+        task.title.includes('υλικά') ||
+        task.title.includes('materials')
+      )
     );
+    
+    console.log(`[AI Purchase Analysis] Found ${purchaseTasks.length} purchase/material tasks`);
+    purchaseTasks.forEach(task => {
+      console.log(`[AI Purchase] - "${task.title}" (Status: ${task.status})`);
+    });
     
     if (purchaseTasks.length === 0) {
       return isGreek ? 
-        "Δεν βρήκα καμία εκκρεμή αγορά στον χώρο εργασίας σου." :
-        "I don't see any pending purchases in your workspace.";
+        "Δεν βρήκα καμία εκκρεμή αγορά ή υλικό στον χώρο εργασίας σου." :
+        "I don't see any pending purchases or materials in your workspace.";
     }
 
     let response;
     if (isGreek) {
-      response = `Έχεις ${purchaseTasks.length} εκκρεμείς αγορές:\n\n`;
-      response += `| Α/Α | Αγορά | Κατάσταση | Έργο |\n`;
+      response = `Βρήκα ${purchaseTasks.length} υλικά προς αγορά:\n\n`;
+      response += `| Α/Α | Υλικό | Κατάσταση | Έργο |\n`;
       response += `|-----|-------|-----------|-------|\n`;
       purchaseTasks.forEach((task, index) => {
         response += `| ${index + 1} | "${task.title}" | ${task.status || 'Άγνωστη'} | ${task.projectName || 'Άγνωστο Έργο'} |\n`;
       });
+      
+      // Add specific analysis for materials still to buy
+      const notStarted = purchaseTasks.filter(task => 
+        task.status && (task.status.includes('Not started') || task.status.includes('Not Started') || task.status.includes('Άγνωστη'))
+      );
+      
+      if (notStarted.length > 0) {
+        response += `\n\n💡 **Υλικά που χρειάζονται ακόμη αγορά**: ${notStarted.length} από ${purchaseTasks.length} συνολικά\n\n`;
+        response += `**Συγκεκριμένα**:\n`;
+        notStarted.forEach((task, index) => {
+          response += `• "${task.title}"\n`;
+        });
+      }
     } else {
-      response = `You have ${purchaseTasks.length} pending purchases:\n\n`;
+      response = `Found ${purchaseTasks.length} materials to purchase:\n\n`;
       purchaseTasks.forEach((task, index) => {
         response += `${index + 1}. "${task.title}" - Status: ${task.status || 'Unknown'} - Project: ${task.projectName || 'Unknown Project'}\n`;
       });
