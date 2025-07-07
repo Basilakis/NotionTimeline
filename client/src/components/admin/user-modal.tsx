@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetHeader, 
+  SheetTitle 
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +27,9 @@ import {
   Bell,
   Reply,
   Calendar,
-  Phone
+  Phone,
+  CheckCircle,
+  X
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -119,6 +126,27 @@ export function UserModal({ user, isOpen, onClose }: UserModalProps) {
     }
   });
 
+  // Update request status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ requestId, status }: { requestId: string; status: 'open' | 'resolved' }) => {
+      return apiRequest(`/api/admin/requests/${requestId}/status`, "PATCH", { status });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Status updated",
+        description: "Request status has been updated successfully."
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", user?.userEmail, "requests"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update status",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Send notification mutation
   const notificationMutation = useMutation({
     mutationFn: async ({ message, type }: { message: string; type: "email" | "sms" }) => {
@@ -144,6 +172,10 @@ export function UserModal({ user, isOpen, onClose }: UserModalProps) {
   const handleReply = () => {
     if (!selectedRequestId || !replyText.trim()) return;
     replyMutation.mutate({ requestId: selectedRequestId, message: replyText.trim() });
+  };
+
+  const handleStatusChange = (requestId: string, status: 'open' | 'resolved') => {
+    updateStatusMutation.mutate({ requestId, status });
   };
 
   const handleSendNotification = () => {
@@ -181,14 +213,14 @@ export function UserModal({ user, isOpen, onClose }: UserModalProps) {
   if (!user) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[80vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent side="right" className="w-[800px] sm:w-[900px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
             {user.userName} ({user.userEmail})
-          </DialogTitle>
-        </DialogHeader>
+          </SheetTitle>
+        </SheetHeader>
 
         <Tabs defaultValue="requests" className="flex-1 flex flex-col">
           <TabsList className="grid w-full grid-cols-3">
@@ -220,21 +252,52 @@ export function UserModal({ user, isOpen, onClose }: UserModalProps) {
                     <Card key={request.id} className="w-full">
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <MessageSquare className="h-4 w-4" />
                             <span className="text-sm text-muted-foreground">
                               {formatTimestamp(request.timestamp)}
                             </span>
+                            <Badge 
+                              variant={request.status === 'open' ? 'destructive' : 'default'}
+                              className={request.status === 'open' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}
+                            >
+                              {request.status === 'open' ? 'Open' : 'Resolved'}
+                            </Badge>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedRequestId(request.id)}
-                            className="flex items-center gap-1"
-                          >
-                            <Reply className="h-3 w-3" />
-                            Reply
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            {request.status === 'open' ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleStatusChange(request.id, 'resolved')}
+                                disabled={updateStatusMutation.isPending}
+                                className="flex items-center gap-1 text-green-600 border-green-200 hover:bg-green-50"
+                              >
+                                <CheckCircle className="h-3 w-3" />
+                                Mark Solved
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleStatusChange(request.id, 'open')}
+                                disabled={updateStatusMutation.isPending}
+                                className="flex items-center gap-1"
+                              >
+                                <Clock className="h-3 w-3" />
+                                Reopen
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedRequestId(request.id)}
+                              className="flex items-center gap-1"
+                            >
+                              <Reply className="h-3 w-3" />
+                              Reply
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -369,7 +432,7 @@ export function UserModal({ user, isOpen, onClose }: UserModalProps) {
             </Card>
           </TabsContent>
         </Tabs>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
