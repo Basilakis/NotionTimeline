@@ -60,21 +60,27 @@ export function RequestsInterface() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Get user email from localStorage  
+  const getUserEmail = () => {
+    return localStorage.getItem('userEmail') || '';
+  };
+
   // Fetch user's requests
   const { data: requests = [], isLoading, refetch } = useQuery<Request[]>({
     queryKey: ['/api/user/requests'],
     staleTime: 0,
     cacheTime: 0,
+    meta: {
+      headers: {
+        'x-user-email': getUserEmail()
+      }
+    }
   });
 
   // Create new request mutation
   const createRequestMutation = useMutation({
     mutationFn: async (message: string) => {
-      return await apiRequest('/api/user/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
-      });
+      return await apiRequest('/api/requests', 'POST', { message });
     },
     onSuccess: () => {
       toast({
@@ -97,11 +103,7 @@ export function RequestsInterface() {
   // Reply to request mutation (for follow-ups)
   const replyMutation = useMutation({
     mutationFn: async ({ requestId, message }: { requestId: string; message: string }) => {
-      return await apiRequest(`/api/user/requests/${requestId}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
-      });
+      return await apiRequest(`/api/requests/${requestId}/reply`, 'POST', { message });
     },
     onSuccess: () => {
       toast({

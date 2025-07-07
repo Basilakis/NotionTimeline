@@ -3454,6 +3454,22 @@ Don't forget to update your task progress!`
     }
   });
 
+  // Get user's own requests
+  app.get("/api/user/requests", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(401).json({ message: "User email is required" });
+      }
+
+      const requests = await requestDB.getRequestsWithReplies(userEmail);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching user requests:", error);
+      res.status(500).json({ message: "Failed to fetch requests" });
+    }
+  });
+
   // Create a new request (user-facing)
   app.post("/api/requests", async (req, res) => {
     try {
@@ -3476,6 +3492,43 @@ Don't forget to update your task progress!`
     } catch (error) {
       console.error("Error creating request:", error);
       res.status(500).json({ message: "Failed to create request" });
+    }
+  });
+
+  // User reply to request (follow-up)
+  app.post("/api/requests/:requestId/reply", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(401).json({ message: "User email is required" });
+      }
+
+      const { requestId } = req.params;
+      const { message } = req.body;
+
+      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return res.status(400).json({ message: "Reply message is required" });
+      }
+
+      // Verify the request belongs to the user
+      const requests = await requestDB.getRequestsWithReplies(userEmail);
+      const userRequest = requests.find(r => r.id === requestId);
+      
+      if (!userRequest) {
+        return res.status(404).json({ message: "Request not found or access denied" });
+      }
+
+      const reply = await requestDB.createReply({
+        requestId,
+        message: message.trim(),
+        isAdmin: false,
+        senderEmail: userEmail
+      });
+
+      res.json(reply);
+    } catch (error) {
+      console.error("Error creating user reply:", error);
+      res.status(500).json({ message: "Failed to create reply" });
     }
   });
 
@@ -3671,6 +3724,21 @@ Don't forget to update your task progress!`
           // Still return success for chat creation even if AI fails
           const errorMessage = "I'm having trouble accessing your Notion data right now. Please ensure your Notion integration is properly configured in Settings.";
           await chatDB.createMessage(chat.id, userEmail, errorMessage, type, false);
+        }
+      }
+
+      // If this is a request chat, also create a formal request entry for admin review
+      if (type === 'request') {
+        try {
+          console.log(`[Request Chat] Creating formal request for user: ${userEmail}`);
+          await requestDB.createRequest({
+            userEmail,
+            message
+          });
+          console.log(`[Request Chat] Created formal request for chat ${chat.id}`);
+        } catch (requestError) {
+          console.error("Error creating formal request:", requestError);
+          // Continue with chat creation even if request creation fails
         }
       }
 

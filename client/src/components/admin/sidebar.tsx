@@ -13,7 +13,8 @@ import {
   LogOut,
   Users,
   Mail,
-  MessageSquare
+  MessageSquare,
+  Inbox
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -26,8 +27,8 @@ interface Project {
 }
 
 interface SidebarProps {
-  activeView: 'dashboard' | 'settings' | 'crm' | 'notifications';
-  onViewChange: (view: 'dashboard' | 'settings' | 'crm' | 'notifications') => void;
+  activeView: 'dashboard' | 'settings' | 'crm' | 'notifications' | 'requests';
+  onViewChange: (view: 'dashboard' | 'settings' | 'crm' | 'notifications' | 'requests') => void;
   onProjectSelect: (project: Project) => void;
   selectedProject?: Project;
 }
@@ -85,6 +86,14 @@ export function AdminSidebar({ activeView, onViewChange, onProjectSelect, select
           >
             <Users className="h-4 w-4 mr-2" />
             CRM Users
+          </Button>
+          <Button
+            variant={activeView === 'requests' ? 'default' : 'ghost'}
+            className="w-full justify-start"
+            onClick={() => onViewChange('requests')}
+          >
+            <Inbox className="h-4 w-4 mr-2" />
+            Support Requests
           </Button>
           <Button
             variant={activeView === 'settings' ? 'default' : 'ghost'}
