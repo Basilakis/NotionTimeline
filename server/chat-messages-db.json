@@ -358,5 +358,25 @@
     "timestamp": "2025-07-07T08:57:30.599Z",
     "isFromUser": false,
     "createdAt": "2025-07-07T08:57:30.599Z"
+  },
+  {
+    "id": "4301ffaa-9dcf-4e9c-89b7-ffaa0cc2d429",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Ποιες εργασίες είναι σε εξέλιξη;",
+    "type": "ai",
+    "timestamp": "2025-07-07T09:19:29.394Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T09:19:29.394Z"
+  },
+  {
+    "id": "c110a82b-277c-4270-aa2c-268b2ba25273",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "| Α/Α | Εργασία           | Κατάσταση  | Έργο                       |\n|-----|--------------------|------------|----------------------------|\n| 1   | Αποξηλώσεις        | Σε εξέλιξη | Project TemplateProject tasks |",
+    "type": "ai",
+    "timestamp": "2025-07-07T09:19:52.648Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T09:19:52.648Z"
   }
 ]

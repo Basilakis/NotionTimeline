@@ -3639,6 +3639,181 @@ Don't forget to update your task progress!`
     }
   });
 
+  // Requests/Tickets Management API Routes
+  
+  // Get all requests for admin
+  app.get("/api/admin/requests", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const requests = await requestDB.getRequestsWithReplies();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching admin requests:", error);
+      res.status(500).json({ message: "Failed to fetch requests" });
+    }
+  });
+
+  // Get specific request with replies for admin
+  app.get("/api/admin/requests/:requestId", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { requestId } = req.params;
+      const [requestWithReplies] = await requestDB.getRequestsWithReplies();
+      const foundRequest = (await requestDB.getRequestsWithReplies()).find(r => r.id === requestId);
+      
+      if (!foundRequest) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      res.json(foundRequest);
+    } catch (error) {
+      console.error("Error fetching request details:", error);
+      res.status(500).json({ message: "Failed to fetch request details" });
+    }
+  });
+
+  // Admin reply to request
+  app.post("/api/admin/requests/:requestId/reply", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { requestId } = req.params;
+      const { message } = req.body;
+
+      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return res.status(400).json({ message: "Reply message is required" });
+      }
+
+      const reply = await requestDB.createReply({
+        requestId,
+        message: message.trim(),
+        isAdmin: true,
+        senderEmail: userEmail
+      });
+
+      res.json(reply);
+    } catch (error) {
+      console.error("Error creating admin reply:", error);
+      res.status(500).json({ message: "Failed to create reply" });
+    }
+  });
+
+  // Update request status
+  app.patch("/api/admin/requests/:requestId/status", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail || userEmail !== "basiliskan@gmail.com") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { requestId } = req.params;
+      const { status } = req.body;
+
+      if (!['open', 'resolved'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Must be 'open' or 'resolved'" });
+      }
+
+      const updatedRequest = await requestDB.updateRequestStatus(requestId, status);
+      if (!updatedRequest) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error("Error updating request status:", error);
+      res.status(500).json({ message: "Failed to update request status" });
+    }
+  });
+
+  // User creates new request
+  app.post("/api/user/requests", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      const { message } = req.body;
+      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return res.status(400).json({ message: "Request message is required" });
+      }
+
+      const request = await requestDB.createRequest({
+        userEmail,
+        message: message.trim()
+      });
+
+      res.json(request);
+    } catch (error) {
+      console.error("Error creating user request:", error);
+      res.status(500).json({ message: "Failed to create request" });
+    }
+  });
+
+  // Get user's own requests with replies
+  app.get("/api/user/requests", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      const requests = await requestDB.getRequestsWithReplies(userEmail);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching user requests:", error);
+      res.status(500).json({ message: "Failed to fetch requests" });
+    }
+  });
+
+  // User reply to their own request (for follow-ups)
+  app.post("/api/user/requests/:requestId/reply", async (req, res) => {
+    try {
+      const userEmail = req.headers['x-user-email'] as string;
+      if (!userEmail) {
+        return res.status(400).json({ message: "User email is required" });
+      }
+
+      const { requestId } = req.params;
+      const { message } = req.body;
+
+      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return res.status(400).json({ message: "Reply message is required" });
+      }
+
+      // Verify user owns this request
+      const userRequests = await requestDB.getRequestsByUser(userEmail);
+      const userRequest = userRequests.find(r => r.id === requestId);
+      
+      if (!userRequest) {
+        return res.status(404).json({ message: "Request not found or access denied" });
+      }
+
+      const reply = await requestDB.createReply({
+        requestId,
+        message: message.trim(),
+        isAdmin: false,
+        senderEmail: userEmail
+      });
+
+      res.json(reply);
+    } catch (error) {
+      console.error("Error creating user reply:", error);
+      res.status(500).json({ message: "Failed to create reply" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

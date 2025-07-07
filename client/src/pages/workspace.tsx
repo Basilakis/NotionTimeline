@@ -17,6 +17,7 @@ import KanbanBoard from "@/components/KanbanBoard";
 import ProfessionalTimeline from "@/components/timeline/ProfessionalTimeline";
 import KanbanBoardNew from "@/components/kanban/KanbanBoard";
 import { ChatInterface } from "@/components/chat/chat-interface";
+import { RequestsInterface } from "@/components/user/requests-interface";
 import { Loader2, Database, Search, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Users, Calendar, BarChart3, Eye, List, Settings, LogOut, Percent, FileText, Package, DollarSign, CreditCard, ShoppingCart, Send, Bot, User, MessageSquare } from "lucide-react";
 import vertexLogo from "@assets/VertexDevelopments_1751826186443.png";
 
@@ -1115,9 +1116,28 @@ export default function Workspace() {
 
         {/* Requests Tab - AI Agent & Support */}
         <TabsContent value="requests" className="space-y-4">
-          <div className="h-[600px]">
-            <ChatInterface userEmail={getUserEmail()} />
-          </div>
+          <Tabs defaultValue="ai-agent" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="ai-agent" className="flex items-center gap-2">
+                <Bot className="h-4 w-4" />
+                AI Agent
+              </TabsTrigger>
+              <TabsTrigger value="support" className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Support Tickets
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="ai-agent" className="mt-4">
+              <div className="h-[600px]">
+                <ChatInterface userEmail={getUserEmail()} />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="support" className="mt-4">
+              <RequestsInterface />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
 
