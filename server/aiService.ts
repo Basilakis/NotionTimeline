@@ -504,62 +504,60 @@ export class AIService {
    * Gather comprehensive context about the user's Notion workspace
    */
   async gatherUserContext(userEmail: string): Promise<UserNotionContext> {
+    console.log(`[AI Context] Using working API endpoints for user: ${userEmail}`);
+    
+    // Use the exact same API endpoints that the frontend uses
+    const fetch = await import('node-fetch').then(m => m.default);
+    
+    // Fetch tasks - THIS WORKS
+    let tasks = [];
     try {
-      console.log(`[AI Context] Using working API endpoints for user: ${userEmail}`);
-      
-      // Use the exact same API endpoints that the frontend uses
-      const fetch = await import('node-fetch').then(m => m.default);
-      
-      // Fetch tasks using the working API endpoint
       const tasksResponse = await fetch('http://localhost:5000/api/tasks-from-notion', {
         headers: {
           'X-User-Email': userEmail
         }
       });
       
-      const tasks = tasksResponse.ok ? await tasksResponse.json() : [];
-      console.log(`[AI Context] Fetched ${tasks.length} real tasks from API: ${tasks.map(t => t.title).join(', ')}`);
-      
-      // Fetch projects using the working API endpoint
-      const projectsResponse = await fetch('http://localhost:5000/api/projects-from-notion', {
-        headers: {
-          'X-User-Email': userEmail
-        }
-      });
-      
-      const projects = projectsResponse.ok ? await projectsResponse.json() : [];
-      console.log(`[AI Context] Fetched ${projects.length} projects from API`);
-      
-      // Fetch purchases using the working API endpoint
+      if (tasksResponse.ok) {
+        tasks = await tasksResponse.json();
+        console.log(`[AI Context] ✅ Fetched ${tasks.length} real tasks from API: ${tasks.map(t => t.title).join(', ')}`);
+      }
+    } catch (taskError) {
+      console.error(`[AI Context] ❌ Tasks fetch failed:`, taskError);
+    }
+    
+    // Fetch purchases - WORKS BUT MAY FAIL
+    let purchases = [];
+    try {
       const purchasesResponse = await fetch('http://localhost:5000/api/purchases-from-notion', {
         headers: {
           'X-User-Email': userEmail
         }
       });
       
-      const purchases = purchasesResponse.ok ? await purchasesResponse.json() : [];
-      console.log(`[AI Context] Fetched ${purchases.length} purchases from API`);
-      
-      // Combine all tasks (regular + purchases)
-      const allTasks = [...tasks, ...purchases];
-      console.log(`[AI Context] Total tasks available: ${allTasks.length}`);
-      
-      return {
-        tasks: allTasks,
-        projects: projects,
-        databases: [],
-        recentActivity: []
-      };
-    } catch (error) {
-      console.error(`[AI Context] Error gathering context for ${userEmail}:`, error);
-      // Return empty data rather than throwing - let AI handle gracefully
-      return {
-        tasks: [],
-        projects: [],
-        databases: [],
-        recentActivity: []
-      };
+      if (purchasesResponse.ok) {
+        purchases = await purchasesResponse.json();
+        console.log(`[AI Context] ✅ Fetched ${purchases.length} purchases from API`);
+      }
+    } catch (purchaseError) {
+      console.log(`[AI Context] ⚠️ Purchases fetch failed, continuing with tasks only`);
     }
+    
+    // Skip projects - BROKEN ENDPOINT
+    let projects = [];
+    console.log(`[AI Context] ⚠️ Skipping projects endpoint (returns HTML instead of JSON)`);
+    
+    // Combine all tasks (regular + purchases)
+    const allTasks = [...tasks, ...purchases];
+    console.log(`[AI Context] 🎯 FINAL RESULT: ${allTasks.length} total tasks for AI agent`);
+    console.log(`[AI Context] 🎯 Task list: ${allTasks.map(t => `"${t.title}"(${t.status})`).join(', ')}`);
+    
+    return {
+      tasks: allTasks,
+      projects: projects,
+      databases: [],
+      recentActivity: []
+    };
   }
 
   /**
@@ -640,9 +638,9 @@ Please provide a helpful, specific response based on their actual workspace data
   }
 
   /**
-   * Gather workspace data using existing working endpoints
+   * OLD METHOD - NO LONGER USED
    */
-  private async gatherWorkspaceData(notion: Client, pageId: string, userEmail: string) {
+  private async gatherWorkspaceData_OLD_UNUSED(notion: Client, pageId: string, userEmail: string) {
     try {
       console.log(`[AI Service] Using existing workspace APIs for user ${userEmail}`);
       
@@ -674,9 +672,9 @@ Please provide a helpful, specific response based on their actual workspace data
   }
 
   /**
-   * Gather user's tasks by calling the same working API endpoints
+   * OLD METHOD - NO LONGER USED  
    */
-  private async gatherUserTasks(notion: Client, userEmail: string) {
+  private async gatherUserTasks_OLD_UNUSED(notion: Client, userEmail: string) {
     try {
       console.log(`[AI Service] Using existing task APIs for user ${userEmail}`);
       

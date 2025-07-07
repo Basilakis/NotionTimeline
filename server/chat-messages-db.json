@@ -178,5 +178,105 @@
     "timestamp": "2025-07-07T08:27:10.301Z",
     "isFromUser": true,
     "createdAt": "2025-07-07T08:27:10.301Z"
+  },
+  {
+    "id": "a9a4149f-0619-4da7-b456-c078255b3f35",
+    "chatId": "90dde101-c38f-45e9-b7ce-c0f9e9d7f5aa",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "δώσε μου την λίστα εργασιών σε εξέλιξη",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:29:04.448Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:29:04.448Z"
+  },
+  {
+    "id": "b3ec3086-d95b-4cfe-8186-4f59e83d949e",
+    "chatId": "90dde101-c38f-45e9-b7ce-c0f9e9d7f5aa",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Δεν υπάρχουν καταγεγραμμένες εργασίες σε εξέλιξη στο workspace σας.",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:29:16.320Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:29:16.320Z"
+  },
+  {
+    "id": "614fb967-70e6-426d-b102-cf8ed6c2bde7",
+    "chatId": "68bcfff3-742a-4ce0-9b5f-04444ff0efbd",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "ποιες εργασίες είναι σε εξέλιξη;",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:30:06.429Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:30:06.429Z"
+  },
+  {
+    "id": "eb5db054-2df3-4d4d-9b8c-d61cdd8a019c",
+    "chatId": "68bcfff3-742a-4ce0-9b5f-04444ff0efbd",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Δεν υπάρχουν εργασίες σε εξέλιξη, καθώς δεν βρέθηκαν εργασίες στο workspace σας.",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:30:23.335Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:30:23.335Z"
+  },
+  {
+    "id": "63c963fc-27b8-4bbc-b029-9343f3d0dfdf",
+    "chatId": "d46e1ef6-383a-4b2e-8518-6d0ee2d7433e",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "test: ποιες εργασίες είναι in progress;",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:30:45.036Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:30:45.036Z"
+  },
+  {
+    "id": "db6b8ec2-00f2-4b3b-a05d-a9455a59ba1e",
+    "chatId": "d46e1ef6-383a-4b2e-8518-6d0ee2d7433e",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Δεν υπάρχουν εργασίες στην πρόοδό σας, καθώς στο χώρο εργασίας σας δεν βρέθηκαν καμία εργασία ή έργα.",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:30:58.848Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:30:58.848Z"
+  },
+  {
+    "id": "307d5067-4602-4049-9d92-0035261e8d04",
+    "chatId": "99500a90-b6d7-4d61-94b2-5be3447244de",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "FINAL TEST: ποιες εργασίες είναι in progress;",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:31:43.057Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:31:43.057Z"
+  },
+  {
+    "id": "621fd942-2a5c-4695-93ca-ee208b0094f0",
+    "chatId": "99500a90-b6d7-4d61-94b2-5be3447244de",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Δεν υπάρχουν εργασίες στο χώρο εργασίας σας.",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:31:56.036Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:31:56.036Z"
+  },
+  {
+    "id": "24f8539a-ec38-41b8-a7a5-2be382519465",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Ποιες εργασίες είναι σε εξέλιξη;",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:32:39.766Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:32:39.766Z"
+  },
+  {
+    "id": "cee3ebc1-db55-401c-b4ab-2dcd9d99f546",
+    "chatId": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Η εργασία που είναι σε εξέλιξη είναι η \"Αποξηλώσεις\" στο Project \"Project TemplateProject tasks\".",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:33:00.108Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:33:00.108Z"
   }
 ]

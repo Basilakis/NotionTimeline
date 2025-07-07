@@ -37,10 +37,54 @@
     "userEmail": "basiliskan@gmail.com",
     "title": "τι εργασίες έχω σε εξέλιξη;",
     "type": "ai",
-    "lastMessage": "τι εργασίες έχω σε εξέλιξη;",
-    "lastActivity": "2025-07-07T08:27:10.303Z",
-    "messageCount": 2,
+    "lastMessage": "Δεν υπάρχουν καταγεγραμμένες εργασίες σε εξέλιξη στο workspace σας....",
+    "lastActivity": "2025-07-07T08:29:16.322Z",
+    "messageCount": 5,
     "createdAt": "2025-07-07T08:27:10.299Z",
-    "updatedAt": "2025-07-07T08:27:10.303Z"
+    "updatedAt": "2025-07-07T08:29:16.322Z"
+  },
+  {
+    "id": "68bcfff3-742a-4ce0-9b5f-04444ff0efbd",
+    "userEmail": "basiliskan@gmail.com",
+    "title": "ποιες εργασίες είναι σε εξέλιξη;",
+    "type": "ai",
+    "lastMessage": "Δεν υπάρχουν εργασίες σε εξέλιξη, καθώς δεν βρέθηκαν εργασίες στο workspace σας....",
+    "lastActivity": "2025-07-07T08:30:23.337Z",
+    "messageCount": 4,
+    "createdAt": "2025-07-07T08:30:06.428Z",
+    "updatedAt": "2025-07-07T08:30:23.337Z"
+  },
+  {
+    "id": "d46e1ef6-383a-4b2e-8518-6d0ee2d7433e",
+    "userEmail": "basiliskan@gmail.com",
+    "title": "test: ποιες εργασίες είναι in progress;",
+    "type": "ai",
+    "lastMessage": "Δεν υπάρχουν εργασίες στην πρόοδό σας, καθώς στο χώρο εργασίας σας δεν βρέθηκαν καμία εργασία ή έργα...",
+    "lastActivity": "2025-07-07T08:30:58.850Z",
+    "messageCount": 4,
+    "createdAt": "2025-07-07T08:30:45.034Z",
+    "updatedAt": "2025-07-07T08:30:58.850Z"
+  },
+  {
+    "id": "99500a90-b6d7-4d61-94b2-5be3447244de",
+    "userEmail": "basiliskan@gmail.com",
+    "title": "FINAL TEST: ποιες εργασίες είναι in progress;",
+    "type": "ai",
+    "lastMessage": "Δεν υπάρχουν εργασίες στο χώρο εργασίας σας....",
+    "lastActivity": "2025-07-07T08:31:56.040Z",
+    "messageCount": 4,
+    "createdAt": "2025-07-07T08:31:43.056Z",
+    "updatedAt": "2025-07-07T08:31:56.040Z"
+  },
+  {
+    "id": "92405f1b-9a44-487d-8b83-a992af448729",
+    "userEmail": "basiliskan@gmail.com",
+    "title": "Ποιες εργασίες είναι σε εξέλιξη;",
+    "type": "ai",
+    "lastMessage": "Η εργασία που είναι σε εξέλιξη είναι η \"Αποξηλώσεις\" στο Project \"Project TemplateProject tasks\"....",
+    "lastActivity": "2025-07-07T08:33:00.111Z",
+    "messageCount": 4,
+    "createdAt": "2025-07-07T08:32:39.763Z",
+    "updatedAt": "2025-07-07T08:33:00.111Z"
   }
 ]
