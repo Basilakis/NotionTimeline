@@ -121,64 +121,141 @@ Answer the user's question using their real Notion data:`;
   private generateIntelligentResponse(question: string, context: UserNotionContext): string {
     const lowerQuestion = question.toLowerCase();
     
+    console.log(`[CrewAI Fallback] Using real task data - ${context.tasks.length} tasks available`);
+    
+    // Status-specific questions
+    if (lowerQuestion.includes('in progress') || lowerQuestion.includes('progress')) {
+      const inProgressTasks = context.tasks.filter(task => 
+        task.status && task.status.toLowerCase().includes('progress')
+      );
+      
+      if (inProgressTasks.length > 0) {
+        let response = `You have ${inProgressTasks.length} task(s) currently In Progress:\n\n`;
+        inProgressTasks.forEach((task, index) => {
+          response += `${index + 1}. "${task.title}" - Project: ${task.projectName || 'Unknown'}\n`;
+        });
+        return response;
+      } else {
+        return "You don't have any tasks currently In Progress. All tasks are either Not Started or Done.";
+      }
+    }
+    
     // Task-related questions
     if (lowerQuestion.includes('task') || lowerQuestion.includes('todo') || lowerQuestion.includes('assignment')) {
-      return this.analyzeTaskData(question, context.tasks);
+      return this.analyzeRealTaskData(question, context.tasks);
     }
     
     // Project-related questions
     if (lowerQuestion.includes('project') || lowerQuestion.includes('deadline') || lowerQuestion.includes('milestone')) {
-      return this.analyzeProjectData(question, context.projects);
-    }
-    
-    // Database or data questions
-    if (lowerQuestion.includes('database') || lowerQuestion.includes('data') || lowerQuestion.includes('record')) {
-      return this.analyzeDatabaseData(question, context.databases);
+      return this.analyzeRealProjectData(question, context.projects);
     }
     
     // Overview questions
     if (lowerQuestion.includes('overview') || lowerQuestion.includes('summary') || lowerQuestion.includes('status')) {
-      return this.generateWorkspaceOverview(context);
+      return this.generateRealWorkspaceOverview(context);
     }
     
-    // General contextual response
-    return this.generateContextualResponse(question, context);
+    // General response with real data
+    return this.generateRealContextualResponse(question, context);
   }
 
-  private analyzeTaskData(question: string, tasks: any[]): string {
+  private analyzeRealTaskData(question: string, tasks: any[]): string {
     if (tasks.length === 0) {
       return "I don't see any tasks in your workspace. You can create tasks in your Notion databases to track your work.";
     }
 
-    const completedTasks = tasks.filter(t => t.isCompleted).length;
-    const pendingTasks = tasks.length - completedTasks;
-    const overdueTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && !t.isCompleted).length;
+    // Group tasks by status
+    const statusGroups = tasks.reduce((acc, task) => {
+      const status = task.status || 'Unknown';
+      if (!acc[status]) acc[status] = [];
+      acc[status].push(task);
+      return acc;
+    }, {});
 
-    let response = `You have ${tasks.length} total tasks:\n`;
-    response += `• ${completedTasks} completed\n`;
-    response += `• ${pendingTasks} pending\n`;
-    if (overdueTasks > 0) {
-      response += `• ${overdueTasks} overdue tasks that need attention\n`;
-    }
+    let response = `Your Notion workspace has ${tasks.length} tasks:\n\n`;
+    
+    Object.entries(statusGroups).forEach(([status, statusTasks]) => {
+      response += `**${status}** (${statusTasks.length} tasks):\n`;
+      statusTasks.forEach((task, index) => {
+        response += `  ${index + 1}. "${task.title}" - ${task.projectName || 'Unknown Project'}\n`;
+      });
+      response += '\n';
+    });
 
     // Add insights based on question
     const lowerQuestion = question.toLowerCase();
     if (lowerQuestion.includes('priority') || lowerQuestion.includes('urgent')) {
-      const highPriorityTasks = tasks.filter(t => t.priority && t.priority.toLowerCase().includes('high')).length;
-      response += `\n📌 ${highPriorityTasks} high-priority tasks require your attention.`;
+      const highPriorityTasks = tasks.filter(t => t.priority && t.priority.toLowerCase().includes('high'));
+      if (highPriorityTasks.length > 0) {
+        response += `\n📌 High Priority Tasks:\n`;
+        highPriorityTasks.forEach((task, index) => {
+          response += `  ${index + 1}. "${task.title}"\n`;
+        });
+      }
     }
 
     if (lowerQuestion.includes('recent') || lowerQuestion.includes('latest')) {
+      // Show most recently updated tasks
       const recentTasks = tasks
+        .filter(t => t.lastEditedTime)
         .sort((a, b) => new Date(b.lastEditedTime).getTime() - new Date(a.lastEditedTime).getTime())
         .slice(0, 3);
-      response += `\n🔄 Recent tasks:\n`;
-      recentTasks.forEach(task => {
-        response += `  - ${task.title} (${task.status})\n`;
-      });
+      
+      if (recentTasks.length > 0) {
+        response += `\n🕒 Recently Updated Tasks:\n`;
+        recentTasks.forEach((task, index) => {
+          response += `  ${index + 1}. "${task.title}" - ${task.status}\n`;
+        });
+      }
     }
 
     return response;
+  }
+
+  private analyzeRealProjectData(question: string, projects: any[]): string {
+    if (projects.length === 0) {
+      return "I don't see any projects in your workspace yet.";
+    }
+
+    let response = `Your workspace has ${projects.length} projects:\n\n`;
+    projects.forEach((project, index) => {
+      response += `${index + 1}. "${project.title || project.name}"\n`;
+    });
+
+    return response;
+  }
+
+  private generateRealWorkspaceOverview(context: UserNotionContext): string {
+    let overview = "=== Your Notion Workspace Overview ===\n\n";
+    
+    if (context.tasks.length > 0) {
+      const statusGroups = context.tasks.reduce((acc, task) => {
+        const status = task.status || 'Unknown';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {});
+      
+      overview += `📋 Tasks: ${context.tasks.length} total\n`;
+      Object.entries(statusGroups).forEach(([status, count]) => {
+        overview += `  • ${status}: ${count}\n`;
+      });
+    }
+    
+    if (context.projects.length > 0) {
+      overview += `\n📁 Projects: ${context.projects.length} active\n`;
+    }
+    
+    return overview;
+  }
+
+  private generateRealContextualResponse(question: string, context: UserNotionContext): string {
+    const hasData = context.tasks.length > 0 || context.projects.length > 0;
+    
+    if (!hasData) {
+      return "I can help you analyze your Notion workspace once you have some projects and tasks set up. Would you like guidance on organizing your workspace?";
+    }
+    
+    return `Based on your workspace with ${context.tasks.length} tasks and ${context.projects.length} projects, I can help you with:\n\n• Task management and prioritization\n• Project status tracking\n• Workflow optimization\n• Data organization insights\n\nWhat specific aspect would you like to explore?`;
   }
 
   private analyzeProjectData(question: string, projects: any[]): string {

@@ -68,5 +68,25 @@
     "timestamp": "2025-07-07T03:48:51.988Z",
     "isFromUser": false,
     "createdAt": "2025-07-07T03:48:51.988Z"
+  },
+  {
+    "id": "461dfbfc-6c54-489f-926e-8a706ac045dc",
+    "chatId": "b942bdff-d275-44cc-b199-14bf23dabba4",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "try again",
+    "type": "ai",
+    "timestamp": "2025-07-07T03:54:31.386Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T03:54:31.386Z"
+  },
+  {
+    "id": "805c7598-df54-430d-9efb-1715f48f2fa1",
+    "chatId": "b942bdff-d275-44cc-b199-14bf23dabba4",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Based on your workspace with 17 tasks and 0 projects, I can help you with:\n\n• Task management and prioritization\n• Project status tracking\n• Workflow optimization\n• Data organization insights\n\nWhat specific aspect would you like to explore?",
+    "type": "ai",
+    "timestamp": "2025-07-07T03:54:53.610Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T03:54:53.610Z"
   }
 ]
