@@ -3,28 +3,119 @@ import { Client } from "@notionhq/client";
 import { discoverWorkspacePages, getFilteredDatabaseRecords, getTasks } from "./notion";
 
 class CrewAIAgent {
-  private agent: any;
+  private openai: OpenAI | null = null;
 
   constructor() {
+    console.log('[CrewAI] Initializing CrewAI agent...');
+    this.initializeOpenAI();
+  }
+
+  private async initializeOpenAI() {
     try {
-      // Try to initialize CrewAI agent
-      console.log('[CrewAI] Initializing CrewAI agent...');
+      const { storage } = await import('./storage');
+      const storedKey = await storage.getApiSetting('openaiApiKey');
+      const apiKey = storedKey || process.env.OPENAI_API_KEY;
+      
+      if (apiKey) {
+        this.openai = new OpenAI({ 
+          apiKey: apiKey 
+        });
+        console.log('[CrewAI] OpenAI initialized successfully');
+      } else {
+        console.log('[CrewAI] No OpenAI API key available');
+      }
     } catch (error) {
-      console.log('[CrewAI] CrewAI not available, using fallback mode');
+      console.log('[CrewAI] Could not access storage, using environment variable only');
+      if (process.env.OPENAI_API_KEY) {
+        this.openai = new OpenAI({ 
+          apiKey: process.env.OPENAI_API_KEY 
+        });
+        console.log('[CrewAI] OpenAI initialized with environment key');
+      }
     }
   }
 
   async analyzeAndRespond(userEmail: string, question: string, context: UserNotionContext): Promise<string> {
     try {
       console.log(`[CrewAI] Analyzing question: ${question.slice(0, 100)}...`);
+      console.log(`[CrewAI] Context: ${context.tasks.length} tasks, ${context.projects.length} projects`);
       
-      // Use intelligent response generation based on context
-      return this.generateIntelligentResponse(question, context);
+      // If OpenAI is available, use AI-powered responses with real data
+      if (this.openai) {
+        return await this.generateAIResponse(question, context);
+      } else {
+        // Fallback to intelligent rule-based responses using real data
+        return this.generateIntelligentResponse(question, context);
+      }
       
     } catch (error) {
       console.error('[CrewAI] Error in analysis:', error);
+      // Fallback to rule-based response if OpenAI fails
+      return this.generateIntelligentResponse(question, context);
+    }
+  }
+
+  private async generateAIResponse(question: string, context: UserNotionContext): Promise<string> {
+    const contextSummary = this.createDetailedContextSummary(context);
+    
+    const prompt = `You are an AI assistant helping analyze a user's Notion workspace. Use the REAL data provided below to answer their question accurately.
+
+REAL WORKSPACE DATA:
+${contextSummary}
+
+USER QUESTION: ${question}
+
+INSTRUCTIONS:
+- Use ONLY the real data provided above
+- Be specific and mention actual task names, statuses, and projects 
+- If asking about tasks "In Progress", list the actual task names with that status
+- If asking about projects, mention the real project names
+- Provide actionable insights based on the actual data
+- Keep responses concise and helpful
+
+Answer the user's question using their real Notion data:`;
+
+    try {
+      const response = await this.openai!.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 1000,
+        temperature: 0.7
+      });
+
+      return response.choices[0].message.content || "I couldn't generate a response at this time.";
+    } catch (error) {
+      console.error('[CrewAI] OpenAI API error:', error);
       throw error;
     }
+  }
+
+  private createDetailedContextSummary(context: UserNotionContext): string {
+    let summary = "=== REAL NOTION WORKSPACE DATA ===\n\n";
+    
+    // Tasks section
+    if (context.tasks.length > 0) {
+      summary += `TASKS (${context.tasks.length} total):\n`;
+      context.tasks.forEach((task, index) => {
+        summary += `${index + 1}. "${task.title}" - Status: ${task.status} - Project: ${task.projectName || 'Unknown'}\n`;
+      });
+      summary += "\n";
+    } else {
+      summary += "TASKS: No tasks found\n\n";
+    }
+    
+    // Projects section
+    if (context.projects.length > 0) {
+      summary += `PROJECTS (${context.projects.length} total):\n`;
+      context.projects.forEach((project, index) => {
+        summary += `${index + 1}. "${project.title || project.name}"\n`;
+      });
+      summary += "\n";
+    } else {
+      summary += "PROJECTS: No projects found\n\n";
+    }
+    
+    return summary;
   }
 
   private generateIntelligentResponse(question: string, context: UserNotionContext): string {
@@ -288,8 +379,8 @@ export class AIService {
       
       console.log(`[AI Service] Context gathered - ${context.tasks.length} tasks, ${context.projects.length} projects`);
       
-      // Use real task data to answer the question
-      return await this.generateRealDataResponse(userEmail, question, context);
+      // Use CrewAI with real Notion data
+      return await this.crewAgent.analyzeAndRespond(userEmail, question, context);
 
     } catch (error: any) {
       console.error('[AI Service] Error generating response:', error);
