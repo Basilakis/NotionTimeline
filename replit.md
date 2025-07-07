@@ -220,6 +220,19 @@ interface NotionView {
 - **User Experience**: 100% Greek responses regardless of which AI method processes the question
 - **Status**: ✅ MAXIMUM ENFORCEMENT - All AI responses will be in Greek with table formatting
 
+#### Delete Button Visibility Enhancement (COMPLETED)
+- **Problem Solved**: Delete buttons were invisible and positioned after chat content requiring hover to see
+- **Solution**: Repositioned delete button before chat name with permanent visibility
+- **Implementation**: 
+  - Moved delete button from right side to left side before chat title
+  - Changed from `opacity-0 group-hover:opacity-100` to `opacity-60 hover:opacity-100` for always-visible state
+  - Reduced button size to `h-6 w-6` with smaller `h-3 w-3` trash icon for cleaner look
+  - Added `flex-shrink-0` to prevent button from shrinking
+  - Enhanced hover state with red background for clear delete indication
+- **Results**: Delete buttons are now clearly visible before each chat name
+- **User Experience**: Intuitive chat deletion with visible delete icons that don't require hover discovery
+- **Status**: ✅ FULLY VISIBLE - Delete buttons positioned before chat names, always visible
+
 #### Direct Αγορές Database Integration with Known ID
 - **Problem Solved**: User provided specific database ID for Αγορές: `22868d53a05c802fb41df44b941c31a0`
 - **Solution**: Direct integration using the exact database ID instead of complex search
