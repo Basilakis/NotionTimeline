@@ -283,16 +283,13 @@ export class AIService {
     try {
       console.log(`[AI Service] Generating response for: ${question.slice(0, 100)}...`);
       
-      // Gather user context
+      // Gather user context with real data
       const context = await this.gatherUserContext(userEmail);
       
-      // Try CrewAI first
-      try {
-        return await this.crewAgent.analyzeAndRespond(userEmail, question, context);
-      } catch (crewError) {
-        console.log('[AI Service] CrewAI failed, falling back to OpenAI');
-        return await this.fallbackToOpenAI(userEmail, question, context);
-      }
+      console.log(`[AI Service] Context gathered - ${context.tasks.length} tasks, ${context.projects.length} projects`);
+      
+      // Use real task data to answer the question
+      return await this.generateRealDataResponse(userEmail, question, context);
 
     } catch (error: any) {
       console.error('[AI Service] Error generating response:', error);
