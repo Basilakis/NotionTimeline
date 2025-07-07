@@ -1,12 +1,22 @@
 [
   {
-    "id": "faa9f97d-d7e4-4507-96bc-e723704d7bd4",
-    "chatId": "f09131df-453a-49a4-9191-f3912db50e66",
+    "id": "42c1e96b-e1cc-4f26-a7f4-58d296a22a5b",
+    "chatId": "279b3400-82b8-484c-80b3-833962f151ac",
     "userEmail": "basiliskan@gmail.com",
-    "message": "Are we saving and registering everything?",
+    "message": "Can we work it out",
     "type": "request",
-    "timestamp": "2025-07-07T03:19:47.327Z",
+    "timestamp": "2025-07-07T03:27:07.490Z",
     "isFromUser": true,
-    "createdAt": "2025-07-07T03:19:47.327Z"
+    "createdAt": "2025-07-07T03:27:07.490Z"
+  },
+  {
+    "id": "313faae4-6403-4fec-beeb-9525670f551d",
+    "chatId": "279b3400-82b8-484c-80b3-833962f151ac",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "helo?",
+    "type": "request",
+    "timestamp": "2025-07-07T03:27:23.662Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T03:27:23.662Z"
   }
 ]

@@ -63,7 +63,7 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
 
   // Fetch messages for selected chat
   const { data: messages = [], refetch: refetchMessages } = useQuery({
-    queryKey: ['/api/chats', selectedChatId, 'messages'],
+    queryKey: [`/api/chats/${selectedChatId}/messages`],
     enabled: !!selectedChatId,
     staleTime: 0,
     cacheTime: 0,
