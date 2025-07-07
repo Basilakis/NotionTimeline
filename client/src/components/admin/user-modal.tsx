@@ -44,7 +44,10 @@ interface Request {
   userEmail: string;
   message: string;
   timestamp: string;
-  replies?: Reply[];
+  status: 'open' | 'resolved';
+  createdAt: string;
+  updatedAt: string;
+  replies: Reply[];
 }
 
 interface Reply {
@@ -72,16 +75,22 @@ export function UserModal({ user, isOpen, onClose }: UserModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch user requests
+  // Fetch user requests  
   const { data: requests = [] } = useQuery({
-    queryKey: ["/api/admin/users/requests", user?.userEmail],
+    queryKey: ["/api/admin/users", user?.userEmail, "requests"],
+    queryFn: () => fetch(`/api/admin/users/${user?.userEmail}/requests`, {
+      headers: { 'x-user-email': 'basiliskan@gmail.com' }
+    }).then(res => res.json()),
     enabled: isOpen && !!user,
     staleTime: 0
   });
 
   // Fetch user logs
   const { data: logs = [] } = useQuery({
-    queryKey: ["/api/admin/users/logs", user?.userEmail],
+    queryKey: ["/api/admin/users", user?.userEmail, "logs"],
+    queryFn: () => fetch(`/api/admin/users/${user?.userEmail}/logs`, {
+      headers: { 'x-user-email': 'basiliskan@gmail.com' }
+    }).then(res => res.json()),
     enabled: isOpen && !!user,
     staleTime: 0
   });
@@ -98,8 +107,8 @@ export function UserModal({ user, isOpen, onClose }: UserModalProps) {
       });
       setReplyText("");
       setSelectedRequestId(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users/requests"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users/logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", user?.userEmail, "requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", user?.userEmail, "logs"] });
     },
     onError: (error: any) => {
       toast({
@@ -121,7 +130,7 @@ export function UserModal({ user, isOpen, onClose }: UserModalProps) {
         description: `${notificationType.toUpperCase()} notification sent successfully.`
       });
       setNotificationMessage("");
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users/logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", user?.userEmail, "logs"] });
     },
     onError: (error: any) => {
       toast({

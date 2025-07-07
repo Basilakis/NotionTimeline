@@ -1,35 +1,5 @@
 [
   {
-    "id": "42c1e96b-e1cc-4f26-a7f4-58d296a22a5b",
-    "chatId": "279b3400-82b8-484c-80b3-833962f151ac",
-    "userEmail": "basiliskan@gmail.com",
-    "message": "Can we work it out",
-    "type": "request",
-    "timestamp": "2025-07-07T03:27:07.490Z",
-    "isFromUser": true,
-    "createdAt": "2025-07-07T03:27:07.490Z"
-  },
-  {
-    "id": "313faae4-6403-4fec-beeb-9525670f551d",
-    "chatId": "279b3400-82b8-484c-80b3-833962f151ac",
-    "userEmail": "basiliskan@gmail.com",
-    "message": "helo?",
-    "type": "request",
-    "timestamp": "2025-07-07T03:27:23.662Z",
-    "isFromUser": true,
-    "createdAt": "2025-07-07T03:27:23.662Z"
-  },
-  {
-    "id": "6484ee5a-f534-497e-8da4-d945b2021442",
-    "chatId": "279b3400-82b8-484c-80b3-833962f151ac",
-    "userEmail": "basiliskan@gmail.com",
-    "message": "Hello again?",
-    "type": "request",
-    "timestamp": "2025-07-07T03:31:04.042Z",
-    "isFromUser": true,
-    "createdAt": "2025-07-07T03:31:04.042Z"
-  },
-  {
     "id": "798ef3c1-bd4a-4621-b2a7-b3219232bbd8",
     "chatId": "b942bdff-d275-44cc-b199-14bf23dabba4",
     "userEmail": "basiliskan@gmail.com",
