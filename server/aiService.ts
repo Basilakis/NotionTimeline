@@ -61,7 +61,13 @@ class CrewAIAgent {
     // Detect if question is in Greek to ensure response matches language
     const isGreek = /[α-ωΑ-Ωάέήίόύώ]/.test(question);
     
+    const languageInstruction = isGreek ? 
+      "CRITICAL: The user question is in GREEK. You MUST respond ONLY in Greek language (Ελληνικά). Use Greek table headers: | Α/Α | Εργασία | Κατάσταση | Έργο |" :
+      "Respond in English with clear formatting.";
+    
     const prompt = `You are an AI assistant helping analyze a user's Notion workspace. Use the REAL data provided below to answer their question accurately.
+
+${languageInstruction}
 
 REAL WORKSPACE DATA:
 ${contextSummary}
@@ -70,12 +76,12 @@ USER QUESTION: ${question}
 
 INSTRUCTIONS:
 - Use ONLY the real data provided above
-- IMPORTANT: If the user question is in Greek, respond ONLY in Greek language
+- ${isGreek ? 'ΑΠΑΝΤΗΣΕ ΜΟΝΟ ΣΤΑ ΕΛΛΗΝΙΚΑ!' : 'Respond in English'}
 - IMPORTANT: For material/purchase questions (υλικά, αγορά), focus on the Purchases database items like "Πλακάκια", "Εσωτερικά Κουφώματα", "Εξωτερικά Κουφώματα", "Θωρακισμένη Πόρτα"
 - Be specific and mention actual task names, statuses, and projects 
 - If asking about tasks "In Progress", list the actual task names with that status
 - If asking about projects, mention the real project names
-- For Greek responses, use table format: | Α/Α | Υλικό | Κατάσταση | Έργο |
+- ${isGreek ? 'Χρησιμοποίησε πίνακα: | Α/Α | Εργασία | Κατάσταση | Έργο |' : 'Use table format when listing multiple items'}
 - Provide actionable insights based on the actual data
 - Keep responses concise and helpful
 
@@ -162,6 +168,38 @@ Answer the user's question using their real Notion data:`;
       }
     }
     
+    // "Not Started" specific questions (Greek)
+    if (lowerQuestion.includes('δεν έχουν ξεκινήσει') || lowerQuestion.includes('δεν έχει ξεκινήσει') ||
+        lowerQuestion.includes('not started') || lowerQuestion.includes('haven\'t started')) {
+      const notStartedTasks = context.tasks.filter(task => 
+        task.status && (task.status.toLowerCase().includes('not started') || task.status.toLowerCase().includes('not start'))
+      );
+      
+      if (notStartedTasks.length > 0) {
+        let response;
+        if (isGreek) {
+          response = `Οι εργασίες που δεν έχουν ξεκινήσει είναι οι εξής:\n\n`;
+          response += `| Α/Α | Εργασία | Έργο |\n`;
+          response += `|-----|---------|-------|\n`;
+          notStartedTasks.forEach((task, index) => {
+            response += `| ${index + 1} | "${task.title}" | ${task.projectName || 'Άγνωστο Έργο'} |\n`;
+          });
+        } else {
+          response = `Tasks that haven't started yet:\n\n`;
+          response += `| # | Task | Project |\n`;
+          response += `|---|------|----------|\n`;
+          notStartedTasks.forEach((task, index) => {
+            response += `| ${index + 1} | "${task.title}" | ${task.projectName || 'Unknown Project'} |\n`;
+          });
+        }
+        return response;
+      } else {
+        return isGreek ? 
+          "Όλες οι εργασίες έχουν ξεκινήσει ή ολοκληρωθεί." :
+          "All tasks have been started or completed.";
+      }
+    }
+
     // Task-related questions (Greek and English)
     if (lowerQuestion.includes('task') || lowerQuestion.includes('todo') || lowerQuestion.includes('assignment') ||
         lowerQuestion.includes('εργασία') || lowerQuestion.includes('εργασίες') || lowerQuestion.includes('έργα')) {
