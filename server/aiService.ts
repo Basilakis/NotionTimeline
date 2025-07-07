@@ -357,39 +357,27 @@ Please provide a helpful, specific response based on their actual workspace data
   }
 
   /**
-   * Gather workspace data including projects and databases
+   * Gather workspace data using existing working endpoints
    */
   private async gatherWorkspaceData(notion: Client, pageId: string, userEmail: string) {
     try {
-      // Discover workspace structure
-      const workspaceData = await discoverWorkspacePages(notion, pageId, userEmail);
+      console.log(`[AI Service] Using existing workspace APIs for user ${userEmail}`);
       
-      // Extract projects and databases
-      const projects = workspaceData.subPages || [];
-      const databases = [];
-      const recentActivity = [];
-
-      // Collect all databases from sub-pages
-      for (const project of projects) {
-        if (project.databases) {
-          databases.push(...project.databases);
-        }
-      }
-
-      // Get recent activity from databases
-      for (const database of databases.slice(0, 3)) { // Limit to prevent too much data
-        try {
-          const records = await getFilteredDatabaseRecords(notion, database.id, userEmail);
-          recentActivity.push(...records.slice(0, 5)); // Latest 5 records per database
-        } catch (error) {
-          console.log(`[AI Context] Could not fetch records from database ${database.id}:`, error);
-        }
-      }
+      const fetch = (await import('node-fetch')).default;
+      
+      // Call existing project endpoint
+      const projectsResponse = await fetch('http://localhost:5000/api/notion-projects', {
+        headers: { 'x-user-email': userEmail }
+      });
+      
+      const projects = projectsResponse.ok ? await projectsResponse.json() : [];
+      
+      console.log(`[AI Service] Retrieved ${projects.length} projects`);
 
       return {
         projects,
-        databases,
-        recentActivity
+        databases: [], // Projects contain database info
+        recentActivity: [] // Will be populated from tasks
       };
 
     } catch (error) {
@@ -403,29 +391,33 @@ Please provide a helpful, specific response based on their actual workspace data
   }
 
   /**
-   * Gather user's tasks from task databases
+   * Gather user's tasks by calling the same working API endpoints
    */
   private async gatherUserTasks(notion: Client, userEmail: string) {
     try {
-      // Get user's Notion views to find task databases
-      const { storage } = await import('./storage');
-      const views = await storage.getNotionViews(userEmail);
-      const taskViews = views.filter(view => 
-        view.viewType === 'tasks' && view.databaseId && view.isActive
-      );
-
-      const allTasks = [];
-
-      // Gather tasks from all task databases
-      for (const view of taskViews) {
-        try {
-          const tasks = await getTasks(notion, view.databaseId!, userEmail);
-          allTasks.push(...tasks);
-        } catch (error) {
-          console.log(`[AI Context] Could not fetch tasks from ${view.databaseId}:`, error);
-        }
-      }
-
+      console.log(`[AI Service] Using existing task APIs for user ${userEmail}`);
+      
+      // Make internal HTTP calls to the existing working endpoints
+      const fetch = (await import('node-fetch')).default;
+      
+      // Call the same endpoints that work in the frontend
+      const tasksResponse = await fetch('http://localhost:5000/api/tasks-from-notion', {
+        headers: { 'x-user-email': userEmail }
+      });
+      
+      const purchasesResponse = await fetch('http://localhost:5000/api/purchases-from-notion', {
+        headers: { 'x-user-email': userEmail }
+      });
+      
+      const tasks = tasksResponse.ok ? await tasksResponse.json() : [];
+      const purchases = purchasesResponse.ok ? await purchasesResponse.json() : [];
+      
+      // Combine all tasks
+      const allTasks = [...tasks, ...purchases];
+      
+      console.log(`[AI Service] Retrieved ${tasks.length} tasks and ${purchases.length} purchases`);
+      console.log(`[AI Service] Total items: ${allTasks.length}`);
+      
       return allTasks;
 
     } catch (error) {

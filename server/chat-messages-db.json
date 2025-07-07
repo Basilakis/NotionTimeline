@@ -18,5 +18,35 @@
     "timestamp": "2025-07-07T03:27:23.662Z",
     "isFromUser": true,
     "createdAt": "2025-07-07T03:27:23.662Z"
+  },
+  {
+    "id": "6484ee5a-f534-497e-8da4-d945b2021442",
+    "chatId": "279b3400-82b8-484c-80b3-833962f151ac",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Hello again?",
+    "type": "request",
+    "timestamp": "2025-07-07T03:31:04.042Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T03:31:04.042Z"
+  },
+  {
+    "id": "798ef3c1-bd4a-4621-b2a7-b3219232bbd8",
+    "chatId": "b942bdff-d275-44cc-b199-14bf23dabba4",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Πες μου ποια task είναι In Porgress",
+    "type": "ai",
+    "timestamp": "2025-07-07T03:31:26.218Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T03:31:26.218Z"
+  },
+  {
+    "id": "a47dde8c-f23b-4af7-ae1c-cb6f60e53af4",
+    "chatId": "b942bdff-d275-44cc-b199-14bf23dabba4",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "I don't see any tasks in your workspace. You can create tasks in your Notion databases to track your work.",
+    "type": "ai",
+    "timestamp": "2025-07-07T03:31:26.547Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T03:31:26.547Z"
   }
 ]
