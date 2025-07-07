@@ -66,13 +66,20 @@ const PurchaseItemRow = ({ task }: { task: any }) => {
   
   const approvalMutation = useMutation({
     mutationFn: async ({ itemId, approvalStatus }: { itemId: string; approvalStatus: 'Yes' | 'No' }) => {
-      return await apiRequest(`/api/purchases/${itemId}/approval`, {
+      const response = await fetch(`/api/purchases/${itemId}/approval`, {
         method: 'PATCH',
         headers: {
+          'Content-Type': 'application/json',
           'x-user-email': localStorage.getItem('userEmail') || ''
         },
         body: JSON.stringify({ approvalStatus })
       });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update approval: ${response.statusText}`);
+      }
+      
+      return await response.json();
     },
     onSuccess: (data, variables) => {
       toast({
@@ -176,15 +183,22 @@ const ApprovalButtons = ({ tasks, onApprovalUpdate }: { tasks: any[]; onApproval
   
   const bulkApprovalMutation = useMutation({
     mutationFn: async (approvalStatus: 'Yes' | 'No') => {
-      const promises = tasks.map(task => 
-        apiRequest(`/api/purchases/${task.id}/approval`, {
+      const promises = tasks.map(async (task) => {
+        const response = await fetch(`/api/purchases/${task.id}/approval`, {
           method: 'PATCH',
           headers: {
+            'Content-Type': 'application/json',
             'x-user-email': localStorage.getItem('userEmail') || ''
           },
           body: JSON.stringify({ approvalStatus })
-        })
-      );
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to update approval for ${task.title}: ${response.statusText}`);
+        }
+        
+        return await response.json();
+      });
       return await Promise.all(promises);
     },
     onSuccess: (data, approvalStatus) => {
