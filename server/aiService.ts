@@ -121,73 +121,120 @@ Answer the user's question using their real Notion data:`;
   private generateIntelligentResponse(question: string, context: UserNotionContext): string {
     const lowerQuestion = question.toLowerCase();
     
-    console.log(`[CrewAI Fallback] Using real task data - ${context.tasks.length} tasks available`);
+    // Detect if question is in Greek
+    const isGreek = /[α-ωΑ-Ωάέήίόύώ]/.test(question);
     
-    // Status-specific questions
-    if (lowerQuestion.includes('in progress') || lowerQuestion.includes('progress')) {
+    console.log(`[CrewAI Fallback] Using real task data - ${context.tasks.length} tasks available, Language: ${isGreek ? 'Greek' : 'English'}`);
+    
+    // Status-specific questions (Greek and English)
+    if (lowerQuestion.includes('in progress') || lowerQuestion.includes('progress') || 
+        lowerQuestion.includes('σε εξέλιξη') || lowerQuestion.includes('εξέλιξη')) {
       const inProgressTasks = context.tasks.filter(task => 
         task.status && task.status.toLowerCase().includes('progress')
       );
       
       if (inProgressTasks.length > 0) {
-        let response = `You have ${inProgressTasks.length} task(s) currently In Progress:\n\n`;
-        inProgressTasks.forEach((task, index) => {
-          response += `${index + 1}. "${task.title}" - Project: ${task.projectName || 'Unknown'}\n`;
-        });
+        let response;
+        if (isGreek) {
+          response = `Έχεις ${inProgressTasks.length} εργασία/ες που είναι Σε Εξέλιξη:\n\n`;
+          response += `| Α/Α | Εργασία | Έργο |\n`;
+          response += `|-----|---------|-------|\n`;
+          inProgressTasks.forEach((task, index) => {
+            response += `| ${index + 1} | "${task.title}" | ${task.projectName || 'Άγνωστο'} |\n`;
+          });
+        } else {
+          response = `You have ${inProgressTasks.length} task(s) currently In Progress:\n\n`;
+          inProgressTasks.forEach((task, index) => {
+            response += `${index + 1}. "${task.title}" - Project: ${task.projectName || 'Unknown'}\n`;
+          });
+        }
         return response;
       } else {
-        return "You don't have any tasks currently In Progress. All tasks are either Not Started or Done.";
+        return isGreek ? 
+          "Δεν έχεις καμία εργασία Σε Εξέλιξη αυτή τη στιγμή. Όλες οι εργασίες είναι είτε Δεν Έχουν Ξεκινήσει είτε Ολοκληρωμένες." :
+          "You don't have any tasks currently In Progress. All tasks are either Not Started or Done.";
       }
     }
     
-    // Task-related questions
-    if (lowerQuestion.includes('task') || lowerQuestion.includes('todo') || lowerQuestion.includes('assignment')) {
-      return this.analyzeRealTaskData(question, context.tasks);
+    // Task-related questions (Greek and English)
+    if (lowerQuestion.includes('task') || lowerQuestion.includes('todo') || lowerQuestion.includes('assignment') ||
+        lowerQuestion.includes('εργασία') || lowerQuestion.includes('εργασίες') || lowerQuestion.includes('έργα')) {
+      return this.analyzeRealTaskData(question, context.tasks, isGreek);
     }
     
-    // Project-related questions
-    if (lowerQuestion.includes('project') || lowerQuestion.includes('deadline') || lowerQuestion.includes('milestone')) {
-      return this.analyzeRealProjectData(question, context.projects);
+    // Project-related questions (Greek and English)
+    if (lowerQuestion.includes('project') || lowerQuestion.includes('deadline') || lowerQuestion.includes('milestone') ||
+        lowerQuestion.includes('έργο') || lowerQuestion.includes('πρόγραμμα') || lowerQuestion.includes('προθεσμία')) {
+      return this.analyzeRealProjectData(question, context.projects, isGreek);
     }
     
-    // Overview questions
-    if (lowerQuestion.includes('overview') || lowerQuestion.includes('summary') || lowerQuestion.includes('status')) {
-      return this.generateRealWorkspaceOverview(context);
+    // Purchase-related questions (Greek and English)
+    if (lowerQuestion.includes('purchase') || lowerQuestion.includes('buy') || lowerQuestion.includes('pending') ||
+        lowerQuestion.includes('αγορά') || lowerQuestion.includes('αγορές') || lowerQuestion.includes('εκκρεμούν')) {
+      return this.analyzePurchaseData(question, context.tasks, isGreek);
+    }
+    
+    // Overview questions (Greek and English)
+    if (lowerQuestion.includes('overview') || lowerQuestion.includes('summary') || lowerQuestion.includes('status') ||
+        lowerQuestion.includes('επισκόπηση') || lowerQuestion.includes('κατάσταση') || lowerQuestion.includes('περίληψη')) {
+      return this.generateRealWorkspaceOverview(context, isGreek);
     }
     
     // General response with real data
-    return this.generateRealContextualResponse(question, context);
+    return this.generateRealContextualResponse(question, context, isGreek);
   }
 
-  private analyzeRealTaskData(question: string, tasks: any[]): string {
+  private analyzeRealTaskData(question: string, tasks: any[], isGreek: boolean = false): string {
     if (tasks.length === 0) {
-      return "I don't see any tasks in your workspace. You can create tasks in your Notion databases to track your work.";
+      return isGreek ? 
+        "Δεν βλέπω καμία εργασία στον χώρο εργασίας σου. Μπορείς να δημιουργήσεις εργασίες στις βάσεις δεδομένων Notion για να παρακολουθείς τη δουλειά σου." :
+        "I don't see any tasks in your workspace. You can create tasks in your Notion databases to track your work.";
     }
 
     // Group tasks by status
     const statusGroups = tasks.reduce((acc, task) => {
-      const status = task.status || 'Unknown';
+      const status = task.status || (isGreek ? 'Άγνωστο' : 'Unknown');
       if (!acc[status]) acc[status] = [];
       acc[status].push(task);
       return acc;
     }, {});
 
-    let response = `Your Notion workspace has ${tasks.length} tasks:\n\n`;
+    let response = isGreek ? 
+      `Ο χώρος εργασίας Notion έχει ${tasks.length} εργασίες:\n\n` :
+      `Your Notion workspace has ${tasks.length} tasks:\n\n`;
     
-    Object.entries(statusGroups).forEach(([status, statusTasks]) => {
-      response += `**${status}** (${statusTasks.length} tasks):\n`;
-      statusTasks.forEach((task, index) => {
-        response += `  ${index + 1}. "${task.title}" - ${task.projectName || 'Unknown Project'}\n`;
+    if (isGreek) {
+      // Greek table format
+      response += `\n| Α/Α | Εργασία | Κατάσταση | Έργο |\n`;
+      response += `|-----|---------|-----------|-------|\n`;
+      
+      let counter = 1;
+      Object.entries(statusGroups).forEach(([status, statusTasks]) => {
+        statusTasks.forEach((task) => {
+          response += `| ${counter} | "${task.title}" | ${status} | ${task.projectName || 'Άγνωστο Έργο'} |\n`;
+          counter++;
+        });
       });
-      response += '\n';
-    });
+    } else {
+      // English list format
+      Object.entries(statusGroups).forEach(([status, statusTasks]) => {
+        response += `**${status}** (${statusTasks.length} tasks):\n`;
+        statusTasks.forEach((task, index) => {
+          response += `${index + 1}. "${task.title}" - Project: ${task.projectName || 'Unknown Project'}\n`;
+        });
+        response += '\n';
+      });
+    }
 
     // Add insights based on question
     const lowerQuestion = question.toLowerCase();
-    if (lowerQuestion.includes('priority') || lowerQuestion.includes('urgent')) {
+    if (lowerQuestion.includes('priority') || lowerQuestion.includes('urgent') || 
+        lowerQuestion.includes('προτεραιότητα') || lowerQuestion.includes('επείγον')) {
       const highPriorityTasks = tasks.filter(t => t.priority && t.priority.toLowerCase().includes('high'));
       if (highPriorityTasks.length > 0) {
-        response += `\n📌 High Priority Tasks:\n`;
+        response += isGreek ? 
+          `\n📌 Εργασίες Υψηλής Προτεραιότητας:\n` :
+          `\n📌 High Priority Tasks:\n`;
         highPriorityTasks.forEach((task, index) => {
           response += `  ${index + 1}. "${task.title}"\n`;
         });
@@ -202,7 +249,9 @@ Answer the user's question using their real Notion data:`;
         .slice(0, 3);
       
       if (recentTasks.length > 0) {
-        response += `\n🕒 Recently Updated Tasks:\n`;
+        response += isGreek ? 
+          `\n🕒 Πρόσφατα Ενημερωμένες Εργασίες:\n` :
+          `\n🕒 Recently Updated Tasks:\n`;
         recentTasks.forEach((task, index) => {
           response += `  ${index + 1}. "${task.title}" - ${task.status}\n`;
         });
@@ -212,12 +261,45 @@ Answer the user's question using their real Notion data:`;
     return response;
   }
 
-  private analyzeRealProjectData(question: string, projects: any[]): string {
-    if (projects.length === 0) {
-      return "I don't see any projects in your workspace yet.";
+  private analyzePurchaseData(question: string, tasks: any[], isGreek: boolean = false): string {
+    const purchaseTasks = tasks.filter(task => 
+      task.title && (task.title.includes('Αγορές') || task.title.includes('Purchase') || task.title.includes('Πλακάκια') || task.title.includes('Κουφώματα'))
+    );
+    
+    if (purchaseTasks.length === 0) {
+      return isGreek ? 
+        "Δεν βρήκα καμία εκκρεμή αγορά στον χώρο εργασίας σου." :
+        "I don't see any pending purchases in your workspace.";
     }
 
-    let response = `Your workspace has ${projects.length} projects:\n\n`;
+    let response;
+    if (isGreek) {
+      response = `Έχεις ${purchaseTasks.length} εκκρεμείς αγορές:\n\n`;
+      response += `| Α/Α | Αγορά | Κατάσταση | Έργο |\n`;
+      response += `|-----|-------|-----------|-------|\n`;
+      purchaseTasks.forEach((task, index) => {
+        response += `| ${index + 1} | "${task.title}" | ${task.status || 'Άγνωστη'} | ${task.projectName || 'Άγνωστο Έργο'} |\n`;
+      });
+    } else {
+      response = `You have ${purchaseTasks.length} pending purchases:\n\n`;
+      purchaseTasks.forEach((task, index) => {
+        response += `${index + 1}. "${task.title}" - Status: ${task.status || 'Unknown'} - Project: ${task.projectName || 'Unknown Project'}\n`;
+      });
+    }
+    
+    return response;
+  }
+
+  private analyzeRealProjectData(question: string, projects: any[], isGreek: boolean = false): string {
+    if (projects.length === 0) {
+      return isGreek ? 
+        "Δεν βλέπω ακόμα κανένα έργο στον χώρο εργασίας σου." :
+        "I don't see any projects in your workspace yet.";
+    }
+
+    let response = isGreek ?
+      `Ο χώρος εργασίας έχει ${projects.length} έργα:\n\n` :
+      `Your workspace has ${projects.length} projects:\n\n`;
     projects.forEach((project, index) => {
       response += `${index + 1}. "${project.title || project.name}"\n`;
     });
@@ -225,37 +307,47 @@ Answer the user's question using their real Notion data:`;
     return response;
   }
 
-  private generateRealWorkspaceOverview(context: UserNotionContext): string {
-    let overview = "=== Your Notion Workspace Overview ===\n\n";
+  private generateRealWorkspaceOverview(context: UserNotionContext, isGreek: boolean = false): string {
+    let overview = isGreek ? 
+      "=== Επισκόπηση Χώρου Εργασίας Notion ===\n\n" :
+      "=== Your Notion Workspace Overview ===\n\n";
     
     if (context.tasks.length > 0) {
       const statusGroups = context.tasks.reduce((acc, task) => {
-        const status = task.status || 'Unknown';
+        const status = task.status || (isGreek ? 'Άγνωστο' : 'Unknown');
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       }, {});
       
-      overview += `📋 Tasks: ${context.tasks.length} total\n`;
+      overview += isGreek ?
+        `📋 Εργασίες: ${context.tasks.length} σύνολο\n` :
+        `📋 Tasks: ${context.tasks.length} total\n`;
       Object.entries(statusGroups).forEach(([status, count]) => {
         overview += `  • ${status}: ${count}\n`;
       });
     }
     
     if (context.projects.length > 0) {
-      overview += `\n📁 Projects: ${context.projects.length} active\n`;
+      overview += isGreek ?
+        `\n📁 Έργα: ${context.projects.length} ενεργά\n` :
+        `\n📁 Projects: ${context.projects.length} active\n`;
     }
     
     return overview;
   }
 
-  private generateRealContextualResponse(question: string, context: UserNotionContext): string {
+  private generateRealContextualResponse(question: string, context: UserNotionContext, isGreek: boolean = false): string {
     const hasData = context.tasks.length > 0 || context.projects.length > 0;
     
     if (!hasData) {
-      return "I can help you analyze your Notion workspace once you have some projects and tasks set up. Would you like guidance on organizing your workspace?";
+      return isGreek ?
+        "Μπορώ να σε βοηθήσω να αναλύσεις τον χώρο εργασίας Notion όταν έχεις κάποια έργα και εργασίες. Θα θέλες καθοδήγηση στην οργάνωση του χώρου εργασίας;" :
+        "I can help you analyze your Notion workspace once you have some projects and tasks set up. Would you like guidance on organizing your workspace?";
     }
     
-    return `Based on your workspace with ${context.tasks.length} tasks and ${context.projects.length} projects, I can help you with:\n\n• Task management and prioritization\n• Project status tracking\n• Workflow optimization\n• Data organization insights\n\nWhat specific aspect would you like to explore?`;
+    return isGreek ?
+      `Βάσει του χώρου εργασίας με ${context.tasks.length} εργασίες και ${context.projects.length} έργα, μπορώ να σε βοηθήσω με:\n\n• Διαχείριση και προτεραιοποίηση εργασιών\n• Παρακολούθηση κατάστασης έργων\n• Βελτιστοποίηση ροής εργασίας\n• Πληροφορίες οργάνωσης δεδομένων\n\nΤι συγκεκριμένο θα θέλες να εξερευνήσουμε;` :
+      `Based on your workspace with ${context.tasks.length} tasks and ${context.projects.length} projects, I can help you with:\n\n• Task management and prioritization\n• Project status tracking\n• Workflow optimization\n• Data organization insights\n\nWhat specific aspect would you like to explore?`;
   }
 
   private analyzeProjectData(question: string, projects: any[]): string {

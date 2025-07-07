@@ -128,5 +128,55 @@
     "timestamp": "2025-07-07T08:19:39.130Z",
     "isFromUser": false,
     "createdAt": "2025-07-07T08:19:39.130Z"
+  },
+  {
+    "id": "b1299ee7-c7d5-4dce-8537-73f3ffe2f622",
+    "chatId": "b942bdff-d275-44cc-b199-14bf23dabba4",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "try",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:22:46.986Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:22:46.986Z"
+  },
+  {
+    "id": "5ffbb9d8-999c-4604-b5be-820dc10a1079",
+    "chatId": "b942bdff-d275-44cc-b199-14bf23dabba4",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "It seems you are looking for information based on the tasks in your Notion workspace. Here is a brief overview of your tasks:\n\n- You have one task currently \"In Progress\": \"Αποξηλώσεις\" under the project \"Project TemplateProject tasks\".\n- Most of your tasks are \"Not Started\". Some examples include \"Υδραυλικές Εργασίες\", \"Ηλεκτρολογικές Εργασίες\", and \"Θωρακισμένη Πόρτα\" under different projects such as \"Project TemplateProject tasks\" and \"Vertex Developments\".\n- One task, \"Bulgaria Insurance Payments\", is marked as \"Done\" and is part of the \"ethos\" project.\n\nIf you have any specific questions or need further analysis, please let me know!",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:23:11.815Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:23:11.815Z"
+  },
+  {
+    "id": "9f45cac3-7a3e-41c5-a923-ffdd47fd01c8",
+    "chatId": "b942bdff-d275-44cc-b199-14bf23dabba4",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "OK, what purchases do we have to do that are still pending?",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:23:36.135Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:23:36.135Z"
+  },
+  {
+    "id": "8f051c97-47d1-4fab-bfc2-3784bb0f859b",
+    "chatId": "b942bdff-d275-44cc-b199-14bf23dabba4",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "Based on the real Notion workspace data provided, the tasks that may relate to pending purchases, but have not been started yet, are:\n\n1. \"Θωρακισμένη Πόρτα\" - Status: Not Started - Project: Vertex Developments\n2. \"Πλακάκια\" - Status: Not Started - Project: Project TemplateProject tasks\n3. \"Εσωτερικά Κουφώματα\" - Status: Not Started - Project: Project TemplateProject tasks\n4. \"Εξωτερικά Κουφώματα\" - Status: Not Started - Project: Project TemplateProject tasks\n5. \"Θωρακισμένη Πόρτα\" - Status: Not Started - Project: Project TemplateProject tasks\n\nThese tasks likely involve purchases that are still pending, as they relate to construction or renovation activities.",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:23:58.776Z",
+    "isFromUser": false,
+    "createdAt": "2025-07-07T08:23:58.776Z"
+  },
+  {
+    "id": "1932d5d2-57e6-4053-8081-5e9ed9b831e7",
+    "chatId": "90dde101-c38f-45e9-b7ce-c0f9e9d7f5aa",
+    "userEmail": "basiliskan@gmail.com",
+    "message": "τι εργασίες έχω σε εξέλιξη;",
+    "type": "ai",
+    "timestamp": "2025-07-07T08:27:10.301Z",
+    "isFromUser": true,
+    "createdAt": "2025-07-07T08:27:10.301Z"
   }
 ]

@@ -15,11 +15,11 @@
     "userEmail": "basiliskan@gmail.com",
     "title": "Πες μου ποια task είναι In Porgress",
     "type": "ai",
-    "lastMessage": "Based on your workspace with 17 tasks and 0 projects, I can help you with:\n\n• Task management and pr...",
-    "lastActivity": "2025-07-07T07:55:31.975Z",
-    "messageCount": 13,
+    "lastMessage": "Based on the real Notion workspace data provided, the tasks that may relate to pending purchases, bu...",
+    "lastActivity": "2025-07-07T08:23:58.779Z",
+    "messageCount": 19,
     "createdAt": "2025-07-07T03:31:26.218Z",
-    "updatedAt": "2025-07-07T07:55:31.975Z"
+    "updatedAt": "2025-07-07T08:23:58.779Z"
   },
   {
     "id": "d34bbf34-babb-4cab-9cce-9138a8e48056",
@@ -31,5 +31,16 @@
     "messageCount": 4,
     "createdAt": "2025-07-07T08:19:17.622Z",
     "updatedAt": "2025-07-07T08:19:39.131Z"
+  },
+  {
+    "id": "90dde101-c38f-45e9-b7ce-c0f9e9d7f5aa",
+    "userEmail": "basiliskan@gmail.com",
+    "title": "τι εργασίες έχω σε εξέλιξη;",
+    "type": "ai",
+    "lastMessage": "τι εργασίες έχω σε εξέλιξη;",
+    "lastActivity": "2025-07-07T08:27:10.303Z",
+    "messageCount": 2,
+    "createdAt": "2025-07-07T08:27:10.299Z",
+    "updatedAt": "2025-07-07T08:27:10.303Z"
   }
 ]
