@@ -331,7 +331,14 @@ export function ChatInterface({ userEmail }: ChatInterfaceProps) {
                           <Bot className="h-3 w-3" />
                         )}
                         <span className="text-xs opacity-70">
-                          {format(new Date(msg.timestamp), 'HH:mm')}
+                          {(() => {
+                            try {
+                              const date = new Date(msg.timestamp);
+                              return isNaN(date.getTime()) ? 'Now' : format(date, 'HH:mm');
+                            } catch {
+                              return 'Now';
+                            }
+                          })()}
                         </span>
                       </div>
                       <p className="text-sm">{msg.message}</p>
